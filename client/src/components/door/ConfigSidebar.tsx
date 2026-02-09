@@ -110,6 +110,15 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
           value={selectedSection}
           onValueChange={setSelectedSection}
         >
+          <AccordionItem value="dimensions">
+            <AccordionTrigger className="text-sm font-medium">
+              Door Dimensions
+            </AccordionTrigger>
+            <AccordionContent>
+              <DoorDimensionsSection />
+            </AccordionContent>
+          </AccordionItem>
+
           <AccordionItem value="door-style">
             <AccordionTrigger className="text-sm font-medium">
               <span className="flex items-center gap-2">
@@ -121,15 +130,6 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionTrigger>
             <AccordionContent>
               <DoorStyleSection />
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="dimensions">
-            <AccordionTrigger className="text-sm font-medium">
-              Door Dimensions
-            </AccordionTrigger>
-            <AccordionContent>
-              <DoorDimensionsSection />
             </AccordionContent>
           </AccordionItem>
 
@@ -907,9 +907,9 @@ function MidRailsSection() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                   <Label className="text-xs text-gray-500">
-  Rail width (mm, min 35)  {/* CHANGED */}
-</Label>
+                    <Label className="text-xs text-gray-500">
+                      Rail width (mm, min 35)  {/* CHANGED */}
+                    </Label>
                     <Input
                       type="number"
                       value={rail.positionFromBottom}
@@ -927,19 +927,19 @@ function MidRailsSection() {
                     <Label className="text-xs text-gray-500">
                       Rail width (mm)
                     </Label>
-                   <Input
-  type="number"
-  value={rail.dimension}
-  onChange={(e) =>
-    updateMidRail(
-      rail.id,
-      "dimension",
-      Math.max(35, Number(e.target.value)),  // ADD: enforce min 35mm
-    )
-  }
-  min={35}  // ADD
-  className="h-8 text-sm"
-/>
+                    <Input
+                      type="number"
+                      value={rail.dimension}
+                      onChange={(e) =>
+                        updateMidRail(
+                          rail.id,
+                          "dimension",
+                          Math.max(35, Number(e.target.value)),  // ADD: enforce min 35mm
+                        )
+                      }
+                      min={35}  // ADD
+                      className="h-8 text-sm"
+                    />
                   </div>
                 </div>
               </div>
@@ -998,7 +998,7 @@ function HingePositionsSection() {
         const minX =
           width -
           rightTriangleCutoutWidth *
-            (1 - heightFromTop / rightTriangleCutoutHeight);
+          (1 - heightFromTop / rightTriangleCutoutHeight);
         if (hX > minX) return true;
       }
     }

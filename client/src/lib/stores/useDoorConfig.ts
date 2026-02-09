@@ -38,7 +38,7 @@ export interface MidRail {
 export interface DoorConfig {
   width: number;
   height: number;
-  thickness: number;
+  thickness: 22 | 18;
   preset: DoorPreset;
   panelType: PanelType;
   panelCount: number;
@@ -85,7 +85,7 @@ export interface DoorConfig {
 interface DoorConfigStore extends DoorConfig {
   setWidth: (width: number) => void;
   setHeight: (height: number) => void;
-  setThickness: (thickness: number) => void;
+  setThickness: (thickness: 22 | 18) => void;
   setPreset: (preset: DoorPreset) => void;
   setPanelType: (type: PanelType) => void;
   setPanelCount: (count: number) => void;
@@ -180,7 +180,7 @@ const initialState: DoorConfig = {
   finish: "RAW_UNASSEMBLED",
   showDimensions: true,
   price: 0,
-  selectedSection: "door-style",
+  selectedSection: "dimensions",
 };
 
 let midRailIdCounter = 0;
@@ -193,13 +193,13 @@ function getMinBorder(hingeDrilling: boolean, hinges: Hinge[], side: "LEFT" | "R
   if (!hingeDrilling || hinges.length === 0) {
     return MIN_BORDER_WITHOUT_HINGES;
   }
-  
+
   // Check if any hinge is on this side
   if (side === "LEFT" || side === "RIGHT") {
     const hasHingeOnSide = hinges.some(h => h.side === side);
     return hasHingeOnSide ? MIN_BORDER_WITH_HINGES : MIN_BORDER_WITHOUT_HINGES;
   }
-  
+
   // Top and bottom rails: always 35mm minimum
   return MIN_BORDER_WITHOUT_HINGES;
 }
@@ -236,7 +236,7 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
     get().calculatePrice();
   },
 
-  setThickness: (thickness: number) => {
+  setThickness: (thickness: 22 | 18) => {
     const state = get();
     // RULE: 18mm only for slab doors
     if (thickness === 18 && state.panelType !== "NONE") {
@@ -545,7 +545,7 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
       const state = get();
       const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
       const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
-      
+
       if (state.leftStile < minLeft) set({ leftStile: minLeft });
       if (state.rightStile < minRight) set({ rightStile: minRight });
     }
@@ -566,7 +566,7 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
     const state = get();
     const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
     const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
-    
+
     if (state.leftStile < minLeft) set({ leftStile: minLeft });
     if (state.rightStile < minRight) set({ rightStile: minRight });
   },

@@ -4,7 +4,7 @@ import { ConfigSidebar } from "@/components/door/ConfigSidebar";
 import { ProductDetailsSidebar } from "@/components/door/ProductDetailsSidebar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, Settings2, RotateCcw, Move3d } from "lucide-react";
+import { ChevronUp, Settings2, RotateCcw, Move3d, Menu } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
 import Door3DLazy from "@/components/door/Door3DLazy";
 
@@ -31,8 +31,16 @@ export default function DoorConfigurator() {
     <div className="flex flex-col md:flex-row h-full w-full min-h-screen bg-gray-100 overflow-x-hidden overflow-y-auto">
       {/* ─── Mobile Header ─── */}
       {isMobile && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 z-20 shadow-sm shrink-0">
-          <div>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-950 z-20 shadow-sm shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-zinc-400 hover:text-white hover:bg-zinc-800 -ml-2"
+            onClick={() => setIsSheetOpen(true)}
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+          <div className="flex-1">
             <h1 className="text-sm font-bold text-white leading-tight">
               Trade Shaker
             </h1>
@@ -42,7 +50,7 @@ export default function DoorConfigurator() {
           </div>
           <div className="text-right">
             <span className="text-xs text-zinc-400 font-medium block">
-              Total Price:
+              Price:
             </span>
             <span className="text-lg font-bold text-amber-400">
               £{price.toFixed(2)}
@@ -94,7 +102,7 @@ export default function DoorConfigurator() {
               onClick={() => setRotationEnabled(!rotationEnabled)}
               className={
                 rotationEnabled
-                  ? "bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-lg shadow-amber-500/25 border border-amber-400/30"
+                  ? "bg-zinc-100 text-zinc-950 shadow-lg border border-zinc-200"
                   : "bg-zinc-900/80 backdrop-blur-md shadow-lg hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50"
               }
               title={
@@ -138,8 +146,8 @@ export default function DoorConfigurator() {
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
-                <Button className="rounded-full shadow-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:via-orange-400 hover:to-red-400 px-6 py-6 h-auto flex items-center gap-2 group border-2 border-amber-300/20 transition-all hover:scale-105 active:scale-95 shadow-amber-500/30">
-                  <Settings2 className="w-5 h-5" />
+                <Button className="rounded-full shadow-2xl bg-zinc-100 hover:bg-white text-zinc-950 px-6 py-6 h-auto flex items-center gap-2 group border-2 border-zinc-200 transition-all hover:scale-105 active:scale-95 shadow-zinc-950/20">
+                  <Settings2 className="w-5 h-5 text-zinc-950" />
                   <span className="font-bold uppercase text-xs tracking-wider">
                     Configure Door
                   </span>
