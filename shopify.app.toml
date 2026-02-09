@@ -1,0 +1,24 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "b5fd50d8ee7531f259bb678694e5ded2"
+name = "trade-shaker-doors"
+application_url = "https://0d24e31814f4.ngrok-free.app"
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+# Required for draft orders and customers
+scopes = "write_customers,read_customers,write_draft_orders,read_draft_orders"
+
+[auth]
+redirect_urls = [
+  "https://shopify.dev/apps/default-app-home/api/auth",
+  "https://0d24e31814f4.ngrok-free.app/api/auth/callback",
+  "http://localhost:5000/api/auth/callback",
+  "http://127.0.0.1:5000/api/auth/callback"
+]

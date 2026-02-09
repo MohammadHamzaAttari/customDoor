@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.env
+attached_assets
+*.dxf
+schema.sql
+reproduce_dxf.ts
+verify_dxf_details.ts
+verify_dxf_geometry.ts
+.replit
+replit.md
+docs
+extensions
+shopify.app.toml
+.shopify

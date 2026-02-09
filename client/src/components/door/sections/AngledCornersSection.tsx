@@ -1,0 +1,362 @@
+// client/src/components/door/sections/AngledCornersSection.tsx
+import { useDoorConfig } from "@/lib/stores/useDoorConfig";
+import { ANGLE_PRESETS, calculateAngleFromCutout, validateAngleCutout } from "@/lib/anglePresets";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { AlertTriangle, Check, ChevronRight, Info, Lock, Unlock } from "lucide-react";
+import { useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+export function AngledCornersSection() {
+  const {
+    width,
+    height,
+    borderWidth,
+    angledLeft,
+    angledRight,
+    leftAnglePreset,
+    rightAnglePreset,
+    leftTriangleCutoutWidth,
+    leftTriangleCutoutHeight,
+    rightTriangleCutoutWidth,
+    rightTriangleCutoutHeight,
+    leftAngleDegrees,
+    rightAngleDegrees,
+    setAngledLeft,
+    setAngledRight,
+    setLeftAnglePreset,
+    setRightAnglePreset,
+    setLeftTriangleCutoutWidth,
+    setLeftTriangleCutoutHeight,
+    setRightTriangleCutoutWidth,
+    setRightTriangleCutoutHeight,
+  } = useDoorConfig();
+
+  const [showCustomLeft, setShowCustomLeft] = useState(leftAnglePreset === "custom");
+  const [showCustomRight, setShowCustomRight] = useState(rightAnglePreset === "custom");
+
+  // Validation
+  const leftValidation = validateAngleCutout(width, height, leftTriangleCutoutWidth, leftTriangleCutoutHeight, borderWidth);
+  const rightValidation = validateAngleCutout(width, height, rightTriangleCutoutWidth, rightTriangleCutoutHeight, borderWidth);
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Info */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-blue-600 font-semibold text-sm">Angled Corners</h3>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-gray-400 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-sm">
+                  Perfect for under-stair cupboards and loft access. We've calculated optimal angles 
+                  based on UK building standards. Select a preset or customise for exact requirements.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+
+      {/* Left Angled Section */}
+      <div className={cn(
+        "rounded-xl border-2 transition-all duration-300",
+        angledLeft ? "border-blue-200 bg-blue-50/50" : "border-gray-100 bg-gray-50/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+                angledLeft ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
+              )}>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 21V3h18v18H3z" />
+                  <path d="M3 3l8 8" strokeDasharray="2 2" />
+                </svg>
+              </div>
+              <div>
+                <span className="font-medium text-gray-900">Left Angle</span>
+                {angledLeft && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {leftAngleDegrees}°
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <Switch checked={angledLeft} onCheckedChange={setAngledLeft} />
+          </div>
+
+          {angledLeft && (
+            <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+              {/* Preset Selection */}
+              <div className="grid grid-cols-3 gap-2">
+                {ANGLE_PRESETS.filter(p => p.id !== "custom").map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => {
+                      setLeftAnglePreset(preset.id as any);
+                      setShowCustomLeft(false);
+                    }}
+                    className={cn(
+                      "p-3 rounded-lg border-2 transition-all text-center hover:shadow-md",
+                      leftAnglePreset === preset.id
+                        ? "border-blue-500 bg-blue-100 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-blue-300"
+                    )}
+                  >
+                    <span className="text-lg mb-1 block">{preset.icon}</span>
+                    <span className="text-xs font-medium text-gray-700 block truncate">
+                      {preset.name}
+                    </span>
+                    <span className="text-[10px] text-gray-500">{preset.angle}°</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Toggle */}
+              <button
+                onClick={() => {
+                  setShowCustomLeft(!showCustomLeft);
+                  if (!showCustomLeft) {
+                    setLeftAnglePreset("custom");
+                  }
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all",
+                  showCustomLeft || leftAnglePreset === "custom"
+                    ? "border-amber-400 bg-amber-50"
+                    : "border-dashed border-gray-300 hover:border-gray-400"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {showCustomLeft ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  <span className="text-sm font-medium">Custom Dimensions</span>
+                </div>
+                <ChevronRight className={cn(
+                  "w-4 h-4 transition-transform",
+                  showCustomLeft && "rotate-90"
+                )} />
+              </button>
+
+              {/* Custom Inputs */}
+              {(showCustomLeft || leftAnglePreset === "custom") && (
+                <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200 animate-in slide-in-from-top-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-600 mb-1 block">Cut Width (mm)</Label>
+                      <Input
+                        type="number"
+                        value={leftTriangleCutoutWidth}
+                        onChange={(e) => setLeftTriangleCutoutWidth(Number(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-600 mb-1 block">Cut Height (mm)</Label>
+                      <Input
+                        type="number"
+                        value={leftTriangleCutoutHeight}
+                        onChange={(e) => setLeftTriangleCutoutHeight(Number(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-sm text-gray-600">Resulting Angle:</span>
+                    <Badge variant="outline" className="font-mono">
+                      {leftAngleDegrees}°
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation Warnings */}
+              {!leftValidation.valid && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-red-700 space-y-1">
+                    {leftValidation.errors.map((error, i) => (
+                      <p key={i}>{error}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Success State */}
+              {leftValidation.valid && leftAnglePreset !== "custom" && (
+                <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-xs text-green-700">
+                    Optimised for {ANGLE_PRESETS.find(p => p.id === leftAnglePreset)?.description}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Angled Section - Mirror of Left */}
+      <div className={cn(
+        "rounded-xl border-2 transition-all duration-300",
+        angledRight ? "border-purple-200 bg-purple-50/50" : "border-gray-100 bg-gray-50/50"
+      )}>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+                angledRight ? "bg-purple-500 text-white" : "bg-gray-200 text-gray-500"
+              )}>
+                <svg className="w-5 h-5 transform scale-x-[-1]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 21V3h18v18H3z" />
+                  <path d="M3 3l8 8" strokeDasharray="2 2" />
+                </svg>
+              </div>
+              <div>
+                <span className="font-medium text-gray-900">Right Angle</span>
+                {angledRight && (
+                  <Badge variant="secondary" className="ml-2 text-xs bg-purple-100 text-purple-700">
+                    {rightAngleDegrees}°
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <Switch checked={angledRight} onCheckedChange={setAngledRight} />
+          </div>
+
+          {angledRight && (
+            <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+              {/* Preset Selection */}
+              <div className="grid grid-cols-3 gap-2">
+                {ANGLE_PRESETS.filter(p => p.id !== "custom").map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => {
+                      setRightAnglePreset(preset.id as any);
+                      setShowCustomRight(false);
+                    }}
+                    className={cn(
+                      "p-3 rounded-lg border-2 transition-all text-center hover:shadow-md",
+                      rightAnglePreset === preset.id
+                        ? "border-purple-500 bg-purple-100 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-purple-300"
+                    )}
+                  >
+                    <span className="text-lg mb-1 block">{preset.icon}</span>
+                    <span className="text-xs font-medium text-gray-700 block truncate">
+                      {preset.name}
+                    </span>
+                    <span className="text-[10px] text-gray-500">{preset.angle}°</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Toggle */}
+              <button
+                onClick={() => {
+                  setShowCustomRight(!showCustomRight);
+                  if (!showCustomRight) {
+                    setRightAnglePreset("custom");
+                  }
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all",
+                  showCustomRight || rightAnglePreset === "custom"
+                    ? "border-amber-400 bg-amber-50"
+                    : "border-dashed border-gray-300 hover:border-gray-400"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {showCustomRight ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                  <span className="text-sm font-medium">Custom Dimensions</span>
+                </div>
+                <ChevronRight className={cn(
+                  "w-4 h-4 transition-transform",
+                  showCustomRight && "rotate-90"
+                )} />
+              </button>
+
+              {/* Custom Inputs */}
+              {(showCustomRight || rightAnglePreset === "custom") && (
+                <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200 animate-in slide-in-from-top-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-gray-600 mb-1 block">Cut Width (mm)</Label>
+                      <Input
+                        type="number"
+                        value={rightTriangleCutoutWidth}
+                        onChange={(e) => setRightTriangleCutoutWidth(Number(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-600 mb-1 block">Cut Height (mm)</Label>
+                      <Input
+                        type="number"
+                        value={rightTriangleCutoutHeight}
+                        onChange={(e) => setRightTriangleCutoutHeight(Number(e.target.value))}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-sm text-gray-600">Resulting Angle:</span>
+                    <Badge variant="outline" className="font-mono">
+                      {rightAngleDegrees}°
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {/* Validation */}
+              {!rightValidation.valid && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-red-700 space-y-1">
+                    {rightValidation.errors.map((error, i) => (
+                      <p key={i}>{error}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {rightValidation.valid && rightAnglePreset !== "custom" && (
+                <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-xs text-green-700">
+                    Optimised for {ANGLE_PRESETS.find(p => p.id === rightAnglePreset)?.description}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Visual Preview Hint */}
+      {(angledLeft || angledRight) && (
+        <div className="text-center p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+          <p className="text-xs text-gray-600">
+            👆 Rotate the 3D model to see the angled cuts from all sides
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

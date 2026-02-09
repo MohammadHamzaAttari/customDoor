@@ -1,0 +1,280 @@
+📦CustomDoorDesigner
+ ┣ 📂.local
+ ┃ ┗ 📂state
+ ┃ ┃ ┗ 📂replit
+ ┃ ┃ ┃ ┗ 📂agent
+ ┃ ┃ ┃ ┃ ┣ 📂filesystem
+ ┃ ┃ ┃ ┃ ┃ ┗ 📜filesystem_state.json
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_009762821702d631821813533ae5505bd290bc6f.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_00ab35a674b039ba5f7583aef2cfe2d597bbb790.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_02cb4d97b83d910d16a4974d8ed590862a3b92ba.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_056d8cd5b1828cb436917f3794a4eaa59d4252ad.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_06f76fe6c84588ba024b164ba99947f798ae1c50.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_0ad34d705eb3a779317c7013ad821d6c31899c92.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_0cc1f5714c638db647d649f2973a50efef982b96.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_142bd6f1cf5ec078408e66a6881e912ea21b8007.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_15cdcc74231f87fcee320db759a5a9b678adade8.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_1f44d8e92becc2855b55d004391fdd289fb0807b.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_21f25da65aa349940f4cff447ad54c3977ee728a.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_2289c28932cc15cc6e56b97ff0f34d03f22bacd1.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_27b430b5c6189938e9b284b2d623fa6559cfb958.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_2bc21c793fe6a8a8dbc4cae603a8a1fa5a86893c.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_3a47815bfb3d30e5708ba93400bb570a7d703c35.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4208aa82f623f63c26235a85ff3ff34474417607.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_428fa3590e3acaffe35c44d99c49760e67ef4aa0.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_429b74bac4f6929be9ed842413944b5bd80f29b7.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_42abf4b982229bf5dc980f8559d75a5b14d0c3a4.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_44500fc6f72b8ce3d943039351c5b5ad2777ded6.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_486ae500172c6c0e613cbeceefea8d2cee4992ed.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_49569cb30302257eea7046811eb1139cc00eb1e8.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4d626b6436524ff308b44277038dadabdfe4c7be.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4e8b40c031e612ee29f27fb9f79f0ab57dce4340.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4fa7e48b3907b3e8b54c98dc8bd2308afcde4600.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_54b594333b1c8dbbef148cd5e1dde2dce1c7da91.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_575d402c85d14b122be870ad0e4be3793577fa00.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5926a93c6c24d85d05da98223170831baa86b777.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5aa83dc69212a14cc1ed28fc31fa6436dcdda20b.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5beb27f20a145ae08e376e3f2691e17ee47a7686.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5ceec6c83cff5a82001e545c515af2073c5aa32d.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5e06d8efed8ec794ed7e99840f203c37f6553f70.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5fc1967ebe88e6e668569c635864f97a587615e3.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_63a513fc8f61ec4186614d78c4a3413c262f839d.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_645edca2d6d4855273c1055b0c5e306ba497753d.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_65527469f5c0dc93db860deccd1e02c8c9c13660.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_676cfe036e6dfaa6ea75cfe8f2124fab4273d9bf.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_67997eae76ea212384f6d06635bb02b1a30dbfd9.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_690c46a1fdbc5232e6ef633ad97d9cd32e0a008f.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_6b02aa7f4af72715503fec2c4a938acb50f0de52.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_7462b567246f7c3c22e67ff6e34c76defdcfc7bc.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_8b202739b08b67c906701c089a183e712890bf0f.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_92a6ec5ca81fa62bb53ef8b45060093773c1a539.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_97beacd09794c6c0099576173c56bb1bb0deefbb.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_9ac12c1dbf2a583e1017c389f61c71c5bb3edfa9.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_a1e99f299c3653ae45a60808947cbfcdfe4ad022.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_a456d041db61a51c7eeb2318406c2fa76458b993.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_b3a0c0ad89e562526352c4d489913f073cca26b6.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_b63a8e4b64c5ce3317a95fa2b2577a7ee0fecf00.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_b7a51827898a016cedfb7836a7f5e0662ac7b080.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_bab06e2bb1f447b05df5d4ab6b7f91d282a60fb6.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_bdf64528724281dbaa8abb79c0ddaddcd88790f6.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c067ce80698c8b985dcde1124d05d3e8f29c8610.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c1c3a968cc06f00794d4268c5f5d3d741bcc16c1.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c21531281cdd7bca0f5e287eab4df17a24605b8b.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c3f2d445a33eb69458c85114c86f07bb9b8834cd.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c497f94bedc5dcb17acfd9d602578839847ea920.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c7f813522f0dc80f2d593bae95cf26dc5588303b.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c92cbbf0b7f902eedf06dd1b04e3875acf09bef9.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_cf722bcdb4707b37454227ddb2bc3c0192e428c7.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d2262541254bdebc55796c6319b138e6b0a05922.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d3b33f16fdfe27a2a4c8968ab9caf4c6c68d3095.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d3d7a57a97bcf56dff3bfa2f2732b10dc8b35839.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d612859fbabd0c99fab3ec1fbc7279522ba6276a.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_da3c1b03473783fe09f91fd2ae9faaa739f52d96.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_daa7f8076819b9a5df6ffe24a450deb06af32593.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_dfabd94dc3aa9a34dba161dc27fa2a6caa8366d0.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_e8c6965c8694b95cea6ea1d5ccfe4a781c49649e.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_ecce2c36ec5c8dcec1fe089aaa2189ad4f6da0f4.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_ed9945a1896d223f1962e9bc2e16db8ee36e869d.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_fa600421baf0b8b15f8e0afb6d1cd29a191709a3.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_fba846403c45c33c9c6bf550d0454904fecdcf9e.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.agent_state_main.bin
+ ┃ ┃ ┃ ┃ ┣ 📜.latest.json
+ ┃ ┃ ┃ ┃ ┣ 📜rapid_build_success
+ ┃ ┃ ┃ ┃ ┗ 📜repl_state.bin
+ ┣ 📂attached_assets
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.36.30_9e85b87b_1762772657455.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.36.30_e6b3ffd7_1762808630887.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.39.44_41a10436_1762772660974.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.39.44_522c272e_1762808637647.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.40.34_3c12dec0_1762772664220.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.40.34_aef171ff_1762808641749.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.08_7cefdef7_1762772668403.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.08_8ad9214c_1762808649759.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.37_87466032_1762772671980.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.37_bb5a1c83_1762808656631.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.43.05_60eb412e_1762808662505.jpg
+ ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.43.05_613432ec_1762772675690.jpg
+ ┃ ┣ 📜image_1762773850229.png
+ ┃ ┣ 📜image_1762773932091.png
+ ┃ ┣ 📜image_1762774021865.png
+ ┃ ┣ 📜image_1762774298997.png
+ ┃ ┣ 📜image_1762774378136.png
+ ┃ ┣ 📜image_1762774553116.png
+ ┃ ┣ 📜image_1762774684163.png
+ ┃ ┣ 📜image_1762808996065.png
+ ┃ ┣ 📜image_1762809063964.png
+ ┃ ┣ 📜image_1762809391369.png
+ ┃ ┣ 📜image_1762810123044.png
+ ┃ ┣ 📜image_1762810221801.png
+ ┃ ┣ 📜image_1762810257106.png
+ ┃ ┣ 📜image_1762810276481.png
+ ┃ ┣ 📜image_1762810312956.png
+ ┃ ┣ 📜image_1764880425018.png
+ ┃ ┣ 📜image_1765279134133.png
+ ┃ ┣ 📜image_1765279150368.png
+ ┃ ┣ 📜image_1765279170510.png
+ ┃ ┣ 📜image_1765279200435.png
+ ┃ ┣ 📜image_1765281022871.png
+ ┃ ┣ 📜image_1765281196680.png
+ ┃ ┣ 📜image_1765281657410.png
+ ┃ ┣ 📜image_1765281888728.png
+ ┃ ┣ 📜image_1765282038925.png
+ ┃ ┣ 📜image_1765282072098.png
+ ┃ ┣ 📜image_1765286675694.png
+ ┃ ┣ 📜image_1765286723581.png
+ ┃ ┣ 📜image_1765287101034.png
+ ┃ ┣ 📜image_1765287146536.png
+ ┃ ┣ 📜image_1765287723060.png
+ ┃ ┣ 📜image_1765287766733.png
+ ┃ ┗ 📜image_1765288093439.png
+ ┣ 📂client
+ ┃ ┣ 📂public
+ ┃ ┃ ┣ 📂fonts
+ ┃ ┃ ┃ ┗ 📜inter.json
+ ┃ ┃ ┣ 📂geometries
+ ┃ ┃ ┃ ┗ 📜heart.gltf
+ ┃ ┃ ┣ 📂sounds
+ ┃ ┃ ┃ ┣ 📜background.mp3
+ ┃ ┃ ┃ ┣ 📜hit.mp3
+ ┃ ┃ ┃ ┗ 📜success.mp3
+ ┃ ┃ ┗ 📂textures
+ ┃ ┃ ┃ ┣ 📜asphalt.png
+ ┃ ┃ ┃ ┣ 📜grass.png
+ ┃ ┃ ┃ ┣ 📜sand.jpg
+ ┃ ┃ ┃ ┣ 📜sky.png
+ ┃ ┃ ┃ ┗ 📜wood.jpg
+ ┃ ┣ 📂src
+ ┃ ┃ ┣ 📂components
+ ┃ ┃ ┃ ┣ 📂builder
+ ┃ ┃ ┃ ┃ ┣ 📜DoorConfigurationPanel.tsx
+ ┃ ┃ ┃ ┃ ┗ 📜VisualBuilder.tsx
+ ┃ ┃ ┃ ┣ 📂catalogue
+ ┃ ┃ ┃ ┣ 📂door
+ ┃ ┃ ┃ ┃ ┣ 📜ConfigSidebar.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜DimensionLabel.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜Door2D.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜Door3D.tsx
+ ┃ ┃ ┃ ┃ ┗ 📜ProductDetailsSidebar.tsx
+ ┃ ┃ ┃ ┗ 📂ui
+ ┃ ┃ ┃ ┃ ┣ 📜FloatingSyncStatus.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜FormFieldError.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜SyncStatusPanel.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜ValidatedInput.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜accordion.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜alert-dialog.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜alert.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜aspect-ratio.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜avatar.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜badge.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜breadcrumb.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜button.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜calendar.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜card.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜carousel.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜chart.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜checkbox.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜collapsible.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜command.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜context-menu.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜dialog.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜drawer.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜dropdown-menu.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜form.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜hover-card.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜input-otp.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜input.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜interface.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜label.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜menubar.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜navigation-menu.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜pagination.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜popover.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜progress.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜radio-group.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜resizable.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜scroll-area.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜select.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜separator.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜sheet.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜sidebar.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜skeleton.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜slider.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜sonner.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜switch.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜table.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜tabs.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜textarea.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜toggle-group.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜toggle.tsx
+ ┃ ┃ ┃ ┃ ┗ 📜tooltip.tsx
+ ┃ ┃ ┣ 📂hooks
+ ┃ ┃ ┃ ┣ 📜use-is-mobile.tsx
+ ┃ ┃ ┃ ┣ 📜useFormValidation.ts
+ ┃ ┃ ┃ ┗ 📜useOrderSubmission.ts
+ ┃ ┃ ┣ 📂lib
+ ┃ ┃ ┃ ┣ 📂stores
+ ┃ ┃ ┃ ┃ ┣ 📜useAudio.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜useDoorConfig.ts
+ ┃ ┃ ┃ ┃ ┣ 📜useDoorStore.ts
+ ┃ ┃ ┃ ┃ ┣ 📜useGame.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜useSessionHistory.ts
+ ┃ ┃ ┃ ┃ ┗ 📜useSyncStatus.ts
+ ┃ ┃ ┃ ┣ 📂validation
+ ┃ ┃ ┃ ┃ ┗ 📜doorValidation.ts
+ ┃ ┃ ┃ ┣ 📜queryClient.ts
+ ┃ ┃ ┃ ┗ 📜utils.ts
+ ┃ ┃ ┣ 📂pages
+ ┃ ┃ ┃ ┣ 📜DoorConfigurator.tsx
+ ┃ ┃ ┃ ┗ 📜not-found.tsx
+ ┃ ┃ ┣ 📜App.tsx
+ ┃ ┃ ┣ 📜index.css
+ ┃ ┃ ┗ 📜main.tsx
+ ┃ ┗ 📜index.html
+ ┣ 📂extensions
+ ┃ ┗ 📂door-designer-ext
+ ┃ ┃ ┣ 📂assets
+ ┃ ┃ ┃ ┗ 📜.gitkeep
+ ┃ ┃ ┣ 📂blocks
+ ┃ ┃ ┃ ┗ 📜designer_section.liquid
+ ┃ ┃ ┣ 📂locales
+ ┃ ┃ ┃ ┗ 📜en.default.json
+ ┃ ┃ ┗ 📜shopify.extension.toml
+ ┣ 📂server
+ ┃ ┣ 📜db.ts
+ ┃ ┣ 📜dxfGenerator.ts
+ ┃ ┣ 📜index.ts
+ ┃ ┣ 📜oauth.ts
+ ┃ ┣ 📜routes.ts
+ ┃ ┣ 📜seed.ts
+ ┃ ┣ 📜shopify.ts
+ ┃ ┣ 📜storage.ts
+ ┃ ┣ 📜svgGenerator.ts
+ ┃ ┣ 📜utils.ts
+ ┃ ┗ 📜vite.ts
+ ┣ 📂shared
+ ┃ ┣ 📜doorSchema.ts
+ ┃ ┗ 📜schema.ts
+ ┣ 📜.dockerignore
+ ┣ 📜.env
+ ┣ 📜.env.example
+ ┣ 📜.gitignore
+ ┣ 📜.replit
+ ┣ 📜Dockerfile
+ ┣ 📜drizzle.config.ts
+ ┣ 📜package-lock.json
+ ┣ 📜package.json
+ ┣ 📜postcss.config.js
+ ┣ 📜render_deployment_guide.md
+ ┣ 📜replit.md
+ ┣ 📜reproduce_dxf.ts
+ ┣ 📜schema.sql
+ ┣ 📜shopify.app.toml
+ ┣ 📜shopify.app.trade-shaker-doors.toml
+ ┣ 📜tailwind.config.ts
+ ┣ 📜test.dxf
+ ┣ 📜test_fix.dxf
+ ┣ 📜tsconfig.json
+ ┣ 📜verify_config_runtime.ts
+ ┣ 📜verify_dxf_details.ts
+ ┣ 📜verify_dxf_geometry.ts
+ ┗ 📜vite.config.ts
