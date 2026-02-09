@@ -20,10 +20,11 @@ interface Door3DCanvasProps {
   onPartClick: (section: string) => void;
   rotationEnabled: boolean;
   isMobile: boolean;
+  forceHideLabels?: boolean;
 }
 
 const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
-  ({ config, onPartClick, rotationEnabled }, ref) => {
+  ({ config, onPartClick, rotationEnabled, forceHideLabels }, ref) => {
     const controlsRef = useRef<any>(null);
 
     useImperativeHandle(ref, () => ({
@@ -114,7 +115,11 @@ const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
           adjustCamera={false}
           shadows={{ type: "contact", opacity: 0.7, blur: 2.5 }}
         >
-          <Door3D config={config} onPartClick={onPartClick} />
+          <Door3D
+            config={config}
+            onPartClick={onPartClick}
+            forceHideLabels={forceHideLabels}
+          />
         </Stage>
 
         {/* Ground contact shadow */}

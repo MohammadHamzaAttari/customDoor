@@ -6,10 +6,14 @@ const Door3DCanvas = React.lazy(() => import("./Door3DCanvas"));
 interface Door3DLazyProps {
   config: any;
   onPartClick: (section: string) => void;
+  rotationEnabled: boolean;
+  isMobile: boolean;
+  forceHideLabels?: boolean;
 }
 export interface Door3DHandle {
   resetView: () => void;
 }
+
 function Door3DPlaceholder({ config }: { config: any }) {
   return (
     <div
@@ -55,7 +59,7 @@ function Door3DPlaceholder({ config }: { config: any }) {
           fill="none"
         />
         <text x="80" y="135" textAnchor="middle" fill="#94a3b8" fontSize="11">
-          {config.width} × {config.height}
+          {config?.width || 0} × {config?.height || 0}
         </text>
       </svg>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -77,31 +81,44 @@ function Door3DPlaceholder({ config }: { config: any }) {
   );
 }
 
-export default function Door3DLazy({ config, onPartClick }: Door3DLazyProps) {
-  const [shouldLoad, setShouldLoad] = useState(false);
+const Door3DLazy = React.forwardRef<Door3DHandle, Door3DLazyProps>(
+  ({ config, onPartClick, rotationEnabled, isMobile, forceHideLabels }, ref) => {
+    const [shouldLoad, setShouldLoad] = useState(false);
 
-  useEffect(() => {
-    // Delay 3D loading slightly so the UI shell paints first
-    const timer = requestIdleCallback
-      ? requestIdleCallback(() => setShouldLoad(true), { timeout: 500 })
-      : setTimeout(() => setShouldLoad(true), 100);
+    useEffect(() => {
+      const hasIdle = typeof window !== "undefined" && "requestIdleCallback" in window;
+      const timer = hasIdle
+        ? (window as any).requestIdleCallback(() => setShouldLoad(true), { timeout: 500 })
+        : setTimeout(() => setShouldLoad(true), 100);
 
-    return () => {
-      if (requestIdleCallback) {
-        cancelIdleCallback(timer as number);
-      } else {
-        clearTimeout(timer as any);
-      }
-    };
-  }, []);
+      return () => {
+        if (hasIdle) {
+          (window as any).cancelIdleCallback(timer);
+        } else {
+          clearTimeout(timer);
+        }
+      };
+    }, []);
 
-  if (!shouldLoad) {
-    return <Door3DPlaceholder config={config} />;
-  }
+    if (!shouldLoad) {
+      return <Door3DPlaceholder config={config} />;
+    }
 
-  return (
-    <Suspense fallback={<Door3DPlaceholder config={config} />}>
-      <Door3DCanvas config={config} onPartClick={onPartClick} />
-    </Suspense>
-  );
-}
+    return (
+      <Suspense fallback={<Door3DPlaceholder config={config} />}>
+        <Door3DCanvas
+          ref={ref}
+          config={config}
+          onPartClick={onPartClick}
+          rotationEnabled={rotationEnabled}
+          isMobile={isMobile}
+          forceHideLabels={forceHideLabels}
+        />
+      </Suspense>
+    );
+  },
+);
+
+Door3DLazy.displayName = "Door3DLazy";
+
+export default Door3DLazy;

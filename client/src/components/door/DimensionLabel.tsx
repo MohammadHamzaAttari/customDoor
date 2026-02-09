@@ -44,23 +44,23 @@ function DimensionLine({
 
     const tick1Points = isVertical
       ? [
-          new THREE.Vector3(start[0] - tickSize, start[1], start[2]),
-          new THREE.Vector3(start[0] + tickSize, start[1], start[2]),
-        ]
+        new THREE.Vector3(start[0] - tickSize, start[1], start[2]),
+        new THREE.Vector3(start[0] + tickSize, start[1], start[2]),
+      ]
       : [
-          new THREE.Vector3(start[0], start[1] - tickSize, start[2]),
-          new THREE.Vector3(start[0], start[1] + tickSize, start[2]),
-        ];
+        new THREE.Vector3(start[0], start[1] - tickSize, start[2]),
+        new THREE.Vector3(start[0], start[1] + tickSize, start[2]),
+      ];
 
     const tick2Points = isVertical
       ? [
-          new THREE.Vector3(end[0] - tickSize, end[1], end[2]),
-          new THREE.Vector3(end[0] + tickSize, end[1], end[2]),
-        ]
+        new THREE.Vector3(end[0] - tickSize, end[1], end[2]),
+        new THREE.Vector3(end[0] + tickSize, end[1], end[2]),
+      ]
       : [
-          new THREE.Vector3(end[0], end[1] - tickSize, end[2]),
-          new THREE.Vector3(end[0], end[1] + tickSize, end[2]),
-        ];
+        new THREE.Vector3(end[0], end[1] - tickSize, end[2]),
+        new THREE.Vector3(end[0], end[1] + tickSize, end[2]),
+      ];
 
     return {
       tick1: new THREE.BufferGeometry().setFromPoints(tick1Points),
@@ -101,6 +101,12 @@ function DimensionLine({
       return { arrow1, arrow2 };
     }
   }, [start, end]);
+
+  const lineObj = useMemo(() => new THREE.Line(lineGeometry), [lineGeometry]);
+  const tick1Obj = useMemo(() => new THREE.Line(tickGeometries.tick1), [tickGeometries.tick1]);
+  const tick2Obj = useMemo(() => new THREE.Line(tickGeometries.tick2), [tickGeometries.tick2]);
+  const arrow1Obj = useMemo(() => new THREE.Line(arrowGeometries.arrow1), [arrowGeometries.arrow1]);
+  const arrow2Obj = useMemo(() => new THREE.Line(arrowGeometries.arrow2), [arrowGeometries.arrow2]);
 
   const labelPosition = useMemo((): [number, number, number] => {
     const [mx, my, mz] = midPoint;
@@ -159,25 +165,50 @@ function DimensionLine({
   return (
     <group>
       {/* Main dimension line */}
-      <line geometry={lineGeometry}>
-        <lineBasicMaterial color={color} linewidth={2} transparent opacity={0.9} />
-      </line>
+      <primitive object={lineObj}>
+        <lineBasicMaterial
+          color={color}
+          linewidth={2}
+          transparent
+          opacity={0.9}
+        />
+      </primitive>
 
       {/* Tick marks at ends */}
-      <line geometry={tickGeometries.tick1}>
-        <lineBasicMaterial color={color} linewidth={2} transparent opacity={0.9} />
-      </line>
-      <line geometry={tickGeometries.tick2}>
-        <lineBasicMaterial color={color} linewidth={2} transparent opacity={0.9} />
-      </line>
+      <primitive object={tick1Obj}>
+        <lineBasicMaterial
+          color={color}
+          linewidth={2}
+          transparent
+          opacity={0.9}
+        />
+      </primitive>
+      <primitive object={tick2Obj}>
+        <lineBasicMaterial
+          color={color}
+          linewidth={2}
+          transparent
+          opacity={0.9}
+        />
+      </primitive>
 
       {/* Arrow heads */}
-      <line geometry={arrowGeometries.arrow1}>
-        <lineBasicMaterial color={color} linewidth={2} transparent opacity={0.9} />
-      </line>
-      <line geometry={arrowGeometries.arrow2}>
-        <lineBasicMaterial color={color} linewidth={2} transparent opacity={0.9} />
-      </line>
+      <primitive object={arrow1Obj}>
+        <lineBasicMaterial
+          color={color}
+          linewidth={2}
+          transparent
+          opacity={0.9}
+        />
+      </primitive>
+      <primitive object={arrow2Obj}>
+        <lineBasicMaterial
+          color={color}
+          linewidth={2}
+          transparent
+          opacity={0.9}
+        />
+      </primitive>
 
       {/* Glowing end dots */}
       <mesh position={start}>
@@ -225,10 +256,16 @@ function DimensionLine({
   );
 }
 
-export function DoorDimensions({ config }: { config: any }) {
+export function DoorDimensions({
+  config,
+  forceHideLabels = false,
+}: {
+  config: any;
+  forceHideLabels?: boolean;
+}) {
   const { showDimensions } = config;
 
-  if (!showDimensions) return null;
+  if (!showDimensions || forceHideLabels) return null;
 
   const w = config.width / 1000;
   const h = config.height / 1000;

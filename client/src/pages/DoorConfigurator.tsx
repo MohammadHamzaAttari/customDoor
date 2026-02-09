@@ -2,7 +2,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 import { ConfigSidebar } from "@/components/door/ConfigSidebar";
 import { ProductDetailsSidebar } from "@/components/door/ProductDetailsSidebar";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ChevronUp, Settings2, RotateCcw, Move3d, Menu } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
@@ -75,6 +75,7 @@ export default function DoorConfigurator() {
           onPartClick={handlePartClick}
           rotationEnabled={rotationEnabled}
           isMobile={isMobile}
+          forceHideLabels={isMobile && isSheetOpen}
         />
 
         {/* Ambient glow overlays for atmosphere */}
@@ -158,6 +159,11 @@ export default function DoorConfigurator() {
                 side="bottom"
                 className="h-[85vh] px-0 pb-0 rounded-t-3xl border-t-0 shadow-2xl bg-zinc-950"
               >
+                <div className="sr-only">
+                  <SheetHeader>
+                    <SheetTitle>Door Configurator</SheetTitle>
+                  </SheetHeader>
+                </div>
                 <div className="h-full overflow-y-auto pt-2 bg-zinc-950">
                   <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-4" />
                   <div className="px-4 pb-20">

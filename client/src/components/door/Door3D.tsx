@@ -233,7 +233,7 @@ function buildPanelSections(
 
   const pT = panelType === "REEDED_19MM" ? 0.019
     : panelType === "MELAMINE_18MM" ? 0.018
-    : 0.012;
+      : 0.012;
 
   // Determine vertical sections
   interface Section { bottomY: number; topY: number; }
@@ -799,7 +799,15 @@ function SingleDoorLeaf({
 // MAIN DOOR 3D COMPONENT
 // ============================================
 
-export function Door3D({ config, onPartClick }: { config: any; onPartClick: (section: string) => void }) {
+export function Door3D({
+  config,
+  onPartClick,
+  forceHideLabels = false,
+}: {
+  config: any;
+  onPartClick: (section: string) => void;
+  forceHideLabels?: boolean;
+}) {
   const meshRef = useRef<THREE.Group>(null);
 
   const {
@@ -884,7 +892,7 @@ export function Door3D({ config, onPartClick }: { config: any; onPartClick: (sec
           onPartClick={onPartClick}
         />
       )}
-      <DoorDimensions config={config} />
+      <DoorDimensions config={config} forceHideLabels={forceHideLabels} />
     </group>
   );
 }
