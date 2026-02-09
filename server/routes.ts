@@ -631,22 +631,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Quick checkout - creates a Shopify draft order directly from door config
+  // Quick checkout - creates a Shopify draft order directly from door config
   app.post("/api/quick-checkout", async (req, res) => {
     try {
-      const doorConfig = req.body;
-      
-      if (!doorConfig.width || !doorConfig.height || !doorConfig.price) {
-        return res.status(400).json({ message: "Missing required door configuration" });
+      const body = req.body;
+
+      console.log("=== QUICK CHECKOUT REQUEST ===");
+      console.log("Body keys:", Object.keys(body));
+      console.log("Has items?", Array.isArray(body.items));
+
+      // ─── Normalize: accept BOTH old flat format and new items array ───
+      let lineItems: Array<{
+        width: number;
+        height: number;
+        thickness: number;
+        panelType: string;
+        finish: string;
+        price: number;
+        quantity: number;
+        category?: string;
+        angledLeft?: boolean;
+        angledRight?: boolean;
+        leftAngleDegrees?: number;
+        rightAngleDegrees?: number;
+        midRailsEnabled?: boolean;
+        midRails?: any[];
+        hingeDrilling?: boolean;
+        hinges?: any[];
+      }> = [];
+
+      if (Array.isArray(body.items) && body.items.length > 0) {
+        lineItems = body.items;
+      } else if (body.width && body.height && body.price) {
+        lineItems = [
+          {
+            width: body.width,
+            height: body.height,
+            thickness: body.thickness || 22,
+            panelType: body.panelType || "STANDARD_12MM",
+            finish: body.finish || "RAW_UNASSEMBLED",
+            price: body.price,
+            quantity: body.quantity || 1,
+            category: body.category || "shaker",
+            angledLeft: body.angledLeft,
+            angledRight: body.angledRight,
+            leftAngleDegrees: body.leftAngleDegrees,
+            rightAngleDegrees: body.rightAngleDegrees,
+            midRailsEnabled: body.midRailsEnabled,
+            midRails: body.midRails,
+            hingeDrilling: body.hingeDrilling,
+            hinges: body.hinges,
+          },
+        ];
+      } else {
+        console.error("Invalid checkout body — no items and no flat config");
+        return res.status(400).json({
+          message:
+            "Missing required door configuration. Please add at least one door to your cart.",
+        });
       }
 
-      const result = await createQuickCheckout(doorConfig);
-      res.json(result);
+      // ─── Validate each line item ───
+      for (let i = 0; i < lineItems.length; i++) {
+        const item = lineItems[i];
+        if (!item.width || !item.height || item.price == null) {
+          return res.status(400).json({
+            message: `Item ${i + 1} is missing required fields (width, height, or price).`,
+          });
+        }
+        if (!item.quantity || item.quantity < 1) {
+          lineItems[i].quantity = 1;
+        }
+      }
+
+      // ─── Calculate totals ───
+      const totalQuantity = lineItems.reduce((s, i) => s + i.quantity, 0);
+      const subtotal = lineItems.reduce((s, i) => s + i.price * i.quantity, 0);
+
+      console.log(
+        `Processing ${lineItems.length} product(s), ${totalQuantity} total items, subtotal: £${subtotal.toFixed(2)}`
+      );
+
+      // ─── Use the centralized Shopify module (correct env vars) ───
+      const { getShopifyCredentials, createDraftOrderFromLineItems } =
+        await import("./shopifyCheckout");
+
+      const creds = await getShopifyCredentials();
+      if (!creds) {
+        console.error("Missing Shopify credentials");
+        return res.status(500).json({
+          message:
+            "Payment system not configured. Please contact support.",
+        });
+      }
+
+      const result = await createDraftOrderFromLineItems(lineItems, creds);
+
+      console.log(`Draft order created! Invoice URL: ${result.invoiceUrl}`);
+
+      return res.json({
+        invoiceUrl: result.invoiceUrl,
+        draftOrderId: result.draftOrderId,
+      });
     } catch (error: any) {
-      console.error("Quick Checkout Error:", error);
-      res.status(500).json({ message: error.message });
+      console.error("Checkout error:", error);
+
+      // Return user-friendly messages for common failures
+      if (error.message?.includes("credentials")) {
+        return res.status(500).json({
+          message:
+            "Payment system is not configured. Please contact support.",
+        });
+      }
+      if (error.message?.includes("connect")) {
+        return res.status(502).json({
+          message:
+            "Could not connect to payment provider. Please try again in a moment.",
+        });
+      }
+
+      return res.status(500).json({
+        message:
+          error.message || "Internal server error during checkout. Please try again.",
+      });
     }
   });
-
   const httpServer = createServer(app);
 
   return httpServer;

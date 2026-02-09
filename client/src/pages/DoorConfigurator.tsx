@@ -1,122 +1,80 @@
-// client/src/pages/DoorConfigurator.tsx
-import { Canvas } from "@react-three/fiber";
-import { Stage, OrbitControls, Environment, ContactShadows } from "@react-three/drei";
-import { Door3D } from "@/components/door/Door3D";
-import { ConfigSidebar } from "@/components/door/ConfigSidebar";
-import { ProductDetailsSidebar } from "@/components/door/ProductDetailsSidebar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useDoorConfig } from "@/lib/stores/useDoorConfig";
+import { ConfigSidebar } from "@/components/door/ConfigSidebar";
+import { ProductDetailsSidebar } from "@/components/door/ProductDetailsSidebar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ChevronUp, Settings2, RotateCcw, Move3d } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import Door3DLazy from "@/components/door/Door3DLazy";
 
 export default function DoorConfigurator() {
   const isMobile = useIsMobile();
   const config = useDoorConfig();
   const { price, setSelectedSection } = config;
-  const controlsRef = useRef<any>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [rotationEnabled, setRotationEnabled] = useState(!isMobile);
 
-  const handleResetView = () => {
-    if (controlsRef.current) {
-      controlsRef.current.reset();
-    }
-  };
+  // Exposed from Door3DCanvas via imperative handle
+  const canvasRef = useRef<{ resetView: () => void } | null>(null);
+
+  const handleResetView = useCallback(() => {
+    canvasRef.current?.resetView();
+  }, []);
+
+  const handlePartClick = useCallback(
+    (section: string) => setSelectedSection(section),
+    [setSelectedSection],
+  );
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full min-h-screen bg-gray-100 overflow-x-hidden overflow-y-auto">
-      {/* Mobile Header */}
+      {/* ─── Mobile Header ─── */}
       {isMobile && (
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-white z-20 shadow-sm shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 z-20 shadow-sm shrink-0">
           <div>
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">Trade Shaker</h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Custom Door Designer</p>
+            <h1 className="text-sm font-bold text-white leading-tight">
+              Trade Shaker
+            </h1>
+            <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">
+              Custom Door Designer
+            </p>
           </div>
           <div className="text-right">
-            <span className="text-xs text-gray-500 font-medium block">Total Price:</span>
-            <span className="text-lg font-bold text-emerald-600">£{price.toFixed(2)}</span>
+            <span className="text-xs text-zinc-400 font-medium block">
+              Total Price:
+            </span>
+            <span className="text-lg font-bold text-amber-400">
+              £{price.toFixed(2)}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Desktop Left Sidebar */}
+      {/* ─── Desktop Left Sidebar ─── */}
       {!isMobile && (
-        <div className="h-full w-[380px] shadow-xl z-20 relative shrink-0 bg-white">
+        <div className="h-full w-[380px] shadow-xl z-20 relative shrink-0 bg-zinc-950 border-r border-zinc-800">
           <ConfigSidebar isMobile={false} />
         </div>
       )}
 
-      {/* Main 3D Viewer */}
-      <div className="flex-1 relative bg-gradient-to-br from-stone-50 via-orange-50/30 to-stone-100 overflow-hidden">
-        {/* 3D Canvas */}
-        <Canvas
-          shadows
-          dpr={[1, 2]}
-          camera={{ position: [0, 0, 2.5], fov: 45 }}
-          gl={{ antialias: true, alpha: true }}
-        >
-          <color attach="background" args={["#fafaf9"]} />
+      {/* ─── Main 3D Viewer ─── */}
+      <div className="flex-1 relative bg-gradient-to-br from-zinc-950 via-slate-950 to-neutral-950 overflow-hidden">
+        {/* 3D Canvas — lazy loaded, Three.js downloads AFTER page paints */}
+        <Door3DLazy
+          ref={canvasRef}
+          config={config}
+          onPartClick={handlePartClick}
+          rotationEnabled={rotationEnabled}
+          isMobile={isMobile}
+        />
 
-          {/* Lighting Setup */}
-          <ambientLight intensity={0.5} />
-          <directionalLight
-            position={[5, 8, 5]}
-            intensity={1.0}
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-far={50}
-            shadow-camera-left={-10}
-            shadow-camera-right={10}
-            shadow-camera-top={10}
-            shadow-camera-bottom={-10}
-          />
-          <spotLight
-            position={[-5, 5, -5]}
-            angle={0.3}
-            penumbra={1}
-            intensity={0.6}
-            color="#fff7ed"
-          />
-          <pointLight position={[0, -2, 2]} intensity={0.3} color="#fff7ed" />
-
-          <Environment preset="apartment" background={false} />
-
-          <Stage
-            intensity={0.2}
-            environment="apartment"
-            adjustCamera={false}
-            shadows={{ type: 'contact', opacity: 0.5, blur: 2.5 }}
-          >
-            <Door3D
-              config={config}
-              onPartClick={(section) => setSelectedSection(section)}
-            />
-          </Stage>
-
-          <ContactShadows
-            position={[0, -0.85, 0]}
-            opacity={0.7}
-            scale={15}
-            blur={2.5}
-            far={5}
-            color="#2a1a1a"
-          />
-
-          <OrbitControls
-            ref={controlsRef}
-            makeDefault
-            enabled={rotationEnabled}
-            minPolarAngle={Math.PI / 8}
-            maxPolarAngle={Math.PI / 1.4}
-            minDistance={0.8}
-            maxDistance={4}
-            enablePan={false}
-            dampingFactor={0.05}
-            rotateSpeed={0.5}
-          />
-        </Canvas>
+        {/* Ambient glow overlays for atmosphere */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-20 -right-20 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
+          <div className="absolute inset-0 bg-gradient-radial from-transparent via-transparent to-black/20" />
+        </div>
 
         {/* View Controls Overlay */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
@@ -124,22 +82,26 @@ export default function DoorConfigurator() {
             variant="secondary"
             size="icon"
             onClick={handleResetView}
-            className="bg-white/90 backdrop-blur-sm shadow-md hover:bg-white text-stone-700"
+            className="bg-zinc-900/80 backdrop-blur-md shadow-lg hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all hover:border-amber-500/30 hover:shadow-amber-500/10"
             title="Reset View"
           >
             <RotateCcw className="w-4 h-4" />
           </Button>
-          {/* Mobile Rotation Toggle */}
           {isMobile && (
             <Button
               variant={rotationEnabled ? "default" : "secondary"}
               size="icon"
               onClick={() => setRotationEnabled(!rotationEnabled)}
-              className={rotationEnabled
-                ? "bg-orange-600 hover:bg-orange-700 text-white shadow-md"
-                : "bg-white/90 backdrop-blur-sm shadow-md hover:bg-white text-stone-700"
+              className={
+                rotationEnabled
+                  ? "bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-lg shadow-amber-500/25 border border-amber-400/30"
+                  : "bg-zinc-900/80 backdrop-blur-md shadow-lg hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50"
               }
-              title={rotationEnabled ? "Disable 3D Rotation" : "Enable 3D Rotation"}
+              title={
+                rotationEnabled
+                  ? "Disable 3D Rotation"
+                  : "Enable 3D Rotation"
+              }
             >
               <Move3d className="w-4 h-4" />
             </Button>
@@ -148,20 +110,25 @@ export default function DoorConfigurator() {
 
         {/* Branding Watermark */}
         <div className="absolute bottom-4 left-4 pointer-events-none">
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border border-stone-100">
-            <p className="text-xs font-bold text-stone-800">Freebird Trade</p>
-            <p className="text-[10px] text-stone-500">Premium Door Manufacturer</p>
+          <div className="bg-zinc-900/70 backdrop-blur-md rounded-lg px-3 py-2 shadow-lg border border-zinc-700/40">
+            <p className="text-xs font-bold text-amber-400 tracking-wide">
+              Freebird Trade
+            </p>
+            <p className="text-[10px] text-zinc-400">
+              Premium Door Manufacturer
+            </p>
           </div>
         </div>
 
         {/* Interaction Hints */}
         <div className="absolute bottom-4 right-4 pointer-events-none">
-          <div className="bg-stone-900/80 backdrop-blur-sm rounded-lg px-3 py-2 text-white">
-            <p className="text-[10px] opacity-90 font-medium">
+          <div className="bg-zinc-900/70 backdrop-blur-md rounded-lg px-3 py-2 border border-zinc-700/40">
+            <p className="text-[10px] text-zinc-300 opacity-90 font-medium">
               {isMobile
-                ? (rotationEnabled ? "🔄 Rotation ON • Tap button to scroll" : "📜 Scroll enabled • Tap 3D button to rotate")
-                : "🖱️ Drag to rotate • Scroll to zoom"
-              }
+                ? rotationEnabled
+                  ? "🔄 Rotation ON • Tap button to scroll"
+                  : "📜 Scroll enabled • Tap 3D button to rotate"
+                : "🖱️ Drag to rotate • Scroll to zoom"}
             </p>
           </div>
         </div>
@@ -171,22 +138,25 @@ export default function DoorConfigurator() {
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
-                <Button
-                  className="rounded-full shadow-2xl bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 px-6 py-6 h-auto flex items-center gap-2 group border-2 border-white/20 transition-all hover:scale-105 active:scale-95"
-                >
+                <Button className="rounded-full shadow-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:via-orange-400 hover:to-red-400 px-6 py-6 h-auto flex items-center gap-2 group border-2 border-amber-300/20 transition-all hover:scale-105 active:scale-95 shadow-amber-500/30">
                   <Settings2 className="w-5 h-5" />
-                  <span className="font-bold uppercase text-xs tracking-wider">Configure Door</span>
+                  <span className="font-bold uppercase text-xs tracking-wider">
+                    Configure Door
+                  </span>
                   <ChevronUp className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
                 </Button>
               </SheetTrigger>
               <SheetContent
                 side="bottom"
-                className="h-[85vh] px-0 pb-0 rounded-t-3xl border-t-0 shadow-2xl"
+                className="h-[85vh] px-0 pb-0 rounded-t-3xl border-t-0 shadow-2xl bg-zinc-950"
               >
-                <div className="h-full overflow-y-auto pt-2 bg-white">
-                  <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
+                <div className="h-full overflow-y-auto pt-2 bg-zinc-950">
+                  <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-4" />
                   <div className="px-4 pb-20">
-                    <ConfigSidebar isMobile={true} onClose={() => setIsSheetOpen(false)} />
+                    <ConfigSidebar
+                      isMobile={true}
+                      onClose={() => setIsSheetOpen(false)}
+                    />
                   </div>
                 </div>
               </SheetContent>
@@ -195,9 +165,9 @@ export default function DoorConfigurator() {
         )}
       </div>
 
-      {/* Desktop Right Sidebar */}
+      {/* ─── Desktop Right Sidebar ─── */}
       {!isMobile && (
-        <div className="h-full w-[340px] shadow-xl z-20 relative shrink-0 bg-white">
+        <div className="h-full w-[340px] shadow-xl z-20 relative shrink-0 bg-zinc-950 border-l border-zinc-800">
           <ProductDetailsSidebar />
         </div>
       )}

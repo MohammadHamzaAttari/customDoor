@@ -1,0 +1,366 @@
+{% comment %}
+  Custom Door Designer - Shopify Liquid Template
+  
+  Usage:
+  1. Upload door-configurator.min.js and door-configurator.css to your theme's assets folder
+  2. Upload a wood texture as 'wood.jpg' to your assets folder (optional)
+  3. Include this snippet in your product template or page using: {% section 'door-configurator' %}
+{% endcomment %}
+
+{% endcomment %}
+
+<!-- Performance Optimizations -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+
+{{ 'door-configurator.css' | asset_url | stylesheet_tag }}
+
+<div class="door-configurator-container">
+  <!-- 3D Viewer -->
+  <div class="door-3d-viewer" id="door-3d-container" data-door-configurator>
+    <div class="door-3d-loading">
+      <div class="door-3d-loading-spinner"></div>
+      <p>Loading 3D Preview...</p>
+    </div>
+  </div>
+
+  <!-- Configuration Panel -->
+  <div class="door-config-panel">
+    <h2 class="door-config-title">Configure Your Door</h2>
+
+    <!-- Dimensions Section -->
+    <div class="door-accordion open">
+      <button class="door-accordion-header" type="button" onclick="toggleAccordion(this)">
+        <span>Dimensions</span>
+        <svg class="door-accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      <div class="door-accordion-content">
+        <div class="door-accordion-body">
+          <div class="door-form-group">
+            <label class="door-form-label" for="door-width">Width (mm)</label>
+            <div class="door-range-container">
+              <input type="range" class="door-range-input" id="door-width" 
+                     min="400" max="1200" value="800" 
+                     oninput="updateDoorWidth(this.value)">
+              <span class="door-range-value" id="door-width-value">800mm</span>
+            </div>
+          </div>
+
+          <div class="door-form-group">
+            <label class="door-form-label" for="door-height">Height (mm)</label>
+            <div class="door-range-container">
+              <input type="range" class="door-range-input" id="door-height" 
+                     min="1800" max="2400" value="2100" 
+                     oninput="updateDoorHeight(this.value)">
+              <span class="door-range-value" id="door-height-value">2100mm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Door Style Section -->
+    <div class="door-accordion">
+      <button class="door-accordion-header" type="button" onclick="toggleAccordion(this)">
+        <span>Door Style</span>
+        <svg class="door-accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      <div class="door-accordion-content">
+        <div class="door-accordion-body">
+          <div class="door-form-group">
+            <label class="door-form-label">Door Type</label>
+            <div class="door-btn-group">
+              <button type="button" class="door-btn active" onclick="setPreset('single', this)">Single</button>
+              <button type="button" class="door-btn" onclick="setPreset('double', this)">Double</button>
+            </div>
+          </div>
+
+          <div class="door-form-group">
+            <label class="door-form-label">Panel Style</label>
+            <div class="door-btn-group">
+              <button type="button" class="door-btn active" onclick="setPanelType('STANDARD_12MM', this)">Standard 12mm</button>
+              <button type="button" class="door-btn" onclick="setPanelType('REEDED_19MM', this)">Reeded 19mm</button>
+              <button type="button" class="door-btn" onclick="setPanelType('MELAMINE_18MM', this)">Melamine 18mm</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Material & Finish Section -->
+    <div class="door-accordion">
+      <button class="door-accordion-header" type="button" onclick="toggleAccordion(this)">
+        <span>Material & Finish</span>
+        <svg class="door-accordion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      <div class="door-accordion-content">
+        <div class="door-accordion-body">
+          <div class="door-form-group">
+            <label class="door-form-label" for="door-material">Wood Type</label>
+            <select class="door-form-select" id="door-material" onchange="setMaterial(this.value)">
+              <option value="oak" selected>Oak</option>
+              <option value="pine">Pine</option>
+              <option value="walnut">Walnut</option>
+              <option value="mahogany">Mahogany</option>
+              <option value="maple">Maple</option>
+              <option value="cherry">Cherry</option>
+            </select>
+          </div>
+
+          <div class="door-form-group">
+            <label class="door-form-label">Finish</label>
+            <div class="door-btn-group">
+              <button type="button" class="door-btn active" onclick="setFinish('natural', this)">Natural</button>
+              <button type="button" class="door-btn" onclick="setFinish('stained', this)">Stained</button>
+              <button type="button" class="door-btn" onclick="setFinish('painted', this)">Painted</button>
+            </div>
+          </div>
+
+          <div class="door-form-group">
+            <label class="door-form-label">Color</label>
+            <div class="door-color-swatches">
+              <button type="button" class="door-color-swatch active" 
+                      style="background: #D4A574" 
+                      onclick="setColor('natural_wood', this)"
+                      title="Natural Wood"></button>
+              <button type="button" class="door-color-swatch" 
+                      style="background: #F5DEB3" 
+                      onclick="setColor('light', this)"
+                      title="Light"></button>
+              <button type="button" class="door-color-swatch" 
+                      style="background: #D2691E" 
+                      onclick="setColor('medium', this)"
+                      title="Medium"></button>
+              <button type="button" class="door-color-swatch" 
+                      style="background: #8B4513" 
+                      onclick="setColor('dark', this)"
+                      title="Dark"></button>
+              <button type="button" class="door-color-swatch" 
+                      style="background: #FFFFFF; border: 1px solid #ddd" 
+                      onclick="setColor('white', this)"
+                      title="White"></button>
+              <button type="button" class="door-color-swatch" 
+                      style="background: #1a1a1a" 
+                      onclick="setColor('black', this)"
+                      title="Black"></button>
+              <button type="button" class="door-color-swatch" 
+                      style="background: #808080" 
+                      onclick="setColor('grey', this)"
+                      title="Grey"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Price Display -->
+    <div class="door-price-display">
+      <p class="door-price-label">Estimated Price</p>
+      <p class="door-price-value" id="door-price">
+        {{ product.price | money }}
+      </p>
+    </div>
+
+    <!-- Add to Cart Button -->
+    <div class="door-form-group" style="margin-top: 20px;">
+      <button type="button" class="door-btn-primary" onclick="addDoorToCart()">
+        Add to Cart
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ 'door-configurator.min.js' | asset_url }}" defer></script>
+
+<script>
+  // Initialize configurator
+  var doorConfigurator = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Listen for configurator ready event
+    var container = document.getElementById('door-3d-container');
+    container.addEventListener('doorConfiguratorReady', function(e) {
+      doorConfigurator = e.detail;
+      // Hide loading indicator
+      container.querySelector('.door-3d-loading').classList.add('door-hidden');
+    });
+
+    // Initialize the configurator
+    doorConfigurator = new DoorConfigurator('door-3d-container');
+  });
+
+  // Accordion toggle
+  function toggleAccordion(button) {
+    var accordion = button.closest('.door-accordion');
+    accordion.classList.toggle('open');
+  }
+
+  // Update functions
+  function updateDoorWidth(value) {
+    document.getElementById('door-width-value').textContent = value + 'mm';
+    if (doorConfigurator) doorConfigurator.setWidth(value);
+    updatePrice();
+  }
+
+  function updateDoorHeight(value) {
+    document.getElementById('door-height-value').textContent = value + 'mm';
+    if (doorConfigurator) doorConfigurator.setHeight(value);
+    updatePrice();
+  }
+
+  function setPreset(value, button) {
+    setActiveButton(button);
+    if (doorConfigurator) doorConfigurator.setPreset(value);
+    updatePrice();
+  }
+
+  function setPanelType(value, button) {
+    setActiveButton(button);
+    if (doorConfigurator) doorConfigurator.setPanelType(value);
+  }
+
+  function setMaterial(value) {
+    if (doorConfigurator) doorConfigurator.setMaterial(value);
+    updatePrice();
+  }
+
+  function setFinish(value, button) {
+    setActiveButton(button);
+    if (doorConfigurator) doorConfigurator.setFinish(value);
+  }
+
+  function setColor(value, button) {
+    // Remove active from all color swatches
+    document.querySelectorAll('.door-color-swatch').forEach(function(swatch) {
+      swatch.classList.remove('active');
+    });
+    button.classList.add('active');
+    if (doorConfigurator) doorConfigurator.setColor(value);
+  }
+
+  function setActiveButton(button) {
+    var group = button.closest('.door-btn-group');
+    group.querySelectorAll('.door-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+    button.classList.add('active');
+  }
+
+  // Price calculation (customize based on your pricing logic)
+  function updatePrice() {
+    if (!doorConfigurator) return;
+    
+    var config = doorConfigurator.getConfig();
+    var basePrice = {{ product.price | divided_by: 100.0 }};
+    
+    // Size-based pricing
+    var sizeMultiplier = (config.width * config.height) / (800 * 2100);
+    var price = basePrice * sizeMultiplier;
+    
+    // Double door surcharge
+    if (config.preset === 'double') {
+      price *= 1.75;
+    }
+    
+    // Material pricing (example)
+    var materialPricing = {
+      'oak': 1.0,
+      'pine': 0.85,
+      'walnut': 1.3,
+      'mahogany': 1.5,
+      'maple': 1.1,
+      'cherry': 1.4
+    };
+    price *= (materialPricing[config.material] || 1.0);
+    
+    document.getElementById('door-price').textContent = '{{ cart.currency.symbol }}' + price.toFixed(2);
+  }
+
+  // Add to cart function
+  function addDoorToCart() {
+    if (!doorConfigurator) {
+      alert('Please wait for the configurator to load');
+      return;
+    }
+
+    var config = doorConfigurator.getConfig();
+    
+    // Build line item properties
+    var properties = {
+      'Width': config.width + 'mm',
+      'Height': config.height + 'mm',
+      'Door Type': config.preset === 'double' ? 'Double' : 'Single',
+      'Panel Style': config.panelType,
+      'Material': config.material.charAt(0).toUpperCase() + config.material.slice(1),
+      'Finish': config.finish.charAt(0).toUpperCase() + config.finish.slice(1),
+      'Color': config.color.replace('_', ' ')
+    };
+
+    // Add to cart via Shopify AJAX API
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: {{ product.variants.first.id }},
+        quantity: 1,
+        properties: properties
+      })
+    })
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(data) {
+      // Show success message or redirect to cart
+      if (data.id) {
+        window.location.href = '/cart';
+      } else {
+        alert('Error adding to cart. Please try again.');
+      }
+    })
+    .catch(function(error) {
+      console.error('Add to cart error:', error);
+      alert('Error adding to cart. Please try again.');
+    });
+  }
+</script>
+
+{% schema %}
+{
+  "name": "Door Configurator",
+  "tag": "section",
+  "class": "door-configurator-section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Section Title",
+      "default": "Configure Your Custom Door"
+    },
+    {
+      "type": "number",
+      "id": "default_width",
+      "label": "Default Width (mm)",
+      "default": 800
+    },
+    {
+      "type": "number",
+      "id": "default_height",
+      "label": "Default Height (mm)",
+      "default": 2100
+    }
+  ],
+  "presets": [
+    {
+      "name": "Door Configurator"
+    }
+  ]
+}
+{% endschema %}

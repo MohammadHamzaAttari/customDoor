@@ -1,38 +1,53 @@
 // client/src/lib/validation/doorValidation.ts
 import { z } from "zod";
+import {
+  MIN_BORDER_WITH_HINGES,
+  MIN_BORDER_WITHOUT_HINGES,
+  HINGE_CENTER_OFFSET_MM,
+} from "@/lib/stores/useDoorConfig";
 
-// Hinge validation
+// =====================================================
+// HINGE VALIDATION
+// =====================================================
+
 export const hingeSchema = z.object({
   id: z.string(),
   positionFromBottomMm: z.number()
     .min(50, "Hinge position must be at least 50mm from bottom")
-    .max(2400, "Hinge position exceeds door height"),
+    .max(2400, "Hinge position exceeds maximum door height"),
   side: z.enum(["LEFT", "RIGHT"]),
   type: z.enum(["SCREW_POINTS", "INSERTA"]),
 });
 
-// Mid rail validation
+// =====================================================
+// MID RAIL VALIDATION
+// =====================================================
+
 export const midRailSchema = z.object({
   id: z.string(),
   positionFromBottom: z.number()
-    .min(100, "Mid rail must be at least 100mm from bottom"),
+    .min(50, "Mid rail must be at least 50mm from bottom"),
   dimension: z.number()
-    .min(40, "Mid rail width must be at least 40mm")
-    .max(150, "Mid rail width cannot exceed 150mm"),
+    .min(35, "Mid rail width must be at least 35mm")
+    .max(200, "Mid rail width cannot exceed 200mm"),
 });
 
-// Main door configuration validation
+// =====================================================
+// MAIN DOOR CONFIG VALIDATION
+// =====================================================
+
 export const doorConfigValidationSchema = z.object({
   // Dimensions
   width: z.number()
     .min(200, "Width must be at least 200mm")
-    .max(900, "Width cannot exceed 900mm"),
+    .max(1200, "Width cannot exceed 1200mm"),
   height: z.number()
     .min(200, "Height must be at least 200mm")
     .max(2430, "Height cannot exceed 2430mm"),
   thickness: z.number()
-    .min(18, "Thickness must be at least 18mm")
-    .max(30, "Thickness cannot exceed 30mm"),
+    .refine((v) => v === 18 || v === 22, {
+      message: "Thickness must be 18mm or 22mm",
+    }),
 
   // Panel type
   panelType: z.enum([
@@ -41,22 +56,22 @@ export const doorConfigValidationSchema = z.object({
     "MELAMINE_18MM",
     "FRETWORK",
     "GLASS",
-    "NONE"
+    "NONE",
   ]),
 
   // Borders/Rails/Stiles
   leftStile: z.number()
     .min(35, "Left stile must be at least 35mm")
-    .max(200, "Left stile cannot exceed 200mm"),
+    .max(300, "Left stile cannot exceed 300mm"),
   rightStile: z.number()
     .min(35, "Right stile must be at least 35mm")
-    .max(200, "Right stile cannot exceed 200mm"),
+    .max(300, "Right stile cannot exceed 300mm"),
   topRail: z.number()
     .min(35, "Top rail must be at least 35mm")
-    .max(200, "Top rail cannot exceed 200mm"),
+    .max(300, "Top rail cannot exceed 300mm"),
   bottomRail: z.number()
     .min(35, "Bottom rail must be at least 35mm")
-    .max(200, "Bottom rail cannot exceed 200mm"),
+    .max(300, "Bottom rail cannot exceed 300mm"),
 
   // Angled corners
   angledLeft: z.boolean(),
@@ -91,36 +106,79 @@ export const doorConfigValidationSchema = z.object({
   // Finish
   finish: z.enum(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED"]),
 }).superRefine((data, ctx) => {
-  // Cross-field validations
 
-  // Check if borders fit within door dimensions
-  const minPanelWidth = data.width - data.leftStile - data.rightStile;
-  if (minPanelWidth < 50) {
+  // ── RULE: 18mm thickness only for slab doors ──
+  if (data.thickness === 18 && data.panelType !== "NONE") {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Stiles are too wide for the door width. Panel area must be at least 50mm wide.",
-      path: ["leftStile"],
+      message: "18mm thickness is only available for slab doors, plinths, and cover panels. Select 22mm for shaker doors.",
+      path: ["thickness"],
     });
   }
 
-  const minPanelHeight = data.height - data.topRail - data.bottomRail;
-  if (minPanelHeight < 50) {
+  // ── RULE: Reeded/melamine panels require 22mm ──
+  if (data.thickness !== 22 && (data.panelType === "REEDED_19MM" || data.panelType === "MELAMINE_18MM")) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "Rails are too tall for the door height. Panel area must be at least 50mm tall.",
-      path: ["topRail"],
+      message: `${data.panelType === "REEDED_19MM" ? "Reeded 19mm" : "Melamine 18mm"} panels require 22mm door thickness.`,
+      path: ["panelType"],
     });
   }
 
-  // Validate angled corners
+  // ── RULE: 65mm minimum border on hinge side ──
+  if (data.hingeDrilling && data.hinges.length > 0) {
+    const hingeSides = new Set(data.hinges.map(h => h.side));
+
+    if (hingeSides.has("LEFT") && data.leftStile < MIN_BORDER_WITH_HINGES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Left stile must be at least ${MIN_BORDER_WITH_HINGES}mm when hinges are on the left side (space needed for hinge boss fixing plate).`,
+        path: ["leftStile"],
+      });
+    }
+
+    if (hingeSides.has("RIGHT") && data.rightStile < MIN_BORDER_WITH_HINGES) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Right stile must be at least ${MIN_BORDER_WITH_HINGES}mm when hinges are on the right side (space needed for hinge boss fixing plate).`,
+        path: ["rightStile"],
+      });
+    }
+  }
+
+  // ── RULE: Panel area minimum 50mm ──
+  if (data.panelType !== "NONE") {
+    const panelWidth = data.width - data.leftStile - data.rightStile;
+    if (panelWidth < 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Stiles are too wide for the door width. Panel area must be at least 50mm wide.",
+        path: ["leftStile"],
+      });
+    }
+
+    const panelHeight = data.height - data.topRail - data.bottomRail;
+    if (panelHeight < 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Rails are too tall for the door height. Panel area must be at least 50mm tall.",
+        path: ["topRail"],
+      });
+    }
+  }
+
+  // ── RULE: Angled corner validation ──
   if (data.angledLeft) {
-    if (!data.leftTriangleCutoutWidth || data.leftTriangleCutoutWidth < 50) {
+    const lcw = data.leftTriangleCutoutWidth || 0;
+    const lch = data.leftTriangleCutoutHeight || 0;
+
+    if (lcw < 50) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Left triangle cutout width must be at least 50mm",
         path: ["leftTriangleCutoutWidth"],
       });
-    } else if (data.leftTriangleCutoutWidth > data.width - 100) {
+    } else if (lcw > data.width - 100) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Left cutout width exceeds max safe limit (${data.width - 100}mm)`,
@@ -128,13 +186,13 @@ export const doorConfigValidationSchema = z.object({
       });
     }
 
-    if (!data.leftTriangleCutoutHeight || data.leftTriangleCutoutHeight < 50) {
+    if (lch < 50) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Left triangle cutout height must be at least 50mm",
         path: ["leftTriangleCutoutHeight"],
       });
-    } else if (data.leftTriangleCutoutHeight > data.height - 150) {
+    } else if (lch > data.height - 150) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Left cutout height exceeds max safe limit (${data.height - 150}mm)`,
@@ -144,13 +202,16 @@ export const doorConfigValidationSchema = z.object({
   }
 
   if (data.angledRight) {
-    if (!data.rightTriangleCutoutWidth || data.rightTriangleCutoutWidth < 50) {
+    const rcw = data.rightTriangleCutoutWidth || 0;
+    const rch = data.rightTriangleCutoutHeight || 0;
+
+    if (rcw < 50) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Right triangle cutout width must be at least 50mm",
         path: ["rightTriangleCutoutWidth"],
       });
-    } else if (data.rightTriangleCutoutWidth > data.width - 100) {
+    } else if (rcw > data.width - 100) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Right cutout width exceeds max safe limit (${data.width - 100}mm)`,
@@ -158,13 +219,13 @@ export const doorConfigValidationSchema = z.object({
       });
     }
 
-    if (!data.rightTriangleCutoutHeight || data.rightTriangleCutoutHeight < 50) {
+    if (rch < 50) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Right triangle cutout height must be at least 50mm",
         path: ["rightTriangleCutoutHeight"],
       });
-    } else if (data.rightTriangleCutoutHeight > data.height - 150) {
+    } else if (rch > data.height - 150) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: `Right cutout height exceeds max safe limit (${data.height - 150}mm)`,
@@ -173,9 +234,8 @@ export const doorConfigValidationSchema = z.object({
     }
   }
 
-  // Validate hinge positions if hinge drilling enabled
+  // ── RULE: Hinge position validation ──
   if (data.hingeDrilling && data.hinges.length > 0) {
-    // Check minimum hinges
     if (data.hinges.length < 2) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -184,8 +244,8 @@ export const doorConfigValidationSchema = z.object({
       });
     }
 
-    // Validate each hinge position
     data.hinges.forEach((hinge, index) => {
+      // Check hinge doesn't exceed door height
       if (hinge.positionFromBottomMm > data.height - 50) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -195,26 +255,52 @@ export const doorConfigValidationSchema = z.object({
       }
 
       // Check if hinge is in angled cutout area
+      // Hinge center X = 22.5mm from edge (5mm gap + 17.5mm half cup)
       if (hinge.side === "LEFT" && data.angledLeft) {
-        const hX = 22; // Standard hinge offset
+        const hX = HINGE_CENTER_OFFSET_MM;
         const hY = hinge.positionFromBottomMm;
-        const w = data.leftTriangleCutoutWidth || 0;
-        const h = data.leftTriangleCutoutHeight || 0;
+        const lcw = data.leftTriangleCutoutWidth || 0;
+        const lch = data.leftTriangleCutoutHeight || 0;
 
-        if (w > 0 && h > 0) {
-          if ((hX / w) + ((data.height - hY) / h) < 1) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `Hinge ${index + 1} is in the angled cutout area`,
-              path: ["hinges", index, "positionFromBottomMm"],
-            });
+        if (lcw > 0 && lch > 0) {
+          const heightFromTop = data.height - hY;
+          if (heightFromTop < lch) {
+            const maxXAtThisHeight = lcw * (1 - heightFromTop / lch);
+            if (hX < maxXAtThisHeight) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Hinge ${index + 1} is in the left angled cutout area. Move it lower or remove the angle.`,
+                path: ["hinges", index, "positionFromBottomMm"],
+              });
+            }
+          }
+        }
+      }
+
+      if (hinge.side === "RIGHT" && data.angledRight) {
+        const hX = data.width - HINGE_CENTER_OFFSET_MM;
+        const hY = hinge.positionFromBottomMm;
+        const rcw = data.rightTriangleCutoutWidth || 0;
+        const rch = data.rightTriangleCutoutHeight || 0;
+
+        if (rcw > 0 && rch > 0) {
+          const heightFromTop = data.height - hY;
+          if (heightFromTop < rch) {
+            const minXAtThisHeight = data.width - rcw * (1 - heightFromTop / rch);
+            if (hX > minXAtThisHeight) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Hinge ${index + 1} is in the right angled cutout area. Move it lower or remove the angle.`,
+                path: ["hinges", index, "positionFromBottomMm"],
+              });
+            }
           }
         }
       }
     });
   }
 
-  // Validate mid rails
+  // ── RULE: Mid rail validation ──
   if (data.midRailsEnabled && data.midRails.length > 0) {
     data.midRails.forEach((rail, index) => {
       if (rail.positionFromBottom > data.height - data.topRail - 50) {
@@ -235,7 +321,10 @@ export const doorConfigValidationSchema = z.object({
   }
 });
 
-// Customer/Order validation for Shopify sync
+// =====================================================
+// ORDER SUBMISSION VALIDATION
+// =====================================================
+
 export const orderSubmissionSchema = z.object({
   customerEmail: z.string()
     .email("Please enter a valid email address"),
@@ -246,19 +335,23 @@ export const orderSubmissionSchema = z.object({
     .min(1, "Company name is required")
     .max(200, "Company name cannot exceed 200 characters"),
   phone: z.string()
-    .min(10, "Please enter a valid phone number")
-    .max(20, "Phone number is too long"),
+    .min(1, "Phone number is required")
+    .refine((val) => {
+      // Accept UK numbers: 07xxx, +447xxx, 01234, etc.
+      const cleaned = val.replace(/[\s\-\(\)]/g, "");
+      // Must be at least 10 digits when stripped
+      const digits = cleaned.replace(/[^\d]/g, "");
+      return digits.length >= 10 && digits.length <= 15;
+    }, "Please enter a valid UK phone number"),
   addressLine1: z.string()
     .min(5, "Address is required"),
   city: z.string()
     .min(2, "City is required"),
   postcode: z.string()
-    .min(3, "Postcode is required"),
+    .min(3, "Postcode is required")
+    .max(10, "Postcode is too long"),
   jobReference: z.string().optional(),
   specialRequirements: z.string().optional(),
-  quantity: z.number()
-    .min(1, "Quantity must be at least 1")
-    .max(100, "Maximum quantity is 100"),
 });
 
 export type DoorConfigValidation = z.infer<typeof doorConfigValidationSchema>;

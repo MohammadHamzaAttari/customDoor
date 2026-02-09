@@ -1,0 +1,355 @@
+/**
+ * Custom Door Designer - Shopify Styles
+ * Optimized, standalone CSS with no external dependencies
+ */
+
+:root {
+    --door-primary: #4A3C31;
+    --door-secondary: #5C4A3D;
+    --door-accent: #3E3128;
+    --door-border: #453830;
+    --door-bg: #f5f5f5;
+    --door-text: #333333;
+    --door-text-light: #666666;
+    --door-white: #ffffff;
+    --door-shadow: rgba(0, 0, 0, 0.1);
+    --door-shadow-dark: rgba(0, 0, 0, 0.2);
+    --door-radius: 8px;
+    --door-radius-sm: 4px;
+    --door-transition: 0.2s ease;
+}
+
+/* Container */
+.door-configurator-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* 3D Viewer */
+.door-3d-viewer {
+    flex: 1 1 400px;
+    min-height: 500px;
+    background: var(--door-bg);
+    border-radius: var(--door-radius);
+    box-shadow: 0 4px 20px var(--door-shadow);
+    overflow: hidden;
+    position: relative;
+}
+
+.door-3d-viewer canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.door-3d-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--door-text-light);
+}
+
+.door-3d-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--door-bg);
+    border-top-color: var(--door-primary);
+    border-radius: 50%;
+    animation: door-spin 1s linear infinite;
+    margin: 0 auto 12px;
+}
+
+@keyframes door-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Configuration Panel */
+.door-config-panel {
+    flex: 1 1 300px;
+    max-width: 400px;
+    background: var(--door-white);
+    border-radius: var(--door-radius);
+    box-shadow: 0 4px 20px var(--door-shadow);
+    padding: 24px;
+}
+
+.door-config-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--door-text);
+    margin: 0 0 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--door-bg);
+}
+
+/* Form Groups */
+.door-form-group {
+    margin-bottom: 20px;
+}
+
+.door-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--door-text);
+    margin-bottom: 8px;
+}
+
+.door-form-input,
+.door-form-select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: var(--door-radius-sm);
+    background: var(--door-white);
+    color: var(--door-text);
+    transition: border-color var(--door-transition), box-shadow var(--door-transition);
+}
+
+.door-form-input:focus,
+.door-form-select:focus {
+    outline: none;
+    border-color: var(--door-primary);
+    box-shadow: 0 0 0 3px rgba(74, 60, 49, 0.15);
+}
+
+.door-form-input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.door-form-input[type="number"]::-webkit-outer-spin-button,
+.door-form-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Range Slider */
+.door-range-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.door-range-input {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+}
+
+.door-range-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--door-primary);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform var(--door-transition);
+}
+
+.door-range-input::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+.door-range-value {
+    min-width: 60px;
+    text-align: right;
+    font-size: 0.875rem;
+    color: var(--door-text-light);
+}
+
+/* Button Group */
+.door-btn-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.door-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: var(--door-radius-sm);
+    background: var(--door-white);
+    color: var(--door-text);
+    cursor: pointer;
+    transition: all var(--door-transition);
+}
+
+.door-btn:hover {
+    border-color: var(--door-primary);
+    color: var(--door-primary);
+}
+
+.door-btn.active {
+    background: var(--door-primary);
+    border-color: var(--door-primary);
+    color: var(--door-white);
+}
+
+/* Primary Button */
+.door-btn-primary {
+    width: 100%;
+    padding: 14px 24px;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--door-primary);
+    border: none;
+    border-radius: var(--door-radius-sm);
+    color: var(--door-white);
+    cursor: pointer;
+    transition: background var(--door-transition), transform var(--door-transition);
+}
+
+.door-btn-primary:hover {
+    background: var(--door-secondary);
+    transform: translateY(-1px);
+}
+
+.door-btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Price Display */
+.door-price-display {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--door-bg);
+    border-radius: var(--door-radius-sm);
+    text-align: center;
+}
+
+.door-price-label {
+    font-size: 0.875rem;
+    color: var(--door-text-light);
+    margin-bottom: 4px;
+}
+
+.door-price-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--door-primary);
+}
+
+/* Accordion */
+.door-accordion {
+    border: 1px solid #ddd;
+    border-radius: var(--door-radius-sm);
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.door-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--door-bg);
+    border: none;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--door-text);
+    width: 100%;
+    text-align: left;
+    transition: background var(--door-transition);
+}
+
+.door-accordion-header:hover {
+    background: #e8e8e8;
+}
+
+.door-accordion-icon {
+    width: 16px;
+    height: 16px;
+    transition: transform var(--door-transition);
+}
+
+.door-accordion.open .door-accordion-icon {
+    transform: rotate(180deg);
+}
+
+.door-accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.door-accordion.open .door-accordion-content {
+    max-height: 500px;
+}
+
+.door-accordion-body {
+    padding: 16px;
+}
+
+/* Color Swatches */
+.door-color-swatches {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.door-color-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform var(--door-transition), border-color var(--door-transition);
+}
+
+.door-color-swatch:hover {
+    transform: scale(1.1);
+}
+
+.door-color-swatch.active {
+    border-color: var(--door-primary);
+    box-shadow: 0 0 0 2px var(--door-white), 0 0 0 4px var(--door-primary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .door-configurator-container {
+        padding: 16px;
+    }
+
+    .door-3d-viewer {
+        min-height: 350px;
+    }
+
+    .door-config-panel {
+        max-width: 100%;
+    }
+
+    .door-config-title {
+        font-size: 1.25rem;
+    }
+}
+
+/* Hidden utility */
+.door-hidden {
+    display: none !important;
+}
+
+/* Loading state */
+.door-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}

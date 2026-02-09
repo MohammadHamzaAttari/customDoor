@@ -1,6 +1,7 @@
 // client/src/lib/stores/useDoorConfig.ts
 import { create } from "zustand";
 import { getPresetById, calculateAngleFromCutout } from "../anglePresets";
+import { calculateDoorPrice, DEFAULT_PRICING } from "@shared/doorSchema";
 
 export type DoorPreset = "single" | "double" | "shaker_2" | "shaker_4" | "shaker_6" | "panel_3" | "panel_4" | "panel_6";
 export type PanelType = "STANDARD_12MM" | "REEDED_19MM" | "MELAMINE_18MM" | "FRETWORK" | "GLASS" | "NONE";
@@ -11,6 +12,15 @@ export type MaterialType = "MDF";
 export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED";
 export type HingeType = "SCREW_POINTS" | "INSERTA";
 export type AnglePresetId = "under-stair-standard" | "under-stair-gentle" | "loft-access" | "corner-unit" | "steep-attic" | "custom";
+
+// Hinge center offset: 5mm gap to edge + 17.5mm (half of 35mm cup) = 22.5mm
+export const HINGE_CENTER_OFFSET_MM = 22.5;
+export const HINGE_CUP_DIAMETER_MM = 35;
+export const HINGE_CUP_DEPTH_MM = 13;
+
+// Border minimums per requirements
+export const MIN_BORDER_WITH_HINGES = 65;
+export const MIN_BORDER_WITHOUT_HINGES = 35;
 
 export interface Hinge {
   id: string;
@@ -114,17 +124,21 @@ interface DoorConfigStore extends DoorConfig {
   addHinge: () => void;
   removeHinge: (id: string) => void;
   updateHinge: (id: string, field: keyof Hinge, value: any) => void;
+  swapHingeSide: () => void;
 
   setFinish: (finish: FinishType) => void;
   toggleDimensions: () => void;
   calculatePrice: () => void;
   resetConfig: () => void;
   setSelectedSection: (section: string) => void;
+
+  // Computed helpers
+  getMinBorderForSide: (side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM") => number;
 }
 
 const initialState: DoorConfig = {
-  width: 450,
-  height: 1200,
+  width: 600,
+  height: 720,
   thickness: 22,
   preset: "single",
   panelType: "STANDARD_12MM",
@@ -143,12 +157,12 @@ const initialState: DoorConfig = {
   leftAngleDegrees: 42,
   rightAngleDegrees: 42,
 
-  borderWidth: 70,
+  borderWidth: 90,
   customBorders: false,
-  leftStile: 70,
-  rightStile: 70,
-  bottomRail: 70,
-  topRail: 70,
+  leftStile: 90,
+  rightStile: 90,
+  bottomRail: 90,
+  topRail: 90,
 
   rebateWidthMm: 10,
   rebateDepthMm: 14,
@@ -172,8 +186,31 @@ const initialState: DoorConfig = {
 let midRailIdCounter = 0;
 let hingeIdCounter = 0;
 
+/**
+ * Get minimum border width for a given side based on whether hinges are present on that side
+ */
+function getMinBorder(hingeDrilling: boolean, hinges: Hinge[], side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM"): number {
+  if (!hingeDrilling || hinges.length === 0) {
+    return MIN_BORDER_WITHOUT_HINGES;
+  }
+  
+  // Check if any hinge is on this side
+  if (side === "LEFT" || side === "RIGHT") {
+    const hasHingeOnSide = hinges.some(h => h.side === side);
+    return hasHingeOnSide ? MIN_BORDER_WITH_HINGES : MIN_BORDER_WITHOUT_HINGES;
+  }
+  
+  // Top and bottom rails: always 35mm minimum
+  return MIN_BORDER_WITHOUT_HINGES;
+}
+
 export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   ...initialState,
+
+  getMinBorderForSide: (side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM") => {
+    const state = get();
+    return getMinBorder(state.hingeDrilling, state.hinges, side);
+  },
 
   setWidth: (width: number) => {
     set({ width });
@@ -200,7 +237,14 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   },
 
   setThickness: (thickness: number) => {
-    set({ thickness });
+    const state = get();
+    // RULE: 18mm only for slab doors
+    if (thickness === 18 && state.panelType !== "NONE") {
+      // Auto-switch to slab when selecting 18mm
+      set({ thickness, panelType: "NONE" });
+    } else {
+      set({ thickness });
+    }
     get().calculatePrice();
   },
 
@@ -210,7 +254,22 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   },
 
   setPanelType: (panelType: PanelType) => {
-    set({ panelType });
+    const state = get();
+    // RULE: 18mm only allows NONE (slab)
+    if (state.thickness === 18 && panelType !== "NONE") {
+      // Auto-switch to 22mm when selecting a panel type
+      set({ panelType, thickness: 22 });
+    } else if (panelType === "NONE") {
+      // Switching to slab — thickness can be 18 or 22
+      set({ panelType });
+    } else {
+      // RULE: Reeded and melamine only for 22mm
+      if ((panelType === "REEDED_19MM" || panelType === "MELAMINE_18MM") && state.thickness !== 22) {
+        set({ panelType, thickness: 22 });
+      } else {
+        set({ panelType });
+      }
+    }
     get().calculatePrice();
   },
 
@@ -317,41 +376,67 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   },
 
   setBorderWidth: (borderWidth: number) => {
-    set({
-      borderWidth,
-      leftStile: borderWidth,
-      rightStile: borderWidth,
-      bottomRail: borderWidth,
-      topRail: borderWidth,
-    });
     const state = get();
-    if (state.angledLeft && state.leftAnglePreset !== "custom") {
-      get().applyAnglePreset("left", state.leftAnglePreset);
+    const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
+    const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
+    const minTop = MIN_BORDER_WITHOUT_HINGES;
+    const minBottom = MIN_BORDER_WITHOUT_HINGES;
+
+    const clamped = Math.max(borderWidth, Math.max(minLeft, minRight, minTop, minBottom));
+
+    set({
+      borderWidth: clamped,
+      leftStile: Math.max(clamped, minLeft),
+      rightStile: Math.max(clamped, minRight),
+      bottomRail: Math.max(clamped, minBottom),
+      topRail: Math.max(clamped, minTop),
+    });
+
+    const s = get();
+    if (s.angledLeft && s.leftAnglePreset !== "custom") {
+      get().applyAnglePreset("left", s.leftAnglePreset);
     }
-    if (state.angledRight && state.rightAnglePreset !== "custom") {
-      get().applyAnglePreset("right", state.rightAnglePreset);
+    if (s.angledRight && s.rightAnglePreset !== "custom") {
+      get().applyAnglePreset("right", s.rightAnglePreset);
     }
   },
 
   setCustomBorders: (customBorders: boolean) => {
     const state = get();
     if (!customBorders) {
+      const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
+      const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
       set({
         customBorders,
-        leftStile: state.borderWidth,
-        rightStile: state.borderWidth,
-        bottomRail: state.borderWidth,
-        topRail: state.borderWidth,
+        leftStile: Math.max(state.borderWidth, minLeft),
+        rightStile: Math.max(state.borderWidth, minRight),
+        bottomRail: Math.max(state.borderWidth, MIN_BORDER_WITHOUT_HINGES),
+        topRail: Math.max(state.borderWidth, MIN_BORDER_WITHOUT_HINGES),
       });
     } else {
       set({ customBorders });
     }
   },
 
-  setLeftStile: (leftStile: number) => set({ leftStile }),
-  setRightStile: (rightStile: number) => set({ rightStile }),
-  setBottomRail: (bottomRail: number) => set({ bottomRail }),
-  setTopRail: (topRail: number) => set({ topRail }),
+  setLeftStile: (leftStile: number) => {
+    const state = get();
+    const min = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
+    set({ leftStile: Math.max(leftStile, min) });
+  },
+
+  setRightStile: (rightStile: number) => {
+    const state = get();
+    const min = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
+    set({ rightStile: Math.max(rightStile, min) });
+  },
+
+  setBottomRail: (bottomRail: number) => {
+    set({ bottomRail: Math.max(bottomRail, MIN_BORDER_WITHOUT_HINGES) });
+  },
+
+  setTopRail: (topRail: number) => {
+    set({ topRail: Math.max(topRail, MIN_BORDER_WITHOUT_HINGES) });
+  },
 
   setRebateWidth: (rebateWidthMm: number) => set({ rebateWidthMm }),
   setRebateDepth: (rebateDepthMm: number) => set({ rebateDepthMm }),
@@ -389,7 +474,7 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
     const newRail: MidRail = {
       id: `rail_${++midRailIdCounter}`,
       positionFromBottom: Math.round(state.height / 2),
-      dimension: 70,
+      dimension: state.borderWidth,
     };
     set({ midRails: [...state.midRails, newRail] });
     get().calculatePrice();
@@ -417,17 +502,27 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
       const h1: Hinge = { id: `hinge_${++hingeIdCounter}`, positionFromBottomMm: 100, side: "LEFT", type: "SCREW_POINTS" };
       const h2: Hinge = { id: `hinge_${++hingeIdCounter}`, positionFromBottomMm: state.height - 100, side: "LEFT", type: "SCREW_POINTS" };
       set({ hinges: [h1, h2] });
+
+      // Enforce 65mm minimum on hinge side
+      if (state.leftStile < MIN_BORDER_WITH_HINGES) {
+        set({ leftStile: MIN_BORDER_WITH_HINGES });
+        if (!state.customBorders) {
+          set({ borderWidth: Math.max(state.borderWidth, MIN_BORDER_WITH_HINGES) });
+        }
+      }
     }
     get().calculatePrice();
   },
 
   addHinge: () => {
     const state = get();
+    const existingSide = state.hinges.length > 0 ? state.hinges[0].side : "LEFT";
+    const existingType = state.hinges.length > 0 ? state.hinges[0].type : "SCREW_POINTS";
     const newHinge: Hinge = {
       id: `hinge_${++hingeIdCounter}`,
       positionFromBottomMm: Math.round(state.height / 2),
-      side: "LEFT",
-      type: "SCREW_POINTS",
+      side: existingSide,
+      type: existingType,
     };
     set({ hinges: [...state.hinges, newHinge] });
     get().calculatePrice();
@@ -444,6 +539,36 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
     set((state) => ({
       hinges: state.hinges.map(h => h.id === id ? { ...h, [field]: value } : h)
     }));
+
+    // If side changed, re-enforce border minimums
+    if (field === 'side') {
+      const state = get();
+      const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
+      const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
+      
+      if (state.leftStile < minLeft) set({ leftStile: minLeft });
+      if (state.rightStile < minRight) set({ rightStile: minRight });
+    }
+  },
+
+  /**
+   * Quick swap all hinges from LEFT↔RIGHT (catalogue mode requirement)
+   */
+  swapHingeSide: () => {
+    set((state) => ({
+      hinges: state.hinges.map(h => ({
+        ...h,
+        side: h.side === "LEFT" ? "RIGHT" : "LEFT",
+      }))
+    }));
+
+    // Re-enforce border minimums after swap
+    const state = get();
+    const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
+    const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
+    
+    if (state.leftStile < minLeft) set({ leftStile: minLeft });
+    if (state.rightStile < minRight) set({ rightStile: minRight });
   },
 
   setFinish: (finish: FinishType) => {
@@ -458,45 +583,16 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   calculatePrice: () => {
     const state = get();
 
-    const FIXED_FEE = 3.00;
-    const SQM_RATE_SHAKER = 75.00;
-    const SQM_RATE_SLAB = 45.00;
-    const ANGLED_FEE = 25.00;
-    const MID_RAIL_FEE = 5.00;
-    const HINGE_HOLE_FEE = 1.50;
+    const result = calculateDoorPrice({
+      ...state,
+      // Ensure we pass the effective border values
+      leftStile: state.customBorders ? state.leftStile : state.borderWidth,
+      rightStile: state.customBorders ? state.rightStile : state.borderWidth,
+      topRail: state.customBorders ? state.topRail : state.borderWidth,
+      bottomRail: state.customBorders ? state.bottomRail : state.borderWidth,
+    });
 
-    const areaM2 = (state.width * state.height) / 1000000;
-    const isSlab = state.panelType === "NONE";
-    const sqmRate = isSlab ? SQM_RATE_SLAB : SQM_RATE_SHAKER;
-
-    let price = FIXED_FEE + (areaM2 * sqmRate);
-
-    if (state.angledLeft || state.angledRight) {
-      price += ANGLED_FEE;
-    }
-
-    if (state.midRailsEnabled) {
-      price += state.midRails.length * MID_RAIL_FEE;
-    }
-
-    if (state.hingeDrilling) {
-      price += state.hinges.length * HINGE_HOLE_FEE;
-    }
-
-    const finishMultipliers: Record<FinishType, number> = {
-      RAW_UNASSEMBLED: 1.0,
-      ASSEMBLED_PREP: 1.3,
-      PRIMED: 1.8,
-    };
-    price *= finishMultipliers[state.finish] || 1.0;
-
-    if (state.panelType === "REEDED_19MM") {
-      price += 10 + (areaM2 * 60);
-    } else if (state.panelType === "MELAMINE_18MM") {
-      price += 10 + (areaM2 * 40);
-    }
-
-    set({ price: Math.round(price * 100) / 100 });
+    set({ price: result.unitTotal });
   },
 
   resetConfig: () => {
