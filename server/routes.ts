@@ -10,6 +10,8 @@ import {
   insertOrderSchema,
   insertOrderItemSchema,
 } from "@shared/schema";
+ const { verifyDoorPrice } = await import("./pricing");
+    const { doorConfigSchema } = await import("../shared/doorSchema");
 import { createShopifyDraftOrder, createQuickCheckout } from "./shopify";
 import { registerOAuthRoutes } from "./oauth";
 
@@ -703,7 +705,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lineItems[i].quantity = 1;
         }
       }
+    for (let i = 0; i < lineItems.length; i++) {
+      const item = lineItems[i];
+      try {
+        // Build a minimal DoorConfig for price verification
+        const verificationConfig = doorConfigSchema.parse({
+          width: item.width,
+          height: item.height,
+          thickness: item.thickness || 22,
+          preset: "single",
+          panelType: item.panelType || "STANDARD_12MM",
+          panelCount: 1,
+          borderWidth: 90,
+          customBorders: false,
+          leftStile: 90,
+          rightStile: 90,
+          topRail: 90,
+          bottomRail: 90,
+          angledLeft: item.angledLeft || false,
+          angledRight: item.angledRight || false,
+          leftTriangleCutoutWidth: 0,
+          leftTriangleCutoutHeight: 0,
+          rightTriangleCutoutWidth: 0,
+          rightTriangleCutoutHeight: 0,
+          midRailsEnabled: item.midRailsEnabled || false,
+          midRails: item.midRails || [],
+          hingeDrilling: item.hingeDrilling || false,
+          hinges: item.hinges || [],
+          finish: item.finish || "RAW_UNASSEMBLED",
+          price: 0,
+        });
 
+        const serverPrice = verifyDoorPrice(verificationConfig);
+
+        // Allow 1% tolerance for rounding differences
+        const tolerance = serverPrice * 0.01;
+        if (Math.abs(item.price - serverPrice) > Math.max(tolerance, 0.50)) {
+          console.warn(
+            `[Price Verification] Item ${i + 1}: client=${item.price}, server=${serverPrice}. Using server price.`
+          );
+          lineItems[i].price = serverPrice;
+        }
+      } catch (e) {
+        console.warn(`[Price Verification] Could not verify item ${i + 1}, using client price:`, e);
+        // Continue with client price if verification fails (graceful degradation)
+      }
+    }
       // ─── Calculate totals ───
       const totalQuantity = lineItems.reduce((s, i) => s + i.quantity, 0);
       const subtotal = lineItems.reduce((s, i) => s + i.price * i.quantity, 0);

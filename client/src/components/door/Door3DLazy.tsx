@@ -7,7 +7,9 @@ interface Door3DLazyProps {
   config: any;
   onPartClick: (section: string) => void;
 }
-
+export interface Door3DHandle {
+  resetView: () => void;
+}
 function Door3DPlaceholder({ config }: { config: any }) {
   return (
     <div

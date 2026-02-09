@@ -186,13 +186,12 @@ export type DoorConfig = z.infer<typeof doorConfigSchema>;
 // =====================================================
 
 export const cartItemSchema = z.object({
-  id: z.string(),
+  id: z.union([z.string(), z.number()]),  // Accept both string and number
   label: z.string().default("Custom Door"),
   config: doorConfigSchema,
   quantity: z.number().min(1).max(100).default(1),
   category: z.string().default("shaker"),
 });
-
 export type CartItem = z.infer<typeof cartItemSchema>;
 
 // =====================================================

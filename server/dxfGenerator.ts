@@ -49,7 +49,10 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
   dxf.addLayer("DIMENSIONS", 7, "CONTINUOUS");
   dxf.addLayer("SECTION_Graphics", 7, "CONTINUOUS");
   dxf.addLayer("HINGES", 7, "CONTINUOUS"); // Visual hinge representation
-
+// Add after the existing addLayer calls in dxfGenerator.ts:
+dxf.addLayer("FRAME", 7, "CONTINUOUS");
+dxf.addLayer("BORDERS", 4, "CONTINUOUS");    // Cyan
+dxf.addLayer("PANELS", 2, "CONTINUOUS");     // Yellow
   const {
     width,
     height,

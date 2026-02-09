@@ -1,132 +1,376 @@
 📦CustomDoorDesigner
- ┣ 📂.local
- ┃ ┗ 📂state
- ┃ ┃ ┗ 📂replit
- ┃ ┃ ┃ ┗ 📂agent
- ┃ ┃ ┃ ┃ ┣ 📂filesystem
- ┃ ┃ ┃ ┃ ┃ ┗ 📜filesystem_state.json
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_009762821702d631821813533ae5505bd290bc6f.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_00ab35a674b039ba5f7583aef2cfe2d597bbb790.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_02cb4d97b83d910d16a4974d8ed590862a3b92ba.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_056d8cd5b1828cb436917f3794a4eaa59d4252ad.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_06f76fe6c84588ba024b164ba99947f798ae1c50.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_0ad34d705eb3a779317c7013ad821d6c31899c92.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_0cc1f5714c638db647d649f2973a50efef982b96.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_142bd6f1cf5ec078408e66a6881e912ea21b8007.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_15cdcc74231f87fcee320db759a5a9b678adade8.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_1f44d8e92becc2855b55d004391fdd289fb0807b.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_21f25da65aa349940f4cff447ad54c3977ee728a.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_2289c28932cc15cc6e56b97ff0f34d03f22bacd1.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_27b430b5c6189938e9b284b2d623fa6559cfb958.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_2bc21c793fe6a8a8dbc4cae603a8a1fa5a86893c.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_3a47815bfb3d30e5708ba93400bb570a7d703c35.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4208aa82f623f63c26235a85ff3ff34474417607.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_428fa3590e3acaffe35c44d99c49760e67ef4aa0.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_429b74bac4f6929be9ed842413944b5bd80f29b7.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_42abf4b982229bf5dc980f8559d75a5b14d0c3a4.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_44500fc6f72b8ce3d943039351c5b5ad2777ded6.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_486ae500172c6c0e613cbeceefea8d2cee4992ed.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_49569cb30302257eea7046811eb1139cc00eb1e8.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4d626b6436524ff308b44277038dadabdfe4c7be.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4e8b40c031e612ee29f27fb9f79f0ab57dce4340.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_4fa7e48b3907b3e8b54c98dc8bd2308afcde4600.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_54b594333b1c8dbbef148cd5e1dde2dce1c7da91.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_575d402c85d14b122be870ad0e4be3793577fa00.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5926a93c6c24d85d05da98223170831baa86b777.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5aa83dc69212a14cc1ed28fc31fa6436dcdda20b.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5beb27f20a145ae08e376e3f2691e17ee47a7686.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5ceec6c83cff5a82001e545c515af2073c5aa32d.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5e06d8efed8ec794ed7e99840f203c37f6553f70.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_5fc1967ebe88e6e668569c635864f97a587615e3.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_63a513fc8f61ec4186614d78c4a3413c262f839d.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_645edca2d6d4855273c1055b0c5e306ba497753d.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_65527469f5c0dc93db860deccd1e02c8c9c13660.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_676cfe036e6dfaa6ea75cfe8f2124fab4273d9bf.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_67997eae76ea212384f6d06635bb02b1a30dbfd9.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_690c46a1fdbc5232e6ef633ad97d9cd32e0a008f.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_6b02aa7f4af72715503fec2c4a938acb50f0de52.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_7462b567246f7c3c22e67ff6e34c76defdcfc7bc.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_8b202739b08b67c906701c089a183e712890bf0f.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_92a6ec5ca81fa62bb53ef8b45060093773c1a539.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_97beacd09794c6c0099576173c56bb1bb0deefbb.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_9ac12c1dbf2a583e1017c389f61c71c5bb3edfa9.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_a1e99f299c3653ae45a60808947cbfcdfe4ad022.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_a456d041db61a51c7eeb2318406c2fa76458b993.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_b3a0c0ad89e562526352c4d489913f073cca26b6.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_b63a8e4b64c5ce3317a95fa2b2577a7ee0fecf00.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_b7a51827898a016cedfb7836a7f5e0662ac7b080.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_bab06e2bb1f447b05df5d4ab6b7f91d282a60fb6.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_bdf64528724281dbaa8abb79c0ddaddcd88790f6.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c067ce80698c8b985dcde1124d05d3e8f29c8610.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c1c3a968cc06f00794d4268c5f5d3d741bcc16c1.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c21531281cdd7bca0f5e287eab4df17a24605b8b.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c3f2d445a33eb69458c85114c86f07bb9b8834cd.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c497f94bedc5dcb17acfd9d602578839847ea920.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c7f813522f0dc80f2d593bae95cf26dc5588303b.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_c92cbbf0b7f902eedf06dd1b04e3875acf09bef9.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_cf722bcdb4707b37454227ddb2bc3c0192e428c7.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d2262541254bdebc55796c6319b138e6b0a05922.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d3b33f16fdfe27a2a4c8968ab9caf4c6c68d3095.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d3d7a57a97bcf56dff3bfa2f2732b10dc8b35839.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_d612859fbabd0c99fab3ec1fbc7279522ba6276a.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_da3c1b03473783fe09f91fd2ae9faaa739f52d96.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_daa7f8076819b9a5df6ffe24a450deb06af32593.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_dfabd94dc3aa9a34dba161dc27fa2a6caa8366d0.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_e8c6965c8694b95cea6ea1d5ccfe4a781c49649e.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_ecce2c36ec5c8dcec1fe089aaa2189ad4f6da0f4.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_ed9945a1896d223f1962e9bc2e16db8ee36e869d.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_fa600421baf0b8b15f8e0afb6d1cd29a191709a3.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_fba846403c45c33c9c6bf550d0454904fecdcf9e.bin
- ┃ ┃ ┃ ┃ ┣ 📜.agent_state_main.bin
- ┃ ┃ ┃ ┃ ┣ 📜.latest.json
- ┃ ┃ ┃ ┃ ┣ 📜rapid_build_success
- ┃ ┃ ┃ ┃ ┗ 📜repl_state.bin
- ┣ 📂attached_assets
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.36.30_9e85b87b_1762772657455.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.36.30_e6b3ffd7_1762808630887.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.39.44_41a10436_1762772660974.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.39.44_522c272e_1762808637647.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.40.34_3c12dec0_1762772664220.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.40.34_aef171ff_1762808641749.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.08_7cefdef7_1762772668403.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.08_8ad9214c_1762808649759.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.37_87466032_1762772671980.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.42.37_bb5a1c83_1762808656631.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.43.05_60eb412e_1762808662505.jpg
- ┃ ┣ 📜WhatsApp Image 2025-11-10 at 15.43.05_613432ec_1762772675690.jpg
- ┃ ┣ 📜image_1762773850229.png
- ┃ ┣ 📜image_1762773932091.png
- ┃ ┣ 📜image_1762774021865.png
- ┃ ┣ 📜image_1762774298997.png
- ┃ ┣ 📜image_1762774378136.png
- ┃ ┣ 📜image_1762774553116.png
- ┃ ┣ 📜image_1762774684163.png
- ┃ ┣ 📜image_1762808996065.png
- ┃ ┣ 📜image_1762809063964.png
- ┃ ┣ 📜image_1762809391369.png
- ┃ ┣ 📜image_1762810123044.png
- ┃ ┣ 📜image_1762810221801.png
- ┃ ┣ 📜image_1762810257106.png
- ┃ ┣ 📜image_1762810276481.png
- ┃ ┣ 📜image_1762810312956.png
- ┃ ┣ 📜image_1764880425018.png
- ┃ ┣ 📜image_1765279134133.png
- ┃ ┣ 📜image_1765279150368.png
- ┃ ┣ 📜image_1765279170510.png
- ┃ ┣ 📜image_1765279200435.png
- ┃ ┣ 📜image_1765281022871.png
- ┃ ┣ 📜image_1765281196680.png
- ┃ ┣ 📜image_1765281657410.png
- ┃ ┣ 📜image_1765281888728.png
- ┃ ┣ 📜image_1765282038925.png
- ┃ ┣ 📜image_1765282072098.png
- ┃ ┣ 📜image_1765286675694.png
- ┃ ┣ 📜image_1765286723581.png
- ┃ ┣ 📜image_1765287101034.png
- ┃ ┣ 📜image_1765287146536.png
- ┃ ┣ 📜image_1765287723060.png
- ┃ ┣ 📜image_1765287766733.png
- ┃ ┗ 📜image_1765288093439.png
+ ┣ 📂.git
+ ┃ ┣ 📂filter-repo
+ ┃ ┃ ┣ 📜already_ran
+ ┃ ┃ ┣ 📜commit-map
+ ┃ ┃ ┣ 📜ref-map
+ ┃ ┃ ┗ 📜suboptimal-issues
+ ┃ ┣ 📂hooks
+ ┃ ┃ ┣ 📜applypatch-msg.sample
+ ┃ ┃ ┣ 📜commit-msg.sample
+ ┃ ┃ ┣ 📜fsmonitor-watchman.sample
+ ┃ ┃ ┣ 📜post-update.sample
+ ┃ ┃ ┣ 📜pre-applypatch.sample
+ ┃ ┃ ┣ 📜pre-commit.sample
+ ┃ ┃ ┣ 📜pre-merge-commit.sample
+ ┃ ┃ ┣ 📜pre-push.sample
+ ┃ ┃ ┣ 📜pre-rebase.sample
+ ┃ ┃ ┣ 📜pre-receive.sample
+ ┃ ┃ ┣ 📜prepare-commit-msg.sample
+ ┃ ┃ ┣ 📜push-to-checkout.sample
+ ┃ ┃ ┣ 📜sendemail-validate.sample
+ ┃ ┃ ┗ 📜update.sample
+ ┃ ┣ 📂info
+ ┃ ┃ ┣ 📜exclude
+ ┃ ┃ ┗ 📜refs
+ ┃ ┣ 📂logs
+ ┃ ┃ ┣ 📂refs
+ ┃ ┃ ┃ ┣ 📂heads
+ ┃ ┃ ┃ ┃ ┣ 📜main
+ ┃ ┃ ┃ ┃ ┣ 📜replit-agent
+ ┃ ┃ ┃ ┃ ┗ 📜replit-push
+ ┃ ┃ ┃ ┣ 📂remotes
+ ┃ ┃ ┃ ┃ ┣ 📂gitsafe-backup
+ ┃ ┃ ┃ ┃ ┃ ┗ 📜main
+ ┃ ┃ ┃ ┃ ┗ 📂origin
+ ┃ ┃ ┃ ┃ ┃ ┣ 📜main
+ ┃ ┃ ┃ ┃ ┃ ┗ 📜replit-push
+ ┃ ┃ ┃ ┗ 📜stash
+ ┃ ┃ ┗ 📜HEAD
+ ┃ ┣ 📂objects
+ ┃ ┃ ┣ 📂00
+ ┃ ┃ ┃ ┗ 📜6d4f4349e5f663dab10b1de05a802106683f53
+ ┃ ┃ ┣ 📂01
+ ┃ ┃ ┃ ┗ 📜e14d88b505eb55576b9021bacc7ad56577abc8
+ ┃ ┃ ┣ 📂05
+ ┃ ┃ ┃ ┣ 📜8ff61dc285887272708968b7154d6568168299
+ ┃ ┃ ┃ ┗ 📜9437d772e6e1bba18c3828c394dcb451516bda
+ ┃ ┃ ┣ 📂07
+ ┃ ┃ ┃ ┗ 📜058ce569efb99b34809c8c62ddb84aacf34d59
+ ┃ ┃ ┣ 📂0a
+ ┃ ┃ ┃ ┗ 📜7386d5ee58fb263bb0ef09425ab6b3877dc6f0
+ ┃ ┃ ┣ 📂0b
+ ┃ ┃ ┃ ┗ 📜dc807b914b0567c6ab66f70f1abe3d6a26eaea
+ ┃ ┃ ┣ 📂10
+ ┃ ┃ ┃ ┗ 📜84b6a664efb4953caf8af49de8182bd08682cd
+ ┃ ┃ ┣ 📂11
+ ┃ ┃ ┃ ┗ 📜c410dcd36f6385fbc17ecbd49159c6266b1c2d
+ ┃ ┃ ┣ 📂12
+ ┃ ┃ ┃ ┗ 📜e45675909b9f937556eb4f6d166103dd97c333
+ ┃ ┃ ┣ 📂13
+ ┃ ┃ ┃ ┗ 📜9c479e8302e967d19fe81ad8041a868f6d1f52
+ ┃ ┃ ┣ 📂15
+ ┃ ┃ ┃ ┣ 📜0c8d604a164d61957a48c9e605f58d0324855b
+ ┃ ┃ ┃ ┗ 📜cc7976bb39bea0f5987e562ed6d80221e79b92
+ ┃ ┃ ┣ 📂1a
+ ┃ ┃ ┃ ┣ 📜003eaef784f7f2dda7323584a5fe6827519ef2
+ ┃ ┃ ┃ ┗ 📜24b29030ce1c95d0c5efc1344588449483be75
+ ┃ ┃ ┣ 📂1c
+ ┃ ┃ ┃ ┗ 📜64d951cf17d02d45dedf1d124e515f6823126b
+ ┃ ┃ ┣ 📂1f
+ ┃ ┃ ┃ ┗ 📜93bc086cbd8a5b5216d64d6b141b11ab2c2611
+ ┃ ┃ ┣ 📂20
+ ┃ ┃ ┃ ┗ 📜cfcff7dc21ece5a2f380c9f03800e128aeb7ae
+ ┃ ┃ ┣ 📂21
+ ┃ ┃ ┃ ┗ 📜58cde8da7dee87f901cf4eee67696a30a6c92c
+ ┃ ┃ ┣ 📂25
+ ┃ ┃ ┃ ┣ 📜140de66855aa460a3f6caf1bfa0f4adc9f0e61
+ ┃ ┃ ┃ ┗ 📜e5e4e726574860931a5c55a294e70bac06af13
+ ┃ ┃ ┣ 📂26
+ ┃ ┃ ┃ ┣ 📜868ac1784483ba881501c4f69c4c0c194ea19a
+ ┃ ┃ ┃ ┣ 📜8f25a386e4eb48c13701bba7f220a585fd13de
+ ┃ ┃ ┃ ┗ 📜a790300fbdeccad8b4b87ff5694796e6a4d1ae
+ ┃ ┃ ┣ 📂27
+ ┃ ┃ ┃ ┣ 📜33e47a887d857492c7e855b13137db837adffd
+ ┃ ┃ ┃ ┗ 📜a013122fe3a9dbd649a466673d1e8ca9369d6c
+ ┃ ┃ ┣ 📂28
+ ┃ ┃ ┃ ┗ 📜ffaf3914af59221f9280c7f7842e6e762fb790
+ ┃ ┃ ┣ 📂2a
+ ┃ ┃ ┃ ┗ 📜beaa6f2cf8933403dc128c31dbd7b072a20b8f
+ ┃ ┃ ┣ 📂2b
+ ┃ ┃ ┃ ┗ 📜42f92f9804bf822e036859ec94dbf9ab153cb6
+ ┃ ┃ ┣ 📂2d
+ ┃ ┃ ┃ ┣ 📜3e2272bfe0417dcf1a87d9b9c9153b0a159365
+ ┃ ┃ ┃ ┗ 📜6bdd0668fafee26d9336670e794ec4dbaa1c5c
+ ┃ ┃ ┣ 📂2e
+ ┃ ┃ ┃ ┣ 📜265e3148e45c86bf8924561b6cb3db67380c1f
+ ┃ ┃ ┃ ┗ 📜75ab0a5df33f6a3152c3e3224128eb858aa2f5
+ ┃ ┃ ┣ 📂30
+ ┃ ┃ ┃ ┣ 📜923cc69dfd04bc0b09b3e4027ce643754e74ba
+ ┃ ┃ ┃ ┣ 📜9cbb7866a642444e952523543a33da2b6ca214
+ ┃ ┃ ┃ ┗ 📜cc625ec784e75115e470e7304afda2ec06b853
+ ┃ ┃ ┣ 📂32
+ ┃ ┃ ┃ ┗ 📜d9f50cf6250e4770d6993e793d20f3372ad2fe
+ ┃ ┃ ┣ 📂33
+ ┃ ┃ ┃ ┗ 📜8d324796c34b5139b74521261ebdd0867b9d0c
+ ┃ ┃ ┣ 📂35
+ ┃ ┃ ┃ ┗ 📜47dfb0deb50e62033d43b3af7e811eca5711e9
+ ┃ ┃ ┣ 📂37
+ ┃ ┃ ┃ ┗ 📜8d9452feaf092043904034c63a9ad95c071bf2
+ ┃ ┃ ┣ 📂38
+ ┃ ┃ ┃ ┗ 📜362c44d0cfc0ec725a7cb0cbe84f13845f5746
+ ┃ ┃ ┣ 📂40
+ ┃ ┃ ┃ ┣ 📜b69fa9280cbdcd91df8d2d7902df14f12800f3
+ ┃ ┃ ┃ ┗ 📜cc66e2820e355ed4786d2efd5d23c4997ce914
+ ┃ ┃ ┣ 📂41
+ ┃ ┃ ┃ ┗ 📜a181c6d023424ee7a93d212a825a366c668880
+ ┃ ┃ ┣ 📂44
+ ┃ ┃ ┃ ┗ 📜bf467f7395bdac780516cce5e49df3cd40650a
+ ┃ ┃ ┣ 📂49
+ ┃ ┃ ┃ ┗ 📜c4547500801599ca37a73e96c09244f1ece17d
+ ┃ ┃ ┣ 📂4c
+ ┃ ┃ ┃ ┣ 📜153e6aa9194b5a925075fded51d97efacc2abc
+ ┃ ┃ ┃ ┗ 📜beca0946777167749945077f53f33cf153e05b
+ ┃ ┃ ┣ 📂4d
+ ┃ ┃ ┃ ┗ 📜60b3b55dbfcfc4de66ca04da4f6be9e261e86d
+ ┃ ┃ ┣ 📂4e
+ ┃ ┃ ┃ ┗ 📜ebddc233edbd7f9057c377812675d543a91917
+ ┃ ┃ ┣ 📂4f
+ ┃ ┃ ┃ ┗ 📜ac63a8cf70a6a94aad0d4bfb04d40636eeb2de
+ ┃ ┃ ┣ 📂54
+ ┃ ┃ ┃ ┗ 📜fd14e18486012ab8216c9db5469b9c754165c5
+ ┃ ┃ ┣ 📂55
+ ┃ ┃ ┃ ┗ 📜dc810f4d21a8f2eda71da6ea6309826e055a1c
+ ┃ ┃ ┣ 📂56
+ ┃ ┃ ┃ ┗ 📜513f381d25c44f7439543b4375b5a45a254daf
+ ┃ ┃ ┣ 📂57
+ ┃ ┃ ┃ ┗ 📜f8b29344a06cfa21e26702bcc60aa7a5dd153b
+ ┃ ┃ ┣ 📂59
+ ┃ ┃ ┃ ┗ 📜31797b11e01d8d374cd787f89f4f56a604dcea
+ ┃ ┃ ┣ 📂5a
+ ┃ ┃ ┃ ┗ 📜4bdc44dce128b6d97d95883144242777e2bbcb
+ ┃ ┃ ┣ 📂5b
+ ┃ ┃ ┃ ┣ 📜46c5121e5cc0693fc315e76c61e178f1db97d1
+ ┃ ┃ ┃ ┗ 📜f24af360a0e83f0c9b4b6299f0431e00e09b48
+ ┃ ┃ ┣ 📂60
+ ┃ ┃ ┃ ┣ 📜67733e10884e4837112c3a46be908d6262502c
+ ┃ ┃ ┃ ┗ 📜8967eecb2239f863f706c8cb491935ff742bb9
+ ┃ ┃ ┣ 📂61
+ ┃ ┃ ┃ ┣ 📜1f9a21ceca0d37c8fe4a6b95b429ca54de9a0d
+ ┃ ┃ ┃ ┣ 📜84bb8d6ef316a0fe87978dfab1d05270ae648e
+ ┃ ┃ ┃ ┣ 📜99667faf4b380bab442936e4b48c56b10164e6
+ ┃ ┃ ┃ ┣ 📜b480cb98c72e650b204ef291b0b43fe73a6da6
+ ┃ ┃ ┃ ┗ 📜feeb6fd67fc1064dc1a889d7db2f7484266e99
+ ┃ ┃ ┣ 📂62
+ ┃ ┃ ┃ ┣ 📜80e1e358f3f7ad4754ac5b21c9ea0d9b3c7f4f
+ ┃ ┃ ┃ ┗ 📜8b53458ceee05e573aa5b61e533a10951af715
+ ┃ ┃ ┣ 📂63
+ ┃ ┃ ┃ ┗ 📜1c6d83e6985679f25daf7c13fb2b250c428beb
+ ┃ ┃ ┣ 📂65
+ ┃ ┃ ┃ ┗ 📜5b1acab02c5db6588d7a8118708e9388ec6029
+ ┃ ┃ ┣ 📂66
+ ┃ ┃ ┃ ┗ 📜bcedcbccab295ddff3d4d290cfea82100ea42d
+ ┃ ┃ ┣ 📂67
+ ┃ ┃ ┃ ┗ 📜e172e5919285414efadab282b97477c768832b
+ ┃ ┃ ┣ 📂68
+ ┃ ┃ ┃ ┣ 📜2e1d80b3c92f32aa09b7604de064e57756a95b
+ ┃ ┃ ┃ ┣ 📜7bd0bf9e1682927722099b4023aae9fe8e269e
+ ┃ ┃ ┃ ┗ 📜84207fbe00aa15286e51f3f5a5cf9d4dda1225
+ ┃ ┃ ┣ 📂6a
+ ┃ ┃ ┃ ┗ 📜79be1bde637c7410a03497cd0adb1220dd294d
+ ┃ ┃ ┣ 📂6b
+ ┃ ┃ ┃ ┣ 📜1ded0f4d53bc345e8d0626df4e4261121aae8f
+ ┃ ┃ ┃ ┗ 📜7ccc6b5dc01390ef73152b4ce082b6fceff609
+ ┃ ┃ ┣ 📂6d
+ ┃ ┃ ┃ ┗ 📜d2739b0345ebfb8d006f7f74ab284f533fe7b0
+ ┃ ┃ ┣ 📂6e
+ ┃ ┃ ┃ ┣ 📜516f092329e952ecd74286c278c1fc173d05ec
+ ┃ ┃ ┃ ┗ 📜f217655045e14ac0a213ef887e76993dd9e485
+ ┃ ┃ ┣ 📂6f
+ ┃ ┃ ┃ ┗ 📜4162be6c64231c678e06782dd742d48cc3fd57
+ ┃ ┃ ┣ 📂70
+ ┃ ┃ ┃ ┣ 📜4fdac52880822d4d1a63c9eb6ed611d752d0b4
+ ┃ ┃ ┃ ┗ 📜a92d7888aedbd1af24399ecd73d9e1a3a4e297
+ ┃ ┃ ┣ 📂73
+ ┃ ┃ ┃ ┗ 📜a99bdf081fe6187db9165e47d3d490e0abbad3
+ ┃ ┃ ┣ 📂75
+ ┃ ┃ ┃ ┣ 📜4b99f6a7f8e844373e838d9bd4389cb0d17afb
+ ┃ ┃ ┃ ┗ 📜dd9081fdcccc30e437fbe431b64c4d54207dcd
+ ┃ ┃ ┣ 📂76
+ ┃ ┃ ┃ ┗ 📜8edc0aaeae9fd605c7f46b4ccf852f16f9a666
+ ┃ ┃ ┣ 📂77
+ ┃ ┃ ┃ ┗ 📜2574495fe54493ba4c33e29016c186a488dfa9
+ ┃ ┃ ┣ 📂78
+ ┃ ┃ ┃ ┗ 📜4a815585127dcdd9344bccd2dd3a7066a10fc5
+ ┃ ┃ ┣ 📂7a
+ ┃ ┃ ┃ ┗ 📜ce0a964d536439b2f20ba4ba90ef52fa0447fd
+ ┃ ┃ ┣ 📂7d
+ ┃ ┃ ┃ ┣ 📜985231f470ecffdc85bd7a320498334d1aad93
+ ┃ ┃ ┃ ┗ 📜e6c7b2f991d50322ba03f33d528abcb1e2e342
+ ┃ ┃ ┣ 📂7e
+ ┃ ┃ ┃ ┗ 📜e3e83c635138af667fecadb71ea314af8fbe9d
+ ┃ ┃ ┣ 📂80
+ ┃ ┃ ┃ ┣ 📜4ff75a20fa64fe600ca95269c54726159f725d
+ ┃ ┃ ┃ ┗ 📜c005e7422753fc8d164fa49d6273cfe5de0074
+ ┃ ┃ ┣ 📂81
+ ┃ ┃ ┃ ┗ 📜b6e82aa49d1748e679ae05a1137bf0f9099cb9
+ ┃ ┃ ┣ 📂83
+ ┃ ┃ ┃ ┗ 📜1467f20e20fb1ba4f78201ecbfdfdd031daecf
+ ┃ ┃ ┣ 📂87
+ ┃ ┃ ┃ ┣ 📜40531a998e218562dbd349677b856e15506fac
+ ┃ ┃ ┃ ┗ 📜7a104d6564f665a89a738d05dba8cf3f0fbeb1
+ ┃ ┃ ┣ 📂88
+ ┃ ┃ ┃ ┗ 📜9c483026a5139e0639b69a960b69f23e93ff90
+ ┃ ┃ ┣ 📂8a
+ ┃ ┃ ┃ ┗ 📜ee8f84d4c63806a06dd5185edc581a9b65aead
+ ┃ ┃ ┣ 📂8b
+ ┃ ┃ ┃ ┣ 📜09dd4e8e8038ceb0416b6b8b2a6de7a4a6b7bd
+ ┃ ┃ ┃ ┣ 📜280ebeafd08d6e240ab6155d827e2678f1f4d3
+ ┃ ┃ ┃ ┣ 📜9b5115fd3da148124d48d16be44ab50e5a623a
+ ┃ ┃ ┃ ┗ 📜a276d240604a020f246a62a45ba3d64bb6cf06
+ ┃ ┃ ┣ 📂8c
+ ┃ ┃ ┃ ┗ 📜023216b94fa855529ff1ee128c8ed155c1803c
+ ┃ ┃ ┣ 📂8d
+ ┃ ┃ ┃ ┗ 📜b3616c880d38e4e8366c0377880e7986f7312e
+ ┃ ┃ ┣ 📂8e
+ ┃ ┃ ┃ ┣ 📜1081f5f4ea4b83fd5057181f9877d5e18245e6
+ ┃ ┃ ┃ ┗ 📜bd8892d3049d259b1789618ab84cef8d8de487
+ ┃ ┃ ┣ 📂8f
+ ┃ ┃ ┃ ┣ 📜936bb5d29089aa64496c83eda611c479102e5b
+ ┃ ┃ ┃ ┗ 📜a0e1ad815fac0291d6cacd8c438aad398c68da
+ ┃ ┃ ┣ 📂90
+ ┃ ┃ ┃ ┗ 📜7a06da4b926e2a206cb0e79a27e4e0afe42828
+ ┃ ┃ ┣ 📂91
+ ┃ ┃ ┃ ┣ 📜147e91dec836f3ef5a8f5108689af4019f80c7
+ ┃ ┃ ┃ ┗ 📜e993404b4465e9827ad36778596edc33ccec2f
+ ┃ ┃ ┣ 📂92
+ ┃ ┃ ┃ ┣ 📜170fa43575d81831aeb13009f59d14b44fffdb
+ ┃ ┃ ┃ ┗ 📜4bb4895ac3139d5c7901fff0a3630a36152416
+ ┃ ┃ ┣ 📂94
+ ┃ ┃ ┃ ┗ 📜dc450bc0298bb4baec0b5340da3ff0f39630c0
+ ┃ ┃ ┣ 📂96
+ ┃ ┃ ┃ ┗ 📜264593d3482a45c535a0771153a180068de3b8
+ ┃ ┃ ┣ 📂97
+ ┃ ┃ ┃ ┗ 📜6a70e74469aaf87a320f34d298a62d61dac00f
+ ┃ ┃ ┣ 📂98
+ ┃ ┃ ┃ ┣ 📜719afa7c6b99c7a23e5d3f2d3805e5f0d45e02
+ ┃ ┃ ┃ ┗ 📜fdf53c7d41845529a7628033ff0468ceab899e
+ ┃ ┃ ┣ 📂9c
+ ┃ ┃ ┃ ┣ 📜9b885645d798dd8154cc36bc7635af53375a14
+ ┃ ┃ ┃ ┗ 📜c63dd292576791152249c443a776c48ddc1278
+ ┃ ┃ ┣ 📂9d
+ ┃ ┃ ┃ ┗ 📜50291f6a2d1925c0973a8167cac453c674bff4
+ ┃ ┃ ┣ 📂9e
+ ┃ ┃ ┃ ┗ 📜cbc721d8dc0a7cba5a909987aea8f276c6fc1e
+ ┃ ┃ ┣ 📂a1
+ ┃ ┃ ┃ ┣ 📜656d711b1773329ffe3366f337bb028ccf44db
+ ┃ ┃ ┃ ┣ 📜74886f94023f8457cd8918c41f4d4be3e3e119
+ ┃ ┃ ┃ ┗ 📜b6950f50648576116c367ad50c289c12ce8071
+ ┃ ┃ ┣ 📂a4
+ ┃ ┃ ┃ ┗ 📜b4b5ba0bc575f52eaca7164cca30dd9bd95ada
+ ┃ ┃ ┣ 📂a5
+ ┃ ┃ ┃ ┣ 📜aa4150bfad3773c3ef5e50a30438ce0241e6a2
+ ┃ ┃ ┃ ┗ 📜d26f5d0c12bdbb0b769ac15398998334e8d1d4
+ ┃ ┃ ┣ 📂a6
+ ┃ ┃ ┃ ┣ 📜87551dcb1f314b7211df4a9c6a5d9a358df100
+ ┃ ┃ ┃ ┗ 📜97de4287a33c447915d37032e0ef025c93604d
+ ┃ ┃ ┣ 📂b7
+ ┃ ┃ ┃ ┣ 📜dc9f6776a3319155c1b343ee26044d19375d8f
+ ┃ ┃ ┃ ┗ 📜f20ac71491dc9dca37c5c2d0f2f5de26ed8600
+ ┃ ┃ ┣ 📂b8
+ ┃ ┃ ┃ ┗ 📜7fa4b350b8102fc8deda169a70432e1fee9bf6
+ ┃ ┃ ┣ 📂ba
+ ┃ ┃ ┃ ┗ 📜c2ec16b12c73d09fd1bf6e6c6c5dd45aeb3403
+ ┃ ┃ ┣ 📂bb
+ ┃ ┃ ┃ ┗ 📜d6d19977d6f4304fb24a6fc4f40824f6342b00
+ ┃ ┃ ┣ 📂bf
+ ┃ ┃ ┃ ┗ 📜099878b946ac8a968d2c6e7a2cfdc5ee07597e
+ ┃ ┃ ┣ 📂c2
+ ┃ ┃ ┃ ┗ 📜e8f97b8b6f6ed2a8816347fdbec4c5bf74bb7d
+ ┃ ┃ ┣ 📂c6
+ ┃ ┃ ┃ ┗ 📜f793409856fa1faaf28413183b73e51969fc76
+ ┃ ┃ ┣ 📂c8
+ ┃ ┃ ┃ ┗ 📜9d1703aaf1f924df578e8ace59b2a5d37c8f77
+ ┃ ┃ ┣ 📂c9
+ ┃ ┃ ┃ ┗ 📜a5fa4ba15a2a1834a3343440603d5c30863698
+ ┃ ┃ ┣ 📂ca
+ ┃ ┃ ┃ ┗ 📜7745925be16902d5c60c6a6572fded6a01ad46
+ ┃ ┃ ┣ 📂cc
+ ┃ ┃ ┃ ┗ 📜3cdc1ba31ad2b66df588feb310ef0c4fe53cc2
+ ┃ ┃ ┣ 📂cd
+ ┃ ┃ ┃ ┣ 📜d5b28155addce3bff38bfa724dc419734c3d00
+ ┃ ┃ ┃ ┗ 📜dba85a728b9951846eacab6972879acbbbabc7
+ ┃ ┃ ┣ 📂ce
+ ┃ ┃ ┃ ┗ 📜c66bb6e0577ebccf86289b1a36f7febf2b8227
+ ┃ ┃ ┣ 📂d0
+ ┃ ┃ ┃ ┣ 📜2cb16c2d1a2bf01d9e5dc63ebc8d1fbc507724
+ ┃ ┃ ┃ ┗ 📜382eca5ffdb4e94d33b527918c17bed1c8bc18
+ ┃ ┃ ┣ 📂d2
+ ┃ ┃ ┃ ┗ 📜bf4e710d1c3ce4798cad1d8e5fb756c1321623
+ ┃ ┃ ┣ 📂d5
+ ┃ ┃ ┃ ┗ 📜a63bfc0f05f047c3f3a5606b837af51df19118
+ ┃ ┃ ┣ 📂d9
+ ┃ ┃ ┃ ┗ 📜8bfa17b26029f6c5d3b9c0774d8f79eaf15912
+ ┃ ┃ ┣ 📂da
+ ┃ ┃ ┃ ┣ 📜d1deb2ab66ba090d04971b1e3471c8432f8cde
+ ┃ ┃ ┃ ┗ 📜ded35554265f72ea5c41e1c86bb2b3b715a50a
+ ┃ ┃ ┣ 📂db
+ ┃ ┃ ┃ ┗ 📜954cfab17820c1bd3fe8c99d04b3774f7bb0ba
+ ┃ ┃ ┣ 📂dc
+ ┃ ┃ ┃ ┗ 📜a1b605630470ff033b22800677f35daa762297
+ ┃ ┃ ┣ 📂dd
+ ┃ ┃ ┃ ┗ 📜6988cf315b380620d912b69914bef7b2cf176a
+ ┃ ┃ ┣ 📂e0
+ ┃ ┃ ┃ ┗ 📜abefcafe17d1c9767b0e5cc241fd9acc3e101f
+ ┃ ┃ ┣ 📂e1
+ ┃ ┃ ┃ ┗ 📜77486a02618b7192af6e2a592e1fa2280d6258
+ ┃ ┃ ┣ 📂e2
+ ┃ ┃ ┃ ┗ 📜627a7850a379fc0bfcd3932b206cc50725ecde
+ ┃ ┃ ┣ 📂e9
+ ┃ ┃ ┃ ┗ 📜08035cb39f5a516166eb1433d0b281a416fbf5
+ ┃ ┃ ┣ 📂eb
+ ┃ ┃ ┃ ┣ 📜7b1aa84477698f263ec119a601708f96b3c2ad
+ ┃ ┃ ┃ ┗ 📜d4a1c7d87c0ee8ef21bcf3792c099b15a04655
+ ┃ ┃ ┣ 📂ed
+ ┃ ┃ ┃ ┗ 📜7e16ce1185a38e38c7debe6be8d7bb9b09deed
+ ┃ ┃ ┣ 📂f0
+ ┃ ┃ ┃ ┗ 📜ca956ec9d68a2ca093d8dc47c708a18ac291d4
+ ┃ ┃ ┣ 📂f1
+ ┃ ┃ ┃ ┗ 📜861355cd0102e308c7494442dcde1d89beb9bd
+ ┃ ┃ ┣ 📂f7
+ ┃ ┃ ┃ ┗ 📜744db3aecc0ebafc1277cb42911ecfc1060d41
+ ┃ ┃ ┣ 📂f9
+ ┃ ┃ ┃ ┗ 📜dd64eaf009a1d9e3a9025abca03161f0f2c0e0
+ ┃ ┃ ┣ 📂fa
+ ┃ ┃ ┃ ┣ 📜72f1557a1313d4b2b6697be8c5ac7e08a2deac
+ ┃ ┃ ┃ ┗ 📜eac491467d3a700bdf2bce86a8e8fe57c1018a
+ ┃ ┃ ┣ 📂fc
+ ┃ ┃ ┃ ┗ 📜048da39322e5e115cc5a1b07bfcc85c07b6ab8
+ ┃ ┃ ┣ 📂fe
+ ┃ ┃ ┃ ┗ 📜c29bcfef1173695f85f5f1be30aa58113077ce
+ ┃ ┃ ┣ 📂ff
+ ┃ ┃ ┃ ┗ 📜6c5c15b58ee44be896c916dd1f7401e92dfd23
+ ┃ ┃ ┣ 📂info
+ ┃ ┃ ┃ ┗ 📜packs
+ ┃ ┃ ┗ 📂pack
+ ┃ ┃ ┃ ┣ 📜pack-1e7bde791a521a4817a41f80e4743da616d460dc.idx
+ ┃ ┃ ┃ ┣ 📜pack-1e7bde791a521a4817a41f80e4743da616d460dc.pack
+ ┃ ┃ ┃ ┣ 📜pack-1e7bde791a521a4817a41f80e4743da616d460dc.rev
+ ┃ ┃ ┃ ┣ 📜pack-2729ec5635adf9374f9dba35171f60b05b5e1c9d.idx
+ ┃ ┃ ┃ ┣ 📜pack-2729ec5635adf9374f9dba35171f60b05b5e1c9d.pack
+ ┃ ┃ ┃ ┗ 📜pack-2729ec5635adf9374f9dba35171f60b05b5e1c9d.rev
+ ┃ ┣ 📂refs
+ ┃ ┃ ┣ 📂heads
+ ┃ ┃ ┃ ┣ 📜main
+ ┃ ┃ ┃ ┗ 📜replit-push
+ ┃ ┃ ┣ 📂original
+ ┃ ┃ ┣ 📂remotes
+ ┃ ┃ ┃ ┣ 📂gitsafe-backup
+ ┃ ┃ ┃ ┗ 📂origin
+ ┃ ┃ ┃ ┃ ┣ 📜main
+ ┃ ┃ ┃ ┃ ┗ 📜replit-push
+ ┃ ┃ ┣ 📂replace
+ ┃ ┃ ┣ 📂replit
+ ┃ ┃ ┣ 📂tags
+ ┃ ┃ ┗ 📜stash
+ ┃ ┣ 📜COMMIT_EDITMSG
+ ┃ ┣ 📜FETCH_HEAD
+ ┃ ┣ 📜HEAD
+ ┃ ┣ 📜ORIG_HEAD
+ ┃ ┣ 📜config
+ ┃ ┣ 📜description
+ ┃ ┣ 📜index
+ ┃ ┗ 📜packed-refs
  ┣ 📂client
  ┃ ┣ 📂public
  ┃ ┃ ┣ 📂fonts
@@ -148,12 +392,15 @@
  ┃ ┃ ┃ ┣ 📂builder
  ┃ ┃ ┃ ┃ ┣ 📜DoorConfigurationPanel.tsx
  ┃ ┃ ┃ ┃ ┗ 📜VisualBuilder.tsx
- ┃ ┃ ┃ ┣ 📂catalogue
  ┃ ┃ ┃ ┣ 📂door
+ ┃ ┃ ┃ ┃ ┣ 📂sections
+ ┃ ┃ ┃ ┃ ┃ ┗ 📜AngledCornersSection.tsx
  ┃ ┃ ┃ ┃ ┣ 📜ConfigSidebar.tsx
  ┃ ┃ ┃ ┃ ┣ 📜DimensionLabel.tsx
  ┃ ┃ ┃ ┃ ┣ 📜Door2D.tsx
  ┃ ┃ ┃ ┃ ┣ 📜Door3D.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜Door3DCanvas.tsx
+ ┃ ┃ ┃ ┃ ┣ 📜Door3DLazy.tsx
  ┃ ┃ ┃ ┃ ┗ 📜ProductDetailsSidebar.tsx
  ┃ ┃ ┃ ┗ 📂ui
  ┃ ┃ ┃ ┃ ┣ 📜FloatingSyncStatus.tsx
@@ -221,15 +468,38 @@
  ┃ ┃ ┃ ┃ ┗ 📜useSyncStatus.ts
  ┃ ┃ ┃ ┣ 📂validation
  ┃ ┃ ┃ ┃ ┗ 📜doorValidation.ts
+ ┃ ┃ ┃ ┣ 📜anglePresets.ts
+ ┃ ┃ ┃ ┣ 📜cartUtils.ts
  ┃ ┃ ┃ ┣ 📜queryClient.ts
  ┃ ┃ ┃ ┗ 📜utils.ts
  ┃ ┃ ┣ 📂pages
+ ┃ ┃ ┃ ┣ 📜CheckoutPage.tsx
  ┃ ┃ ┃ ┣ 📜DoorConfigurator.tsx
  ┃ ┃ ┃ ┗ 📜not-found.tsx
  ┃ ┃ ┣ 📜App.tsx
  ┃ ┃ ┣ 📜index.css
  ┃ ┃ ┗ 📜main.tsx
  ┃ ┗ 📜index.html
+ ┣ 📂dist
+ ┃ ┗ 📂client
+ ┃ ┃ ┣ 📂assets
+ ┃ ┃ ┃ ┣ 📜index-CHqhmn1d.css
+ ┃ ┃ ┃ ┗ 📜index-mtOSwfO5.js
+ ┃ ┃ ┣ 📂fonts
+ ┃ ┃ ┃ ┗ 📜inter.json
+ ┃ ┃ ┣ 📂geometries
+ ┃ ┃ ┃ ┗ 📜heart.gltf
+ ┃ ┃ ┣ 📂sounds
+ ┃ ┃ ┃ ┣ 📜background.mp3
+ ┃ ┃ ┃ ┣ 📜hit.mp3
+ ┃ ┃ ┃ ┗ 📜success.mp3
+ ┃ ┃ ┣ 📂textures
+ ┃ ┃ ┃ ┣ 📜asphalt.png
+ ┃ ┃ ┃ ┣ 📜grass.png
+ ┃ ┃ ┃ ┣ 📜sand.jpg
+ ┃ ┃ ┃ ┣ 📜sky.png
+ ┃ ┃ ┃ ┗ 📜wood.jpg
+ ┃ ┃ ┗ 📜index.html
  ┣ 📂extensions
  ┃ ┗ 📂door-designer-ext
  ┃ ┃ ┣ 📂assets
@@ -247,6 +517,7 @@
  ┃ ┣ 📜routes.ts
  ┃ ┣ 📜seed.ts
  ┃ ┣ 📜shopify.ts
+ ┃ ┣ 📜shopifyCheckout.ts
  ┃ ┣ 📜storage.ts
  ┃ ┣ 📜svgGenerator.ts
  ┃ ┣ 📜utils.ts
@@ -254,18 +525,21 @@
  ┣ 📂shared
  ┃ ┣ 📜doorSchema.ts
  ┃ ┗ 📜schema.ts
- ┣ 📜.dockerignore
+ ┣ 📂shopify
+ ┃ ┣ 📜README.md
+ ┃ ┣ 📜door-configurator.css
+ ┃ ┣ 📜door-configurator.min.js
+ ┃ ┣ 📜shopify-door-configurator.liquid
+ ┃ ┗ 📜test.html
  ┣ 📜.env
  ┣ 📜.env.example
- ┣ 📜.gitignore
- ┣ 📜.replit
- ┣ 📜Dockerfile
  ┣ 📜drizzle.config.ts
  ┣ 📜package-lock.json
  ┣ 📜package.json
  ┣ 📜postcss.config.js
  ┣ 📜render_deployment_guide.md
  ┣ 📜replit.md
+ ┣ 📜repomix-output.xml
  ┣ 📜reproduce_dxf.ts
  ┣ 📜schema.sql
  ┣ 📜shopify.app.toml
@@ -273,7 +547,9 @@
  ┣ 📜tailwind.config.ts
  ┣ 📜test.dxf
  ┣ 📜test_fix.dxf
+ ┣ 📜tree.txt
  ┣ 📜tsconfig.json
+ ┣ 📜tsconfig.node.json
  ┣ 📜verify_config_runtime.ts
  ┣ 📜verify_dxf_details.ts
  ┣ 📜verify_dxf_geometry.ts

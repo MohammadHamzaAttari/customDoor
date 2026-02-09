@@ -11,7 +11,9 @@ import {
   ContactShadows,
 } from "@react-three/drei";
 import { Door3D } from "./Door3D";
-import type { Door3DHandle } from "./Door3DLazy";
+export interface Door3DHandle {
+  resetView: () => void;
+}
 
 interface Door3DCanvasProps {
   config: any;

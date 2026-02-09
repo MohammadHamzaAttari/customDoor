@@ -491,6 +491,8 @@ export class DatabaseStorage implements IStorage {
   // PRICE CALCULATION
   // =====================================================
 
+  // In storage.ts, replace the calculateDoorPrice method:
+
   async calculateDoorPrice(params: {
     heightMm: number;
     widthMm: number;
@@ -510,12 +512,13 @@ export class DatabaseStorage implements IStorage {
     const MID_RAIL_FEE = 5.00;
     const HINGE_HOLE_FEE = 1.50;
 
-    const areaSqm = (heightMm * widthMm) / 1000000;
+    // Door area (always full rectangular, even if angled — per spec)
+    const doorAreaSqm = (heightMm * widthMm) / 1000000;
 
     const isSlab = panelType === "NONE";
     const pricePerSqm = isSlab ? PRICE_PER_SQM_SLAB : PRICE_PER_SQM_SHAKER;
 
-    let price = FIXED_FEE_PER_DOOR + (areaSqm * pricePerSqm);
+    let price = FIXED_FEE_PER_DOOR + (doorAreaSqm * pricePerSqm);
 
     if (isAngled) {
       price += ANGLED_DOOR_FEE;
@@ -524,24 +527,32 @@ export class DatabaseStorage implements IStorage {
     price += numMidRails * MID_RAIL_FEE;
     price += hingeQty * HINGE_HOLE_FEE;
 
-    // Finish multiplier
-    const finishMultipliers: Record<string, number> = {
-      RAW_UNASSEMBLED: 1.0,
-      ASSEMBLED_PREP: 1.3,
-      PRIMED: 1.8,
-    };
-    price *= finishMultipliers[finish] || 1.0;
+    // Panel upgrades — use PANEL area not door area (per spec)
+    // Approximate panel area: assume default 90mm borders
+    const defaultBorder = 90;
+    const panelWidthMm = Math.max(0, widthMm - defaultBorder * 2);
+    const panelHeightMm = Math.max(0, heightMm - defaultBorder * 2);
+    const panelAreaSqm = (panelWidthMm * panelHeightMm) / 1000000;
 
-    // Panel upgrades (reeded, melamine)
     if (panelType === "REEDED_19MM") {
-      price += 10 + (areaSqm * 60);
+      price += 10 + (panelAreaSqm * 60);  // £10 fixed + £60/m² of PANEL
     } else if (panelType === "MELAMINE_18MM") {
-      price += 10 + (areaSqm * 40);
+      price += 10 + (panelAreaSqm * 40);  // £10 fixed + £40/m² of PANEL
     }
+
+    // FIX: Finish is NOT a multiplier per spec — it's additive
+    // The spec says pricing formula is purely additive
+    // Finish surcharges should come from the finishOptions DB table
+    // For now, keep them as fixed surcharges, NOT multipliers
+    const finishSurcharges: Record<string, number> = {
+      RAW_UNASSEMBLED: 0,
+      ASSEMBLED_PREP: 0,  // TODO: Set actual surcharge when determined
+      PRIMED: 0,          // TODO: Set actual surcharge when determined (priced highly as disincentive)
+    };
+    price += finishSurcharges[finish] || 0;
 
     return Math.round(price * 100) / 100;
   }
-
   // =====================================================
   // LEGACY CART SUPPORT (In-memory for now)
   // =====================================================

@@ -1,5 +1,5 @@
 // client/src/pages/CheckoutPage.tsx
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,16 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Lock, CreditCard, Loader2, Package, Ruler,
   Layers, Settings2, Check, Plus, Minus, Trash2, ShoppingCart, AlertCircle,
+  ArrowLeftRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import {
-  getCart,
-  updateItemQuantity,
-  removeItem as removeCartItem,
-  clearCart,
-  type CartItem,
-} from "@/lib/cartUtils";
+import { useDoorStore, type DoorOrderItem } from "@/lib/stores/useDoorStore";
+import { DEFAULT_PRICING } from "@shared/doorSchema";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PANEL_LABELS: Record<string, string> = {
@@ -50,23 +46,29 @@ function CartItemCard({
   index,
   onQuantityChange,
   onRemove,
+  onSwapHinge,
+  onFinishChange,
 }: {
-  item: CartItem;
+  item: DoorOrderItem;
   index: number;
   onQuantityChange: (id: string, qty: number) => void;
   onRemove: (id: string) => void;
+  onSwapHinge: (id: string) => void;
+  onFinishChange: (id: string, finish: DoorOrderItem["finish"]) => void;
 }) {
-  const { config, quantity, category } = item;
-  const currentFinish = FINISH_LABELS[config.finish] || FINISH_LABELS.RAW_UNASSEMBLED;
-  const areaM2 = (config.width * config.height) / 1_000_000;
+  const currentFinish = FINISH_LABELS[item.finish] || FINISH_LABELS.RAW_UNASSEMBLED;
+  const areaM2 = (item.width * item.height) / 1_000_000;
+  const category = item.panelType === "NONE" ? "slab" : "shaker";
   const categoryInfo = CATEGORY_LABELS[category] || CATEGORY_LABELS.custom;
-  const lineTotal = config.price * quantity;
 
   const hasCustomOptions =
-    config.angledLeft ||
-    config.angledRight ||
-    (config.midRailsEnabled && config.midRails?.length) ||
-    (config.hingeDrilling && config.hinges?.length);
+    item.angledLeft ||
+    item.angledRight ||
+    (item.midRailsEnabled && item.midRails?.length) ||
+    (item.hingeDrilling && item.hinges?.length);
+
+  // Determine hinge side
+  const hingeSide = item.hinges.length > 0 ? item.hinges[0].side : null;
 
   return (
     <Card className="border-stone-200 shadow-sm overflow-hidden">
@@ -93,7 +95,7 @@ function CartItemCard({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Package className="w-5 h-5 text-orange-600" />
-              Custom Trade {categoryInfo.label}
+              {item.label}
             </CardTitle>
             <CardDescription className="mt-1">Made-to-order MDF door</CardDescription>
           </div>
@@ -113,25 +115,25 @@ function CartItemCard({
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 rounded-full border-stone-300"
-                onClick={() => onQuantityChange(item.id, Math.max(1, quantity - 1))}
-                disabled={quantity <= 1}
+                onClick={() => onQuantityChange(item.id, Math.max(1, item.qty - 1))}
+                disabled={item.qty <= 1}
               >
                 <Minus className="w-3.5 h-3.5" />
               </Button>
-              <span className="text-lg font-bold w-8 text-center tabular-nums">{quantity}</span>
+              <span className="text-lg font-bold w-8 text-center tabular-nums">{item.qty}</span>
               <Button
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 rounded-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                onClick={() => onQuantityChange(item.id, quantity + 1)}
+                onClick={() => onQuantityChange(item.id, item.qty + 1)}
               >
                 <Plus className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-stone-500">£{config.price.toFixed(2)} each</p>
-            <p className="text-lg font-bold text-stone-900">£{lineTotal.toFixed(2)}</p>
+            <p className="text-xs text-stone-500">£{item.unitPrice.toFixed(2)} each</p>
+            <p className="text-lg font-bold text-stone-900">£{item.lineTotal.toFixed(2)}</p>
           </div>
         </div>
 
@@ -143,9 +145,9 @@ function CartItemCard({
           </h3>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Height", value: `${config.height}mm` },
-              { label: "Width", value: `${config.width}mm` },
-              { label: "Thickness", value: `${config.thickness}mm` },
+              { label: "Height", value: `${item.height}mm` },
+              { label: "Width", value: `${item.width}mm` },
+              { label: "Thickness", value: `${item.thickness}mm` },
             ].map((d) => (
               <div key={d.label} className="bg-stone-50 rounded-lg p-3 text-center">
                 <p className="text-xs text-stone-500 uppercase tracking-wider">{d.label}</p>
@@ -154,6 +156,58 @@ function CartItemCard({
             ))}
           </div>
           <p className="text-xs text-stone-500 mt-2 text-center">Area: {areaM2.toFixed(3)} m²</p>
+        </div>
+
+        <Separator />
+
+        {/* Quick Actions — Catalogue Mode (per spec requirements) */}
+        <div>
+          <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-stone-400" />
+            Quick Edit
+          </h3>
+          <div className="space-y-3">
+            {/* Finish Quick Change */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-stone-600">Finish</span>
+              <div className="flex gap-1">
+                {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => onFinishChange(item.id, f)}
+                    className={cn(
+                      "px-2 py-1 text-xs rounded-md border transition-all",
+                      item.finish === f
+                        ? "border-orange-500 bg-orange-50 text-orange-700 font-semibold"
+                        : "border-stone-200 text-stone-500 hover:border-orange-300"
+                    )}
+                  >
+                    {FINISH_LABELS[f].label.split(" ")[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hinge Side Quick Swap */}
+            {item.hingeDrilling && item.hinges.length > 0 && (
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">
+                    Hinges: {hingeSide}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSwapHinge(item.id)}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100 h-7 text-xs"
+                >
+                  <ArrowLeftRight className="w-3 h-3 mr-1" />
+                  Swap Side
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         <Separator />
@@ -168,13 +222,15 @@ function CartItemCard({
             <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
               <span className="text-sm text-stone-600">Panel Type</span>
               <span className="text-sm font-medium text-stone-900">
-                {PANEL_LABELS[config.panelType] || config.panelType}
+                {PANEL_LABELS[item.panelType] || item.panelType}
               </span>
             </div>
             <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-stone-600">Finish</span>
+              <span className="text-sm text-stone-600">Borders</span>
               <span className="text-sm font-medium text-stone-900">
-                {currentFinish.label}
+                {item.customBorders
+                  ? `L:${item.leftStile} R:${item.rightStile} T:${item.topRail} B:${item.bottomRail}mm`
+                  : `${item.borderWidth}mm (uniform)`}
               </span>
             </div>
           </div>
@@ -182,153 +238,157 @@ function CartItemCard({
 
         {/* Custom Options */}
         {hasCustomOptions && (
-          <>
-            <Separator />
-            <div>
-              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-stone-400" />
-                Custom Options
-              </h3>
-              <div className="space-y-2">
-                {config.angledLeft && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Left Angle
-                    </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {config.leftAngleDegrees || 45}°
-                    </span>
-                  </div>
-                )}
-                {config.angledRight && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Right Angle
-                    </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {config.rightAngleDegrees || 45}°
-                    </span>
-                  </div>
-                )}
-                {config.midRailsEnabled && config.midRails?.length > 0 && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Mid Rails
-                    </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {config.midRails.length} rail{config.midRails.length > 1 ? "s" : ""}
-                    </span>
-                  </div>
-                )}
-                {config.hingeDrilling && config.hinges?.length > 0 && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Hinge Drilling
-                    </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {config.hinges.length} hole{config.hinges.length > 1 ? "s" : ""}
-                    </span>
-                  </div>
-                )}
+          <div className="space-y-2">
+            {item.angledLeft && (
+              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                <span className="text-sm text-orange-700 flex items-center gap-2">
+                  <Check className="w-4 h-4" /> Left Angle
+                </span>
+                <span className="text-sm font-medium text-orange-900">
+                  {item.leftAngleDegrees}°
+                </span>
               </div>
-            </div>
-          </>
+            )}
+            {item.angledRight && (
+              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                <span className="text-sm text-orange-700 flex items-center gap-2">
+                  <Check className="w-4 h-4" /> Right Angle
+                </span>
+                <span className="text-sm font-medium text-orange-900">
+                  {item.rightAngleDegrees}°
+                </span>
+              </div>
+            )}
+            {item.midRailsEnabled && item.midRails?.length > 0 && (
+              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                <span className="text-sm text-orange-700 flex items-center gap-2">
+                  <Check className="w-4 h-4" /> Mid Rails
+                </span>
+                <span className="text-sm font-medium text-orange-900">
+                  {item.midRails.length} rail{item.midRails.length > 1 ? "s" : ""}
+                </span>
+              </div>
+            )}
+            {item.hingeDrilling && item.hinges?.length > 0 && (
+              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                <span className="text-sm text-orange-700 flex items-center gap-2">
+                  <Check className="w-4 h-4" /> Hinge Drilling
+                </span>
+                <span className="text-sm font-medium text-orange-900">
+                  {item.hinges.length} hole{item.hinges.length > 1 ? "s" : ""} ({item.hinges[0]?.type === "INSERTA" ? "Inserta" : "Screw"})
+                </span>
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
   );
 }
 
-// ─── Helper: flatten a CartItem into the old API format ────────────────────────
-function flattenCartItem(item: CartItem) {
-  return {
-    width: item.config.width,
-    height: item.config.height,
-    thickness: item.config.thickness,
-    panelType: item.config.panelType,
-    finish: item.config.finish,
-    price: item.config.price,
-    quantity: item.quantity,
-    category: item.category,
-    angledLeft: item.config.angledLeft || false,
-    angledRight: item.config.angledRight || false,
-    leftAngleDegrees: item.config.leftAngleDegrees || 0,
-    rightAngleDegrees: item.config.rightAngleDegrees || 0,
-    midRailsEnabled: item.config.midRailsEnabled || false,
-    midRails: item.config.midRails || [],
-    hingeDrilling: item.config.hingeDrilling || false,
-    hinges: item.config.hinges || [],
-  };
-}
-
 // ─── Main Checkout Page ───────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const [, setLocation] = useLocation();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const {
+    doors,
+    updateQuantity,
+    removeDoor,
+    duplicateDoor,
+    swapHingeSide,
+    updateFinish,
+    resetStore,
+    getTotalItems,
+    getSubtotal,
+    getVat,
+    getGrandTotal,
+  } = useDoorStore();
+
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const items = getCart();
-    if (items.length === 0) {
-      toast.error("Your cart is empty");
-      setLocation("/");
-      return;
-    }
-    setCartItems(items);
-  }, [setLocation]);
+  // Redirect if empty
+  if (doors.length === 0) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center p-8">
+          <ShoppingCart className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-stone-900 mb-2">Your cart is empty</h2>
+          <p className="text-sm text-stone-500 mb-6">
+            Configure a door and add it to your cart to get started.
+          </p>
+          <Button
+            className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+            onClick={() => setLocation("/")}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go to Door Designer
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   const handleQuantityChange = useCallback((id: string, qty: number) => {
-    const updated = updateItemQuantity(id, qty);
-    setCartItems(updated);
-  }, []);
+    updateQuantity(id, qty);
+  }, [updateQuantity]);
 
   const handleRemoveItem = useCallback(
     (id: string) => {
-      const updated = removeCartItem(id);
-      setCartItems(updated);
-      if (updated.length === 0) {
-        toast.info("Cart is now empty — returning to designer");
-        setTimeout(() => setLocation("/"), 600);
-      } else {
-        toast.success("Item removed from cart");
-      }
+      removeDoor(id);
+      toast.success("Item removed from cart");
     },
-    [setLocation]
+    [removeDoor],
   );
 
+  const handleSwapHinge = useCallback((id: string) => {
+    swapHingeSide(id);
+    toast.success("Hinge side swapped");
+  }, [swapHingeSide]);
+
+  const handleFinishChange = useCallback((id: string, finish: DoorOrderItem["finish"]) => {
+    updateFinish(id, finish);
+  }, [updateFinish]);
+
   // ─── Totals ─────────────────────────────────────────────────────────────
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = cartItems.reduce((sum, item) => sum + item.config.price * item.quantity, 0);
-  const vat = subtotal * 0.2;
-  const grandTotal = subtotal + vat;
+  const totalItems = getTotalItems();
+  const subtotal = getSubtotal();
+  const vat = getVat();
+  const grandTotal = getGrandTotal();
 
   // ─── Proceed to Payment ─────────────────────────────────────────────────
   const handleProceedToPayment = async () => {
-    if (cartItems.length === 0) return;
+    if (doors.length === 0) return;
     setIsLoading(true);
 
     try {
-      // Build the payload — send BOTH the new "items" array AND
-      // the old flat fields for backward compatibility with existing backend
-      const flatItems = cartItems.map(flattenCartItem);
+      // Build payload from useDoorStore doors
+      const items = doors.map((door) => ({
+        width: door.width,
+        height: door.height,
+        thickness: door.thickness,
+        panelType: door.panelType,
+        finish: door.finish,
+        price: door.unitPrice,
+        quantity: door.qty,
+        category: door.panelType === "NONE" ? "slab" : "shaker",
+        angledLeft: door.angledLeft,
+        angledRight: door.angledRight,
+        leftAngleDegrees: door.leftAngleDegrees,
+        rightAngleDegrees: door.rightAngleDegrees,
+        midRailsEnabled: door.midRailsEnabled,
+        midRails: door.midRails,
+        hingeDrilling: door.hingeDrilling,
+        hinges: door.hinges,
+      }));
 
-      // The payload includes:
-      // - "items": array for multi-item support (new backend)
-      // - Top-level flat fields from first item (old backend compatibility)
-      // - "quantity" summed if single unique product, or per-item in array
       const payload: Record<string, any> = {
-        // ── New format: items array ──
-        items: flatItems,
-
-        // ── Old format: flat fields from first item for backward compat ──
-        ...flatItems[0],
+        items,
+        // Backward compat: flat fields from first item
+        ...items[0],
       };
 
-      // If there's only ONE unique product, use combined quantity at top level
-      if (cartItems.length === 1) {
-        payload.quantity = cartItems[0].quantity;
+      if (doors.length === 1) {
+        payload.quantity = doors[0].qty;
       } else {
-        // Multiple products — total quantity at top level as fallback
         payload.quantity = totalItems;
       }
 
@@ -340,7 +400,6 @@ export default function CheckoutPage() {
         body: JSON.stringify(payload),
       });
 
-      // Try to parse response as JSON
       let data: any;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
@@ -360,7 +419,8 @@ export default function CheckoutPage() {
           description: "You'll complete your purchase on our secure checkout.",
         });
 
-        clearCart();
+        // Clear the Zustand store after successful checkout
+        resetStore();
 
         if (window.parent !== window) {
           window.parent.location.href = data.invoiceUrl;
@@ -379,8 +439,6 @@ export default function CheckoutPage() {
       setIsLoading(false);
     }
   };
-
-  if (cartItems.length === 0) return null;
 
   return (
     <div className="min-h-screen bg-stone-50 p-4 md:p-8">
@@ -409,9 +467,9 @@ export default function CheckoutPage() {
         <div className="flex items-center gap-3 mb-6">
           <ShoppingCart className="w-6 h-6 text-orange-600" />
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">Your Cart</h1>
+            <h1 className="text-2xl font-bold text-stone-900">Your Order</h1>
             <p className="text-sm text-stone-500">
-              {cartItems.length} product{cartItems.length > 1 ? "s" : ""} · {totalItems} total item
+              {doors.length} product{doors.length > 1 ? "s" : ""} · {totalItems} total item
               {totalItems > 1 ? "s" : ""}
             </p>
           </div>
@@ -420,13 +478,15 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Cart Items */}
           <div className="lg:col-span-2 space-y-6">
-            {cartItems.map((item, idx) => (
+            {doors.map((item, idx) => (
               <CartItemCard
                 key={item.id}
                 item={item}
                 index={idx}
                 onQuantityChange={handleQuantityChange}
                 onRemove={handleRemoveItem}
+                onSwapHinge={handleSwapHinge}
+                onFinishChange={handleFinishChange}
               />
             ))}
 
@@ -439,7 +499,7 @@ export default function CheckoutPage() {
               </div>
               <span className="text-sm font-semibold">Add another door configuration</span>
               <span className="text-xs text-stone-400">
-                Different size, panel, finish, or category
+                Different size, panel, finish, or style
               </span>
             </button>
           </div>
@@ -454,29 +514,29 @@ export default function CheckoutPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 space-y-4">
-                {/* Line items */}
+                {/* Line items summary */}
                 <div className="space-y-3 pb-4 border-b border-dashed">
-                  {cartItems.map((item) => {
-                    const catInfo = CATEGORY_LABELS[item.category] || CATEGORY_LABELS.custom;
-                    const lineTotal = item.config.price * item.quantity;
+                  {doors.map((item) => {
+                    const cat = item.panelType === "NONE" ? "slab" : "shaker";
+                    const catInfo = CATEGORY_LABELS[cat] || CATEGORY_LABELS.custom;
                     return (
                       <div key={item.id} className="flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-stone-900 text-sm truncate">
-                            {catInfo.icon} {catInfo.label}
+                            {catInfo.icon} {item.label}
                           </h3>
                           <p className="text-xs text-stone-500 mt-0.5">
-                            {item.config.width}×{item.config.height}×{item.config.thickness}mm
+                            {item.width}×{item.height}×{item.thickness}mm
                           </p>
                           <p className="text-xs text-stone-400">
-                            {PANEL_LABELS[item.config.panelType] || item.config.panelType}
+                            {PANEL_LABELS[item.panelType] || item.panelType}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="font-bold text-sm">£{lineTotal.toFixed(2)}</span>
-                          {item.quantity > 1 && (
+                          <span className="font-bold text-sm">£{item.lineTotal.toFixed(2)}</span>
+                          {item.qty > 1 && (
                             <p className="text-xs text-stone-400">
-                              £{item.config.price.toFixed(2)} × {item.quantity}
+                              £{item.unitPrice.toFixed(2)} × {item.qty}
                             </p>
                           )}
                         </div>
@@ -515,7 +575,7 @@ export default function CheckoutPage() {
                   className="w-full h-12 mt-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 font-bold shadow-md disabled:opacity-70"
                   size="lg"
                   onClick={handleProceedToPayment}
-                  disabled={isLoading || cartItems.length === 0}
+                  disabled={isLoading || doors.length === 0}
                 >
                   {isLoading ? (
                     <>

@@ -907,9 +907,9 @@ function MidRailsSection() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">
-                      Position from bottom (mm)
-                    </Label>
+                   <Label className="text-xs text-gray-500">
+  Rail width (mm, min 35)  {/* CHANGED */}
+</Label>
                     <Input
                       type="number"
                       value={rail.positionFromBottom}
@@ -927,18 +927,19 @@ function MidRailsSection() {
                     <Label className="text-xs text-gray-500">
                       Rail width (mm)
                     </Label>
-                    <Input
-                      type="number"
-                      value={rail.dimension}
-                      onChange={(e) =>
-                        updateMidRail(
-                          rail.id,
-                          "dimension",
-                          Number(e.target.value),
-                        )
-                      }
-                      className="h-8 text-sm"
-                    />
+                   <Input
+  type="number"
+  value={rail.dimension}
+  onChange={(e) =>
+    updateMidRail(
+      rail.id,
+      "dimension",
+      Math.max(35, Number(e.target.value)),  // ADD: enforce min 35mm
+    )
+  }
+  min={35}  // ADD
+  className="h-8 text-sm"
+/>
                   </div>
                 </div>
               </div>

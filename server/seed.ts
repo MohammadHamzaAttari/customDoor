@@ -1,3 +1,4 @@
+// server/seed.ts
 import { db } from "./db";
 import {
     doorStyles,
@@ -125,26 +126,26 @@ async function seed() {
             {
                 finishCode: "RAW_UNASSEMBLED",
                 finishName: "Raw MDF Components",
-                description: "Unassembled raw MDF door components",
+                description: "Parts straight off the CNC. Panels loose.",
                 priceMultiplier: "1.00",
                 fixedSurcharge: "0.00",
                 isActive: true,
             },
             {
                 finishCode: "ASSEMBLED_PREP",
-                finishName: "Assembled and Prepped",
-                description: "Assembled door, sanded and ready for painting",
-                priceMultiplier: "1.50",
-                fixedSurcharge: "0.00",
-                isActive: false,
+                finishName: "Assembled & Prepped",
+                description: "Arris rounding, sanding, gluing, caulking.",
+                priceMultiplier: "1.00", // Additive pricing model
+                fixedSurcharge: "15.00",
+                isActive: true,
             },
             {
                 finishCode: "PRIMED",
-                finishName: "Smooth Primed",
-                description: "Fully primed and ready for topcoat",
-                priceMultiplier: "2.00",
-                fixedSurcharge: "0.00",
-                isActive: false,
+                finishName: "Primed",
+                description: "Fully prepped and primed (Sayerlack AU474).",
+                priceMultiplier: "1.00", // Additive pricing model
+                fixedSurcharge: "35.00",
+                isActive: true,
             },
         ]).onConflictDoNothing();
 
@@ -178,11 +179,9 @@ async function seed() {
         // =====================================================
         console.log("💰 Seeding pricing matrix...");
 
-        // Get bracket IDs
         const heightBrackets = await db.select().from(priceBracketsHeight);
         const widthBrackets = await db.select().from(priceBracketsWidth);
 
-        // Base prices per bracket combination (height x width)
         const basePrices: Record<string, Record<string, number>> = {
             "Drawer Front": { "Narrow": 15, "Standard": 18, "Wide": 22, "Oversize": 28 },
             "Tall Drawer Front": { "Narrow": 20, "Standard": 24, "Wide": 30, "Oversize": 38 },
@@ -242,21 +241,7 @@ async function seed() {
                 calculationType: "FIXED",
                 amount: "5.00",
                 isActive: true,
-            },
-            {
-                surchargeCode: "ASSEMBLED",
-                surchargeName: "Assembly & Prep",
-                calculationType: "MULTIPLIER",
-                amount: "1.50",
-                isActive: true,
-            },
-            {
-                surchargeCode: "PRIMED",
-                surchargeName: "Smooth Primed Finish",
-                calculationType: "MULTIPLIER",
-                amount: "2.00",
-                isActive: true,
-            },
+            }
         ]).onConflictDoNothing();
 
         // =====================================================
@@ -273,19 +258,11 @@ async function seed() {
                 isActive: true,
             },
             {
-                deliveryCode: "LOCAL",
-                deliveryName: "Local Delivery (within 20 miles)",
-                basePrice: "25.00",
+                deliveryCode: "DELIVERY",
+                deliveryName: "Standard Delivery",
+                basePrice: "20.00",
                 pricePerDoor: "0.00",
-                maxDistanceMiles: 20,
-                isActive: true,
-            },
-            {
-                deliveryCode: "NATIONAL",
-                deliveryName: "National Delivery",
-                basePrice: "45.00",
-                pricePerDoor: "0.00",
-                maxDistanceMiles: null,
+                maxDistanceMiles: 1000,
                 isActive: true,
             },
         ]).onConflictDoNothing();
@@ -296,12 +273,13 @@ async function seed() {
         console.log("⚙️ Seeding system settings...");
         await db.insert(systemSettings).values([
             { settingKey: "VAT_RATE", settingValue: "0.20", settingType: "NUMBER", description: "UK VAT rate" },
-            { settingKey: "MAX_HEIGHT_MM", settingValue: "2400", settingType: "NUMBER", description: "Maximum door height" },
+            { settingKey: "MAX_HEIGHT_MM", settingValue: "2430", settingType: "NUMBER", description: "Maximum door height" },
             { settingKey: "MAX_WIDTH_MM", settingValue: "1200", settingType: "NUMBER", description: "Maximum door width" },
-            { settingKey: "MIN_BORDER_WIDTH_MM", settingValue: "50", settingType: "NUMBER", description: "Minimum shaker border width" },
-            { settingKey: "DEFAULT_BORDER_WIDTH_MM", settingValue: "90", settingType: "NUMBER", description: "Default border width" },
+            { settingKey: "MIN_BORDER_WIDTH_MM", settingValue: "35", settingType: "NUMBER", description: "Minimum shaker border width" },
+            { settingKey: "DEFAULT_BORDER_WIDTH_MM", settingValue: "80", settingType: "NUMBER", description: "Default border width" },
             { settingKey: "FIXED_FEE_BASE", settingValue: "3.00", settingType: "NUMBER", description: "Base fixed fee per door" },
-            { settingKey: "PRICE_PER_SQM", settingValue: "85.00", settingType: "NUMBER", description: "Price per square meter" },
+            { settingKey: "PRICE_PER_SQM_SHAKER", settingValue: "75.00", settingType: "NUMBER", description: "Shaker price per sqm" },
+            { settingKey: "PRICE_PER_SQM_SLAB", settingValue: "45.00", settingType: "NUMBER", description: "Slab price per sqm" },
             { settingKey: "HINGE_CUP_DIAMETER_MM", settingValue: "35", settingType: "NUMBER", description: "Standard hinge cup diameter" },
             { settingKey: "HINGE_CUP_DEPTH_MM", settingValue: "13", settingType: "NUMBER", description: "Standard hinge cup depth" },
             { settingKey: "HINGE_EDGE_DISTANCE_MM", settingValue: "5", settingType: "NUMBER", description: "Distance from door edge to hinge center" },
@@ -318,7 +296,6 @@ async function seed() {
     }
 }
 
-// Run the seed function
 seed()
     .then(() => {
         console.log("🎉 Seed script finished successfully");

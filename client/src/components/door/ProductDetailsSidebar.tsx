@@ -1,6 +1,7 @@
 // client/src/components/door/ProductDetailsSidebar.tsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDoorConfig } from "@/lib/stores/useDoorConfig";
+import { useDoorStore } from "@/lib/stores/useDoorStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -14,35 +15,53 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { addToCart, getCartCount, type DoorConfigData } from "@/lib/cartUtils";
 
 export function ProductDetailsSidebar() {
   const [, setLocation] = useLocation();
   const config = useDoorConfig();
+  const { addDoor, doors } = useDoorStore();
+
   const {
     width,
     height,
     thickness,
     panelType,
+    panelCount,
+    panelOrientation,
+    preset,
     finish,
     price,
+    shape,
     angledLeft,
     angledRight,
     leftAngleDegrees,
     rightAngleDegrees,
+    leftTriangleCutoutWidth,
+    leftTriangleCutoutHeight,
+    rightTriangleCutoutWidth,
+    rightTriangleCutoutHeight,
+    borderWidth,
+    customBorders,
+    leftStile,
+    rightStile,
+    topRail,
+    bottomRail,
+    rebateWidthMm,
+    rebateDepthMm,
+    frontFaceThicknessMm,
+    cornerRadiusMm,
     midRailsEnabled,
+    midRailsEqualise,
     midRails,
     hingeDrilling,
     hinges,
+    material,
+    showDimensions,
   } = config;
 
-  const [cartCount, setCartCount] = useState(0);
+  // Cart count derived from the single source of truth: useDoorStore
+  const cartCount = doors.reduce((sum, d) => sum + d.qty, 0);
   const [justAdded, setJustAdded] = useState(false);
-
-  // Keep cart count in sync
-  useEffect(() => {
-    setCartCount(getCartCount());
-  }, []);
 
   // Calculate area
   const areaM2 = (width * height) / 1000000;
@@ -59,9 +78,18 @@ export function ProductDetailsSidebar() {
 
   // Finish labels
   const finishLabels: Record<string, { label: string; color: string }> = {
-    RAW_UNASSEMBLED: { label: "Raw Unassembled", color: "bg-stone-100 text-stone-700" },
-    ASSEMBLED_PREP: { label: "Assembled & Prepped", color: "bg-stone-200 text-stone-800" },
-    PRIMED: { label: "Primed", color: "bg-emerald-100 text-emerald-700" },
+    RAW_UNASSEMBLED: {
+      label: "Raw Unassembled",
+      color: "bg-stone-100 text-stone-700",
+    },
+    ASSEMBLED_PREP: {
+      label: "Assembled & Prepped",
+      color: "bg-stone-200 text-stone-800",
+    },
+    PRIMED: {
+      label: "Primed",
+      color: "bg-emerald-100 text-emerald-700",
+    },
   };
 
   const currentFinish = finishLabels[finish] || finishLabels.RAW_UNASSEMBLED;
@@ -102,38 +130,56 @@ export function ProductDetailsSidebar() {
     });
   }
 
-  // Build the config data object for the cart
-  const buildConfigData = (): DoorConfigData => ({
-    width,
-    height,
-    thickness,
-    panelType,
-    finish,
-    price,
-    angledLeft,
-    angledRight,
-    leftAngleDegrees,
-    rightAngleDegrees,
-    midRailsEnabled,
-    midRails,
-    hingeDrilling,
-    hinges,
-  });
-
-  // Add to cart WITHOUT navigating — user can keep configuring more doors
+  /**
+   * Add current door config to the unified door store (catalogue).
+   * This is the SINGLE cart system — no more localStorage cartUtils.
+   */
   const handleAddToCart = () => {
-    const configData = buildConfigData();
-    const category = "shaker"; // derive from config if you add more door types
+    addDoor({
+      width,
+      height,
+      thickness,
+      preset,
+      panelType,
+      panelCount,
+      panelOrientation: panelOrientation || "vertical",
+      shape: shape || "rectangular",
+      angledLeft,
+      angledRight,
+      leftTriangleCutoutWidth,
+      leftTriangleCutoutHeight,
+      rightTriangleCutoutWidth,
+      rightTriangleCutoutHeight,
+      leftAngleDegrees,
+      rightAngleDegrees,
+      borderWidth,
+      customBorders,
+      leftStile: customBorders ? leftStile : borderWidth,
+      rightStile: customBorders ? rightStile : borderWidth,
+      bottomRail: customBorders ? bottomRail : borderWidth,
+      topRail: customBorders ? topRail : borderWidth,
+      rebateWidthMm,
+      rebateDepthMm,
+      frontFaceThicknessMm,
+      cornerRadiusMm,
+      midRailsEnabled,
+      midRailsEqualise: midRailsEqualise || false,
+      midRails: midRailsEnabled ? midRails : [],
+      hingeDrilling,
+      hinges: hingeDrilling ? hinges : [],
+      material,
+      finish,
+      showDimensions,
+    });
 
-    const updatedCart = addToCart(configData, category, 1);
-    const totalItems = updatedCart.reduce((s, i) => s + i.quantity, 0);
-
-    setCartCount(totalItems);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 2000);
 
+    // Calculate new total (current doors + the one we just added)
+    const newTotal = cartCount + 1;
+
     toast.success("Added to cart!", {
-      description: `${width}×${height}mm door — £${price.toFixed(2)}. ${totalItems} item${totalItems > 1 ? "s" : ""} in cart.`,
+      description: `${width}×${height}mm door — £${price.toFixed(2)}. ${newTotal} item${newTotal > 1 ? "s" : ""} in cart.`,
       action: {
         label: "View Cart",
         onClick: () => setLocation("/checkout"),
@@ -141,24 +187,64 @@ export function ProductDetailsSidebar() {
     });
   };
 
-  // Add to cart AND navigate straight to checkout
+  /**
+   * Add to cart AND navigate straight to checkout
+   */
   const handleAddAndCheckout = () => {
-    const configData = buildConfigData();
-    const category = "shaker";
-
-    addToCart(configData, category, 1);
+    addDoor({
+      width,
+      height,
+      thickness,
+      preset,
+      panelType,
+      panelCount,
+      panelOrientation: panelOrientation || "vertical",
+      shape: shape || "rectangular",
+      angledLeft,
+      angledRight,
+      leftTriangleCutoutWidth,
+      leftTriangleCutoutHeight,
+      rightTriangleCutoutWidth,
+      rightTriangleCutoutHeight,
+      leftAngleDegrees,
+      rightAngleDegrees,
+      borderWidth,
+      customBorders,
+      leftStile: customBorders ? leftStile : borderWidth,
+      rightStile: customBorders ? rightStile : borderWidth,
+      bottomRail: customBorders ? bottomRail : borderWidth,
+      topRail: customBorders ? topRail : borderWidth,
+      rebateWidthMm,
+      rebateDepthMm,
+      frontFaceThicknessMm,
+      cornerRadiusMm,
+      midRailsEnabled,
+      midRailsEqualise: midRailsEqualise || false,
+      midRails: midRailsEnabled ? midRails : [],
+      hingeDrilling,
+      hinges: hingeDrilling ? hinges : [],
+      material,
+      finish,
+      showDimensions,
+    });
 
     toast.success("Added to cart! Redirecting…", {
       description: `${width}×${height}mm door — £${price.toFixed(2)}`,
     });
 
-    setLocation("/checkout");
+    // Small delay to let the store persist before navigation
+    setTimeout(() => setLocation("/checkout"), 150);
   };
 
-  // Navigate to checkout without adding (for viewing existing cart)
+  /**
+   * Navigate to checkout without adding (for viewing existing cart)
+   */
   const handleViewCart = () => {
     setLocation("/checkout");
   };
+
+  // Order subtotal from all doors in the store
+  const orderSubtotal = doors.reduce((sum, d) => sum + d.lineTotal, 0);
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -166,7 +252,9 @@ export function ProductDetailsSidebar() {
       <div className="p-6 border-b bg-gradient-to-br from-stone-50 to-white">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Trade Shaker Door</h2>
+            <h2 className="text-lg font-bold text-gray-900">
+              Trade Shaker Door
+            </h2>
             <p className="text-sm text-gray-500 mt-1">Custom MDF Door</p>
           </div>
           <Badge className={cn("text-xs font-medium", currentFinish.color)}>
@@ -208,14 +296,14 @@ export function ProductDetailsSidebar() {
               key={index}
               className={cn(
                 "flex items-center justify-between py-2 px-3 rounded-lg",
-                feature.highlight ? "bg-orange-50" : "bg-gray-50"
+                feature.highlight ? "bg-orange-50" : "bg-gray-50",
               )}
             >
               <span className="text-sm text-gray-600">{feature.label}</span>
               <span
                 className={cn(
                   "text-sm font-medium",
-                  feature.highlight ? "text-orange-700" : "text-gray-900"
+                  feature.highlight ? "text-orange-700" : "text-gray-900",
                 )}
               >
                 {feature.value}
@@ -226,7 +314,7 @@ export function ProductDetailsSidebar() {
 
         <Separator className="my-6" />
 
-        {/* Cart status indicator */}
+        {/* Cart status indicator — shows summary of all doors in the order */}
         {cartCount > 0 && (
           <button
             onClick={handleViewCart}
@@ -240,7 +328,9 @@ export function ProductDetailsSidebar() {
                 <p className="text-sm font-semibold text-stone-900">
                   {cartCount} item{cartCount > 1 ? "s" : ""} in cart
                 </p>
-                <p className="text-xs text-stone-500">Tap to view cart</p>
+                <p className="text-xs text-stone-500">
+                  Subtotal: £{orderSubtotal.toFixed(2)} excl. VAT
+                </p>
               </div>
             </div>
             <ExternalLink className="w-4 h-4 text-orange-400 group-hover:text-orange-600 transition-colors" />
@@ -250,13 +340,13 @@ export function ProductDetailsSidebar() {
 
       {/* Action Buttons */}
       <div className="p-4 border-t bg-gray-50 space-y-3">
-        {/* Primary: Add to Cart (stay on page) */}
+        {/* Primary: Add to Cart (stay on page to configure more doors) */}
         <Button
           className={cn(
             "w-full h-12 font-bold tracking-wide shadow-lg transition-all hover:scale-[1.02]",
             justAdded
               ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-              : "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
+              : "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white",
           )}
           size="lg"
           onClick={handleAddToCart}
