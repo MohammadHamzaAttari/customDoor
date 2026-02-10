@@ -241,8 +241,9 @@ function buildPanelSections(
 
   const doorBottom = -h / 2;
   const doorTop = h / 2;
-  const panelBottom = doorBottom + bottomRail;
-  const panelTop = doorTop - topRail;
+  // Extend panel into rebate groove vertically (matching horizontal +2*rw in innerWidth)
+  const panelBottom = doorBottom + bottomRail - rw;
+  const panelTop = doorTop - topRail + rw;
 
   if (midRails.length === 0) {
     sections.push({ bottomY: panelBottom, topY: panelTop });

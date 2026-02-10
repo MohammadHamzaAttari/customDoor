@@ -449,13 +449,14 @@ export const useDoorStore = create<DoorStore>()(
       },
 
       getVat: () => {
-        return Math.round(get().getSubtotal() * DEFAULT_PRICING.VAT_RATE * 100) / 100;
+        // VAT removed per user request
+        return 0;
       },
 
       getGrandTotal: () => {
         const sub = get().getSubtotal();
-        const vat = Math.round(sub * DEFAULT_PRICING.VAT_RATE * 100) / 100;
-        return Math.round((sub + vat) * 100) / 100;
+        // VAT removed per user request
+        return Math.round(sub * 100) / 100;
       },
     }),
     {

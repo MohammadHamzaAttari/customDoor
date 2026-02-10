@@ -273,12 +273,6 @@ export function ProductDetailsSidebar() {
                 £{price.toFixed(2)}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-stone-400 text-xs">excl. VAT</p>
-              <p className="text-sm font-medium mt-1">
-                £{(price * 1.2).toFixed(2)} inc. VAT
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -329,7 +323,7 @@ export function ProductDetailsSidebar() {
                   {cartCount} item{cartCount > 1 ? "s" : ""} in cart
                 </p>
                 <p className="text-xs text-stone-500">
-                  Subtotal: £{orderSubtotal.toFixed(2)} excl. VAT
+                  Subtotal: £{orderSubtotal.toFixed(2)}
                 </p>
               </div>
             </div>

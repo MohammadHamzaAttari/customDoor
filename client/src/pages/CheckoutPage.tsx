@@ -579,17 +579,6 @@ export default function CheckoutPage() {
                   })}
                 </div>
 
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-stone-600">Subtotal (ex. VAT)</span>
-                  <span>£{subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-stone-600">VAT (20%)</span>
-                  <span>£{vat.toFixed(2)}</span>
-                </div>
-
-                <Separator className="my-2" />
-
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total</span>
                   <span className="text-orange-600">£{grandTotal.toFixed(2)}</span>
