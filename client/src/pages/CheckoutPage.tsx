@@ -1,5 +1,5 @@
 // client/src/pages/CheckoutPage.tsx
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,7 +13,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDoorStore, type DoorOrderItem } from "@/lib/stores/useDoorStore";
-import { DEFAULT_PRICING } from "@shared/doorSchema";
+import { DEFAULT_PRICING, cartItemSchema } from "@shared/doorSchema";
+import { z } from "zod";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PANEL_LABELS: Record<string, string> = {
@@ -305,27 +306,63 @@ export default function CheckoutPage() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if empty
-  if (doors.length === 0) {
-    return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center p-8">
-          <ShoppingCart className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-stone-900 mb-2">Your cart is empty</h2>
-          <p className="text-sm text-stone-500 mb-6">
-            Configure a door and add it to your cart to get started.
-          </p>
-          <Button
-            className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
-            onClick={() => setLocation("/")}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Go to Door Designer
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  // ─── Restore Cart from Session Storage ───
+  // Defined BEFORE any conditional returns to respect Rules of Hooks
+  const restoreCartFromBackup = useCallback(() => {
+    try {
+      const backup = sessionStorage.getItem('checkout-backup');
+      if (backup) {
+        console.log("Found checkout backup, attempting restore...");
+        let data;
+        try {
+          data = JSON.parse(backup);
+        } catch (e) {
+          console.error("Failed to parse backup JSON", e);
+          sessionStorage.removeItem('checkout-backup');
+          return;
+        }
+
+        // Only restore if backup is less than 24 hours old
+        if (Date.now() - data.timestamp < 86400000) {
+          // Validate structure using Zod
+          // We need to handle potential differences in schemas, so we use safeParse
+          // and map to internal DoorOrderItem structure if needed.
+          // Since cartItemSchema expects 'config' object but useDoorStore stores flattened DoorOrderItem,
+          // we might need to be flexible.
+
+          if (data.doors && Array.isArray(data.doors)) {
+            // Basic array check passed, now filter valid items
+            const validDoors = data.doors.filter((d: any) => {
+              // Minimal check: must have id, width, height
+              return d && typeof d === 'object' && d.id && typeof d.width === 'number';
+            });
+
+            if (validDoors.length > 0) {
+              useDoorStore.getState().restoreState(validDoors);
+              toast.success("Cart restored", {
+                description: "Your previous session has been recovered."
+              });
+            } else {
+              console.warn("Backup contained no valid doors");
+            }
+          }
+        } else {
+          console.log("Backup expired");
+        }
+        // Clears the backup to prevent double restore
+        sessionStorage.removeItem('checkout-backup');
+      }
+    } catch (e) {
+      console.warn('Failed to restore cart from backup:', e);
+    }
+  }, []);
+
+  // Attempt restore on mount
+  useEffect(() => {
+    if (doors.length === 0) {
+      restoreCartFromBackup();
+    }
+  }, [restoreCartFromBackup, doors.length]);
 
   const handleQuantityChange = useCallback((id: string, qty: number) => {
     updateQuantity(id, qty);
@@ -418,7 +455,7 @@ export default function CheckoutPage() {
         // Backup cart to session storage before redirect (in case user cancels payment)
         try {
           sessionStorage.setItem('checkout-backup', JSON.stringify({
-            doors: get().doors,
+            doors: doors,
             timestamp: Date.now(),
           }));
         } catch (e) {
@@ -453,26 +490,29 @@ export default function CheckoutPage() {
     }
   };
 
-  // ─── Restore Cart from Session Storage (if user returned from cancelled checkout) ───
-  const restoreCartFromBackup = () => {
-    try {
-      const backup = sessionStorage.getItem('checkout-backup');
-      if (backup) {
-        const data = JSON.parse(backup);
-        // Only restore if backup is less than 1 hour old
-        if (Date.now() - data.timestamp < 3600000) {
-          // Restore cart
-          data.doors.forEach((door: any) => {
-            // Implementation would require adding doors back to store
-            // For now, just clear the backup
-          });
-        }
-        sessionStorage.removeItem('checkout-backup');
-      }
-    } catch (e) {
-      console.warn('Failed to restore cart from backup:', e);
-    }
-  };
+
+  // Redirect if empty (only after attempting restore)
+  // We'll show the empty cart message if doors are still 0 after mount
+  if (doors.length === 0) {
+    return (
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full text-center p-8">
+          <ShoppingCart className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-stone-900 mb-2">Your cart is empty</h2>
+          <p className="text-sm text-stone-500 mb-6">
+            Configure a door and add it to your cart to get started.
+          </p>
+          <Button
+            className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+            onClick={() => setLocation("/")}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go to Door Designer
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 p-4 md:p-8">

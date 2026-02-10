@@ -94,6 +94,7 @@ interface DoorStore {
   updateQuantity: (id: string, qty: number) => void;
   updateDimensions: (id: string, width?: number, height?: number) => void;
   updateFinish: (id: string, finish: FinishType) => void;
+  restoreState: (doors: DoorOrderItem[]) => void;
 
   // Computed
   getTotalItems: () => number;
@@ -213,8 +214,12 @@ function computePrice(door: DoorOrderItem): { unitPrice: number; lineTotal: numb
 /**
  * Enforce business rules on a door config
  */
-function enforceDoorRules(door: DoorOrderItem): DoorOrderItem {
+export function enforceDoorRules(door: DoorOrderItem): DoorOrderItem {
   let updated = { ...door };
+
+  // Safety checks for arrays
+  if (!updated.hinges) updated.hinges = [];
+  if (!updated.midRails) updated.midRails = [];
 
   // RULE: 18mm only for slab
   if (updated.thickness === 18 && updated.panelType !== "NONE") {
@@ -434,6 +439,16 @@ export const useDoorStore = create<DoorStore>()(
             return enforceDoorRules({ ...door, finish });
           }),
         }));
+      },
+
+      /**
+       * Restore state from backup
+       */
+      restoreState: (doors: DoorOrderItem[]) => {
+        set({
+          doors: doors.map(d => enforceDoorRules(d)),
+          activeDoorId: doors.length > 0 ? doors[0].id : null
+        });
       },
 
       // ─── COMPUTED TOTALS ───
