@@ -432,7 +432,11 @@ function SingleDoorLeaf({
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(5, 1);
+    // Repeat texture to ensure seamless tiling in both directions
+    // X: 5 repeats for horizontal reed pattern
+    // Y: 5 repeats to ensure vertical tiling without gaps
+    texture.repeat.set(5, 5);
+    texture.needsUpdate = true;
     return texture;
   }, [panelType]);
 
@@ -609,12 +613,16 @@ function SingleDoorLeaf({
   const panelColors: Record<string, string> = {
     STANDARD_12MM: "#a08b70",
     REEDED_19MM: "#8b7860",
-    MELAMINE_18MM: "#b8a898",
+    MELAMINE_18MM: "#d4c5b0",
+    FRETWORK: "#9b8570",
+    GLASS: "#e8f4f8",
   };
   const panelRoughness: Record<string, number> = {
     STANDARD_12MM: 0.5,
     REEDED_19MM: 0.3,
-    MELAMINE_18MM: 0.25,
+    MELAMINE_18MM: 0.2,
+    FRETWORK: 0.6,
+    GLASS: 0.1,
   };
 
   // ========================================
@@ -684,6 +692,11 @@ function SingleDoorLeaf({
                 : new THREE.Vector2(0.08, 0.08)
             }
             envMapIntensity={1.0}
+            // Glass panel transparency
+            transparent={panelType === "GLASS"}
+            opacity={panelType === "GLASS" ? 0.3 : 1.0}
+            transmission={panelType === "GLASS" ? 0.9 : 0}
+            thickness={panelType === "GLASS" ? 0.004 : 0}
           />
         </mesh>
       );

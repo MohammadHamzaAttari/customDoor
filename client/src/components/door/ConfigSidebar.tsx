@@ -36,6 +36,7 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { handleNumberChange } from "@/lib/inputUtils";
 
 // ============================================
 // INFO TOOLTIP COMPONENT (reusable)
@@ -256,6 +257,18 @@ function DoorStyleSection() {
       only22: true,
     },
     {
+      value: "FRETWORK" as const,
+      label: "Fretwork Pattern",
+      description: "Decorative fretwork panel with intricate patterns",
+      only22: false,
+    },
+    {
+      value: "GLASS" as const,
+      label: "Glass Ready",
+      description: "4mm glass panel — transparent, modern look",
+      only22: false,
+    },
+    {
       value: "NONE" as const,
       label: "Slab (No Panel)",
       description: "Solid door without panel opening — available in 18mm or 22mm",
@@ -387,7 +400,7 @@ function DoorDimensionsSection() {
         <Input
           type="number"
           value={height}
-          onChange={(e) => setHeight(Number(e.target.value))}
+          onChange={(e) => handleNumberChange(e, setHeight)}
           className="w-full"
           min={200}
           max={2430}
@@ -405,7 +418,7 @@ function DoorDimensionsSection() {
         <Input
           type="number"
           value={width}
-          onChange={(e) => setWidth(Number(e.target.value))}
+          onChange={(e) => handleNumberChange(e, setWidth)}
           className="w-full"
           min={200}
           max={1200}
@@ -471,9 +484,7 @@ function BorderWidthsSection() {
         <Input
           type="number"
           value={borderWidth}
-          onChange={(e) =>
-            setBorderWidth(Math.max(minUniform, Number(e.target.value)))
-          }
+          onChange={(e) => handleNumberChange(e, setBorderWidth)}
           min={minUniform}
           className="w-full"
         />
@@ -511,9 +522,7 @@ function BorderWidthsSection() {
               <Input
                 type="number"
                 value={topRail}
-                onChange={(e) =>
-                  setTopRail(Math.max(minTop, Number(e.target.value)))
-                }
+                onChange={(e) => handleNumberChange(e, setTopRail)}
                 min={minTop}
                 className="h-9 text-right"
               />
@@ -525,9 +534,7 @@ function BorderWidthsSection() {
               <Input
                 type="number"
                 value={bottomRail}
-                onChange={(e) =>
-                  setBottomRail(Math.max(minBottom, Number(e.target.value)))
-                }
+                onChange={(e) => handleNumberChange(e, setBottomRail)}
                 min={minBottom}
                 className="h-9 text-right"
               />
@@ -542,9 +549,7 @@ function BorderWidthsSection() {
               <Input
                 type="number"
                 value={leftStile}
-                onChange={(e) =>
-                  setLeftStile(Math.max(minLeft, Number(e.target.value)))
-                }
+                onChange={(e) => handleNumberChange(e, setLeftStile)}
                 min={minLeft}
                 className="h-9 text-right"
               />
@@ -559,9 +564,7 @@ function BorderWidthsSection() {
               <Input
                 type="number"
                 value={rightStile}
-                onChange={(e) =>
-                  setRightStile(Math.max(minRight, Number(e.target.value)))
-                }
+                onChange={(e) => handleNumberChange(e, setRightStile)}
                 min={minRight}
                 className="h-9 text-right"
               />
@@ -741,7 +744,7 @@ function AngledCornersSection() {
                       <Input
                         type="number"
                         value={cutW}
-                        onChange={(e) => setCutW(Number(e.target.value))}
+                        onChange={(e) => handleNumberChange(e, setCutW)}
                         className="h-9"
                       />
                     </div>
@@ -752,7 +755,7 @@ function AngledCornersSection() {
                       <Input
                         type="number"
                         value={cutH}
-                        onChange={(e) => setCutH(Number(e.target.value))}
+                        onChange={(e) => handleNumberChange(e, setCutH)}
                         className="h-9"
                       />
                     </div>
@@ -914,10 +917,8 @@ function MidRailsSection() {
                       type="number"
                       value={rail.positionFromBottom}
                       onChange={(e) =>
-                        updateMidRail(
-                          rail.id,
-                          "positionFromBottom",
-                          Number(e.target.value),
+                        handleNumberChange(e, (val) =>
+                          updateMidRail(rail.id, "positionFromBottom", val),
                         )
                       }
                       className="h-8 text-sm"
@@ -931,13 +932,11 @@ function MidRailsSection() {
                       type="number"
                       value={rail.dimension}
                       onChange={(e) =>
-                        updateMidRail(
-                          rail.id,
-                          "dimension",
-                          Math.max(35, Number(e.target.value)),  // ADD: enforce min 35mm
+                        handleNumberChange(e, (val) =>
+                          updateMidRail(rail.id, "dimension", val),
                         )
                       }
-                      min={35}  // ADD
+                      min={35}
                       className="h-8 text-sm"
                     />
                   </div>
@@ -1129,10 +1128,8 @@ function HingePositionsSection() {
                     type="number"
                     value={hinge.positionFromBottomMm}
                     onChange={(e) =>
-                      updateHinge(
-                        hinge.id,
-                        "positionFromBottomMm",
-                        Number(e.target.value),
+                      handleNumberChange(e, (val) =>
+                        updateHinge(hinge.id, "positionFromBottomMm", val),
                       )
                     }
                     className="h-8 text-sm"
@@ -1258,7 +1255,7 @@ function RebateSection() {
           <Input
             type="number"
             value={rebateWidthMm}
-            onChange={(e) => setRebateWidth(Number(e.target.value))}
+            onChange={(e) => handleNumberChange(e, setRebateWidth)}
             className="h-9"
           />
         </div>
@@ -1267,7 +1264,7 @@ function RebateSection() {
           <Input
             type="number"
             value={rebateDepthMm}
-            onChange={(e) => setRebateDepth(Number(e.target.value))}
+            onChange={(e) => handleNumberChange(e, setRebateDepth)}
             className="h-9"
           />
         </div>
@@ -1276,7 +1273,7 @@ function RebateSection() {
           <Input
             type="number"
             value={frontFaceThicknessMm}
-            onChange={(e) => setFrontFaceThickness(Number(e.target.value))}
+            onChange={(e) => handleNumberChange(e, setFrontFaceThickness)}
             className="h-9"
           />
         </div>
@@ -1286,7 +1283,7 @@ function RebateSection() {
             type="number"
             step="0.1"
             value={cornerRadiusMm}
-            onChange={(e) => setCornerRadius(Number(e.target.value))}
+            onChange={(e) => handleNumberChange(e, setCornerRadius)}
             className="h-9"
           />
         </div>

@@ -385,11 +385,11 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
     const clamped = Math.max(borderWidth, Math.max(minLeft, minRight, minTop, minBottom));
 
     set({
-      borderWidth: clamped,
-      leftStile: Math.max(clamped, minLeft),
-      rightStile: Math.max(clamped, minRight),
-      bottomRail: Math.max(clamped, minBottom),
-      topRail: Math.max(clamped, minTop),
+      borderWidth,
+      leftStile: borderWidth,
+      rightStile: borderWidth,
+      bottomRail: borderWidth,
+      topRail: borderWidth,
     });
 
     const s = get();
@@ -408,10 +408,10 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
       const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
       set({
         customBorders,
-        leftStile: Math.max(state.borderWidth, minLeft),
-        rightStile: Math.max(state.borderWidth, minRight),
-        bottomRail: Math.max(state.borderWidth, MIN_BORDER_WITHOUT_HINGES),
-        topRail: Math.max(state.borderWidth, MIN_BORDER_WITHOUT_HINGES),
+        leftStile: state.borderWidth,
+        rightStile: state.borderWidth,
+        bottomRail: state.borderWidth,
+        topRail: state.borderWidth,
       });
     } else {
       set({ customBorders });
@@ -419,23 +419,19 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   },
 
   setLeftStile: (leftStile: number) => {
-    const state = get();
-    const min = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
-    set({ leftStile: Math.max(leftStile, min) });
+    set({ leftStile });
   },
 
   setRightStile: (rightStile: number) => {
-    const state = get();
-    const min = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
-    set({ rightStile: Math.max(rightStile, min) });
+    set({ rightStile });
   },
 
   setBottomRail: (bottomRail: number) => {
-    set({ bottomRail: Math.max(bottomRail, MIN_BORDER_WITHOUT_HINGES) });
+    set({ bottomRail });
   },
 
   setTopRail: (topRail: number) => {
-    set({ topRail: Math.max(topRail, MIN_BORDER_WITHOUT_HINGES) });
+    set({ topRail });
   },
 
   setRebateWidth: (rebateWidthMm: number) => set({ rebateWidthMm }),
@@ -488,9 +484,11 @@ export const useDoorConfig = create<DoorConfigStore>((set, get) => ({
   },
 
   updateMidRail: (id: string, field: 'positionFromBottom' | 'dimension', value: number) => {
+    // Enforce minimum dimension of 35mm
+    const clampedValue = field === 'dimension' ? Math.max(35, value) : value;
     set((state) => ({
       midRails: state.midRails.map(rail =>
-        rail.id === id ? { ...rail, [field]: value } : rail
+        rail.id === id ? { ...rail, [field]: clampedValue } : rail
       )
     }));
   },

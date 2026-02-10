@@ -7,7 +7,7 @@ import { z } from "zod";
 
 export const panelTypeValues = [
   "STANDARD_12MM",
-  "REEDED_19MM", 
+  "REEDED_19MM",
   "MELAMINE_18MM",
   "FRETWORK",
   "GLASS",
@@ -142,7 +142,7 @@ export const doorConfigSchema = z.object({
   // RULE: 65mm minimum on hinge side
   if (data.hingeDrilling && data.hinges.length > 0) {
     const hingeSides = new Set(data.hinges.map(h => h.side));
-    
+
     if (hingeSides.has("LEFT") && data.leftStile < 65) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -222,7 +222,7 @@ export const DEFAULT_PRICING = {
 export function calculateDoorPrice(
   config: DoorConfig,
   pricing = DEFAULT_PRICING
-): { 
+): {
   basePrice: number;
   angledSurcharge: number;
   midRailSurcharge: number;
@@ -232,7 +232,7 @@ export function calculateDoorPrice(
 } {
   // Door area in square metres (always use full rectangular area, even for angled)
   const doorAreaM2 = (config.width * config.height) / 1_000_000;
-  
+
   // Panel area in square metres (for panel upgrade pricing)
   const panelWidth = config.width - config.leftStile - config.rightStile;
   const panelHeight = config.height - config.topRail - config.bottomRail;
@@ -244,8 +244,8 @@ export function calculateDoorPrice(
   const basePrice = pricing.FIXED_FEE_PER_DOOR + (doorAreaM2 * sqmRate);
 
   // Angled surcharge (flat fee if ANY angle)
-  const angledSurcharge = (config.angledLeft || config.angledRight) 
-    ? pricing.ANGLED_SURCHARGE 
+  const angledSurcharge = (config.angledLeft || config.angledRight)
+    ? pricing.ANGLED_SURCHARGE
     : 0;
 
   // Mid rail surcharge
@@ -264,10 +264,16 @@ export function calculateDoorPrice(
     panelUpgrade = pricing.MELAMINE_PANEL_FIXED + (panelAreaM2 * pricing.MELAMINE_PANEL_SQM);
   }
 
-  // Total per unit (finish adjustments are additive, NOT multiplicative on panel upgrades)
-  // Note: finish pricing comes from finishOptions table — not applied here
-  // The base formula from requirements is purely additive
-  const unitTotal = basePrice + angledSurcharge + midRailSurcharge + hingeSurcharge + panelUpgrade;
+  // Finish multipliers (from requirements: Raw = 1.0, Assembled = 1.15, Primed = 1.3)
+  const finishMultipliers: Record<typeof config.finish, number> = {
+    RAW_UNASSEMBLED: 1.0,
+    ASSEMBLED_PREP: 1.15,
+    PRIMED: 1.3,
+  };
+  const finishMultiplier = finishMultipliers[config.finish] || 1.0;
+
+  // Total per unit with finish multiplier applied
+  const unitTotal = (basePrice + angledSurcharge + midRailSurcharge + hingeSurcharge + panelUpgrade) * finishMultiplier;
 
   return {
     basePrice: Math.round(basePrice * 100) / 100,
