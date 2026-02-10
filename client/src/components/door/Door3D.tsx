@@ -670,6 +670,8 @@ function SingleDoorLeaf({
 
     // ── Panel Sections (split at mid-rails) ──
     panelSections.forEach((section, index) => {
+      // Panel sits at the front face depth
+      // The panel geometry already extends into rebate area via innerWidth calculation
       const zPos = -t / 2 + ff;
       parts.push(
         <mesh key={`panel-section-${index}`}
