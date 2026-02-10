@@ -262,12 +262,20 @@ export const orderItems = pgTable(
     // Specifications
     panelType: panelTypeEnum("panel_type").default("STANDARD_12MM"),
     panelThicknessMm: integer("panel_thickness_mm").default(12),
+    panelOrientation: varchar("panel_orientation", { length: 20 }).default("vertical"),
+    material: varchar("material", { length: 50 }).default("MR MDF"),
 
     // Angled specifications
     isAngled: boolean("is_angled").default(false),
     angledShorterSide: angledSideEnum("angled_shorter_side"),
     angledShortHeightMm: integer("angled_short_height_mm"),
     angledFlatTopWidthMm: integer("angled_flat_top_width_mm"),
+    leftAngleDegrees: decimal("left_angle_degrees", { precision: 5, scale: 2 }).default("0.00"),
+    rightAngleDegrees: decimal("right_angle_degrees", { precision: 5, scale: 2 }).default("0.00"),
+    leftTriangleCutoutWidth: integer("left_triangle_cutout_width").default(0),
+    leftTriangleCutoutHeight: integer("left_triangle_cutout_height").default(0),
+    rightTriangleCutoutWidth: integer("right_triangle_cutout_width").default(0),
+    rightTriangleCutoutHeight: integer("right_triangle_cutout_height").default(0),
 
     // Panels
     numberOfPanels: integer("number_of_panels").default(1),
@@ -280,10 +288,19 @@ export const orderItems = pgTable(
     borderRightStile: integer("border_right_stile"),
     borderMidRail: integer("border_mid_rail"),
 
+    // Rebate specifications
+    rebateWidthMm: integer("rebate_width_mm").default(10),
+    rebateDepthMm: integer("rebate_depth_mm").default(14),
+    frontFaceThicknessMm: integer("front_face_thickness_mm").default(8),
+    cornerRadiusMm: decimal("corner_radius_mm", { precision: 4, scale: 1 }).default("2.5"),
+
     // Hinge drilling
     hingeQuantity: integer("hinge_quantity").default(0),
     hingedSide: angledSideEnum("hinged_side"),
     hingeSpacingPattern: varchar("hinge_spacing_pattern", { length: 100 }),
+
+    // Mid rails
+    midRailsEqualise: boolean("mid_rails_equalise").default(false),
 
     // Calculated area (stored, not generated in PostgreSQL)
     doorAreaSqm: decimal("door_area_sqm", { precision: 6, scale: 4 }),
@@ -426,6 +443,7 @@ export const orderAttachments = pgTable(
     fileType: fileTypeEnum("file_type").notNull(),
     filePath: varchar("file_path", { length: 500 }).notNull(),
     fileSizeBytes: integer("file_size_bytes"),
+    fileContent: text("file_content"), // Storing content directly (Text/Base64)
     description: varchar("description", { length: 255 }),
     uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
     uploadedBy: varchar("uploaded_by", { length: 100 }),

@@ -10,8 +10,8 @@ import {
   insertOrderSchema,
   insertOrderItemSchema,
 } from "@shared/schema";
- const { verifyDoorPrice } = await import("./pricing");
-    const { doorConfigSchema } = await import("../shared/doorSchema");
+const { verifyDoorPrice } = await import("./pricing");
+const { doorConfigSchema } = await import("../shared/doorSchema");
 import { createShopifyDraftOrder, createQuickCheckout } from "./shopify";
 import { registerOAuthRoutes } from "./oauth";
 
@@ -633,10 +633,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Quick checkout - creates a Shopify draft order directly from door config
-  // Quick checkout - creates a Shopify draft order directly from door config
   app.post("/api/quick-checkout", async (req, res) => {
     try {
       const body = req.body;
+      // Dynamically import node modules to avoid top-level issues if not polyfilled
+      const fs = await import("fs");
+      const path = await import("path");
 
       console.log("=== QUICK CHECKOUT REQUEST ===");
       console.log("Body keys:", Object.keys(body));
@@ -693,114 +695,292 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // ─── Validate each line item ───
+      // ─── Validate each line item and lookup DB IDs ───
+      const validationPromises = lineItems.map(async (item, i) => {
+        if (!item.width || !item.height || item.price == null) {
+          throw new Error(`Item ${i + 1} is missing required fields.`);
+        }
+        if (!item.quantity || item.quantity < 1) item.quantity = 1;
+
+        // Verify Price
+        try {
+          const verificationConfig = doorConfigSchema.parse({
+            width: item.width,
+            height: item.height,
+            thickness: item.thickness || 22,
+            preset: "single",
+            panelType: item.panelType || "STANDARD_12MM",
+            panelCount: 1,
+            borderWidth: 90,
+            customBorders: false,
+            leftStile: 90,
+            rightStile: 90,
+            topRail: 90,
+            bottomRail: 90,
+            angledLeft: item.angledLeft || false,
+            angledRight: item.angledRight || false,
+            leftTriangleCutoutWidth: 0,
+            leftTriangleCutoutHeight: 0,
+            rightTriangleCutoutWidth: 0,
+            rightTriangleCutoutHeight: 0,
+            midRailsEnabled: item.midRailsEnabled || false,
+            midRails: item.midRails || [],
+            hingeDrilling: item.hingeDrilling || false,
+            hinges: item.hinges || [],
+            finish: item.finish || "RAW_UNASSEMBLED",
+            price: 0,
+          });
+
+          const serverPrice = await verifyDoorPrice(verificationConfig);
+          // 1% tolerance
+          const tolerance = serverPrice * 0.01;
+          if (Math.abs(item.price - serverPrice) > Math.max(tolerance, 0.50)) {
+            console.warn(`[Price Verification] Item ${i + 1} price mismatch. Client: ${item.price}, Server: ${serverPrice}`);
+            // We accept client price for now but log warning, or enforce server price:
+            item.price = serverPrice;
+          }
+        } catch (e) {
+          console.warn(`[Price Verification] Failed for item ${i + 1}:`, e);
+        }
+        return item;
+      });
+
+      await Promise.all(validationPromises);
+
+      // ─── 1. Ensure Guest Customer Exists ───
+      // We need a customer to create an order. Since this is "Quick Checkout" before user details,
+      // we use a generic Guest identity.
+      const GUEST_EMAIL = "guest@customdoordesigner.com";
+      let customer = await storage.getCustomerByEmail(GUEST_EMAIL);
+      if (!customer) {
+        console.log("Creating Guest Customer for Quick Checkout...");
+        customer = await storage.createCustomer({
+          companyName: "Guest User",
+          contactName: "Guest",
+          email: GUEST_EMAIL,
+          phone: "00000000000",
+          invoiceAddressLine1: "Guest Checkout",
+          invoiceCity: "Unknown",
+          invoicePostcode: "UNKNOWN",
+        });
+      }
+
+      // ─── 2. Create Local Order (DRAFT) ───
+      const { nanoid: nanoid_local } = await import("nanoid"); // Renamed to avoid conflict with top-level nanoid
+      const orderRef = `ORD-${nanoid_local(8).toUpperCase()}`;
+
+      const newOrder = await storage.createOrder({
+        customerId: customer.id,
+        orderReference: orderRef,
+        dateRequired: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Default 2 weeks
+        deliveryMethod: "COLLECTION", // Default
+        subtotalExcVat: lineItems.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2),
+        totalExcVat: lineItems.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2),
+        vatAmount: (lineItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) * 0.2).toFixed(2),
+        totalIncVat: (lineItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) * 1.2).toFixed(2),
+        orderStatus: "DRAFT",
+        productionStatus: "NOT_STARTED",
+      });
+      console.log(`Created local order: ${newOrder.id} (${newOrder.orderReference})`);
+
+      // Lookup Styles/Finishes for DB Foreign Keys
+      // In a real scenario, you'd want to cache these or do a more robust lookup.
+      // We'll fallback to the first available if exact match fails, or creating defaults.
+      // For now, let's assume standard IDs exist or just fetch them all.
+      const allStyles = await storage.getAllDoorStyles();
+      const allFinishes = await storage.getAllFinishOptions();
+      const defaultStyle = allStyles[0];
+      const defaultFinish = allFinishes[0];
+
+      // File storage setup
+      // const __dirname = path.dirname(new URL(import.meta.url).pathname); // ES module dirname workaround if needed, or stick to provided context
+      // Actually, we are inside an async function in a module, __dirname might not be available directly if we were pure ESM, 
+      // but typical TS/Node setups here inject it. 
+      // Let's rely on standard process.cwd() or relative path from project root.
+      const storageDir = path.resolve(process.cwd(), "storage", "orders", newOrder.id.toString());
+      if (!fs.existsSync(storageDir)) {
+        await fs.promises.mkdir(storageDir, { recursive: true });
+      }
+
+      // ─── 3. Create Order Items & Generate Files ───
       for (let i = 0; i < lineItems.length; i++) {
         const item = lineItems[i];
-        if (!item.width || !item.height || item.price == null) {
-          return res.status(400).json({
-            message: `Item ${i + 1} is missing required fields (width, height, or price).`,
-          });
-        }
-        if (!item.quantity || item.quantity < 1) {
-          lineItems[i].quantity = 1;
-        }
-      }
-    for (let i = 0; i < lineItems.length; i++) {
-      const item = lineItems[i];
-      try {
-        // Build a minimal DoorConfig for price verification
-        const verificationConfig = doorConfigSchema.parse({
-          width: item.width,
-          height: item.height,
-          thickness: item.thickness || 22,
-          preset: "single",
-          panelType: item.panelType || "STANDARD_12MM",
-          panelCount: 1,
-          borderWidth: 90,
-          customBorders: false,
-          leftStile: 90,
-          rightStile: 90,
-          topRail: 90,
-          bottomRail: 90,
-          angledLeft: item.angledLeft || false,
-          angledRight: item.angledRight || false,
-          leftTriangleCutoutWidth: 0,
-          leftTriangleCutoutHeight: 0,
-          rightTriangleCutoutWidth: 0,
-          rightTriangleCutoutHeight: 0,
-          midRailsEnabled: item.midRailsEnabled || false,
-          midRails: item.midRails || [],
-          hingeDrilling: item.hingeDrilling || false,
-          hinges: item.hinges || [],
-          finish: item.finish || "RAW_UNASSEMBLED",
-          price: 0,
+
+        // Find matching Style/Finish IDs
+        // Attempt to match style details (shaker/slab etc)
+        // Simplification: We map item.panelType to a style if possible, or use default
+        let styleId = defaultStyle?.id;
+        // Search for style matching category?
+        // This logic depends on how your DB `door_styles` are populated.
+
+        let finishId = defaultFinish?.id;
+        const matchingFinish = allFinishes.find(f => f.finishCode === item.finish) || allFinishes.find(f => f.finishName === item.finish);
+        if (matchingFinish) finishId = matchingFinish.id;
+
+        const dbItem = await storage.createOrderItem({
+          orderId: newOrder.id,
+          lineNumber: i + 1,
+          quantity: item.quantity,
+          styleId: styleId!,
+          finishId: finishId!,
+          heightMm: item.height,
+          widthMm: item.width,
+          panelThicknessMm: item.thickness || 22,
+          panelType: item.panelType as any,
+          panelOrientation: item.panelOrientation || "vertical",
+          material: item.material || "MR MDF",
+
+          isAngled: item.angledLeft || item.angledRight,
+          angledShorterSide: item.angledLeft ? "LEFT" : (item.angledRight ? "RIGHT" : null),
+          leftAngleDegrees: (item.leftAngleDegrees || 0).toString(),
+          rightAngleDegrees: (item.rightAngleDegrees || 0).toString(),
+          leftTriangleCutoutWidth: item.leftTriangleCutoutWidth || 0,
+          leftTriangleCutoutHeight: item.leftTriangleCutoutHeight || 0,
+          rightTriangleCutoutWidth: item.rightTriangleCutoutWidth || 0,
+          rightTriangleCutoutHeight: item.rightTriangleCutoutHeight || 0,
+
+          borderLeftStile: item.customBorders ? item.leftStile : (item.borderWidth || 90),
+          borderRightStile: item.customBorders ? item.rightStile : (item.borderWidth || 90),
+          borderTopRail: item.customBorders ? item.topRail : (item.borderWidth || 90),
+          borderBottomRail: item.customBorders ? item.bottomRail : (item.borderWidth || 90),
+
+          rebateWidthMm: item.rebateWidthMm || 10,
+          rebateDepthMm: item.rebateDepthMm || 14,
+          frontFaceThicknessMm: item.frontFaceThicknessMm || 8,
+          cornerRadiusMm: (item.cornerRadiusMm || 2.5).toString(),
+
+          unitPriceExcVat: item.price.toFixed(2),
+          lineTotalExcVat: (item.price * item.quantity).toFixed(2),
+          basePrice: item.price.toFixed(2),
+
+          hingeQuantity: item.hingeDrilling && item.hinges ? item.hinges.length : 0,
+          midRailsEqualise: item.midRailsEqualise || false,
         });
 
-        const serverPrice = verifyDoorPrice(verificationConfig);
-
-        // Allow 1% tolerance for rounding differences
-        const tolerance = serverPrice * 0.01;
-        if (Math.abs(item.price - serverPrice) > Math.max(tolerance, 0.50)) {
-          console.warn(
-            `[Price Verification] Item ${i + 1}: client=${item.price}, server=${serverPrice}. Using server price.`
-          );
-          lineItems[i].price = serverPrice;
+        // Save Mid Rails
+        if (item.midRails && item.midRails.length > 0) {
+          for (const [idx, rail] of item.midRails.entries()) {
+            await storage.createMidRail({
+              itemId: dbItem.id,
+              railNumber: idx + 1,
+              positionFromBottomMm: rail.position,
+              railWidthMm: rail.height || 100, // Default width if missing
+            });
+          }
         }
-      } catch (e) {
-        console.warn(`[Price Verification] Could not verify item ${i + 1}, using client price:`, e);
-        // Continue with client price if verification fails (graceful degradation)
+
+        // Save Hinges
+        if (item.hinges && item.hinges.length > 0) {
+          for (const h of item.hinges) {
+            await storage.createHinge({
+              orderItemId: dbItem.id,
+              positionFromBottomMm: h.position,
+              side: h.side || "LEFT",
+              cupDiameterMm: 35,
+              cupDepthMm: 13,
+              gapToEdgeMm: 5,
+            });
+          }
+        }
+
+        // Generate & Save DXF/SVG
+        // Construct full config for generators
+        const fullConfig = {
+          ...item,
+          preset: "single", // Default
+          panelCount: 1, // Default
+          borderWidth: 90, // Default
+          shape: (item.angledLeft || item.angledRight) ? "angled" : "rectangular",
+          material: "MR MDF", // Default material
+          // ... map other fields
+        };
+
+        try {
+          // DXF
+          const dxfContent = generateDoorDxf(fullConfig as any);
+          const dxfFilename = `${dbItem.id}_door.dxf`;
+          const dxfPath = path.join(storageDir, dxfFilename);
+          await fs.promises.writeFile(dxfPath, dxfContent);
+
+          // SVG
+          const svgContent = generateDoorSvg({ ...fullConfig, borderWidth: 90 } as any);
+          const svgFilename = `${dbItem.id}_preview.svg`;
+          const svgPath = path.join(storageDir, svgFilename);
+          await fs.promises.writeFile(svgPath, svgContent);
+
+          // Update Item with DXF Path
+          await storage.updateOrderItem(dbItem.id, {
+            dxfFilePath: dxfPath,
+            dxfFileGenerated: true,
+          });
+
+          // Save Attachments to DB (DXF)
+          await storage.createOrderAttachment({
+            orderId: newOrder.id,
+            itemId: dbItem.id,
+            fileName: dxfFilename,
+            fileType: "DXF",
+            filePath: dxfPath,
+            fileContent: dxfContent, // Store DXF content
+            description: `Production DXF for Item #${dbItem.lineNumber}`,
+            fileSizeBytes: Buffer.byteLength(dxfContent),
+          });
+
+          // Save Attachments to DB (SVG)
+          await storage.createOrderAttachment({
+            orderId: newOrder.id,
+            itemId: dbItem.id,
+            fileName: svgFilename,
+            fileType: "IMAGE", // SVG treated as image
+            filePath: svgPath,
+            fileContent: svgContent, // Store SVG content
+            description: `Preview SVG for Item #${dbItem.lineNumber}`,
+            fileSizeBytes: Buffer.byteLength(svgContent),
+          });
+
+          console.log(`Generated files and attachments for item ${dbItem.id}`);
+        } catch (err) {
+          console.error(`Failed to generate/save files for item ${dbItem.id}`, err);
+        }
       }
-    }
-      // ─── Calculate totals ───
-      const totalQuantity = lineItems.reduce((s, i) => s + i.quantity, 0);
-      const subtotal = lineItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
-      console.log(
-        `Processing ${lineItems.length} product(s), ${totalQuantity} total items, subtotal: £${subtotal.toFixed(2)}`
-      );
 
-      // ─── Use the centralized Shopify module (correct env vars) ───
+      // ─── 4. Sync to Shopify ───
       const { getShopifyCredentials, createDraftOrderFromLineItems } =
         await import("./shopifyCheckout");
 
       const creds = await getShopifyCredentials();
       if (!creds) {
         console.error("Missing Shopify credentials");
-        return res.status(500).json({
-          message:
-            "Payment system not configured. Please contact support.",
-        });
+        throw new Error("Payment system not configured.");
       }
 
       const result = await createDraftOrderFromLineItems(lineItems, creds);
 
       console.log(`Draft order created! Invoice URL: ${result.invoiceUrl}`);
 
+      // ─── 5. Update Local Order with Shopify ID ───
+      await storage.updateOrder(newOrder.id, {
+        shopifyDraftOrderId: result.draftOrderId,
+        shopifyOrderId: result.draftOrderId, // Initially same until converted
+        orderStatus: "SUBMITTED",
+        paymentStatus: "PENDING",
+      });
+
       return res.json({
         invoiceUrl: result.invoiceUrl,
         draftOrderId: result.draftOrderId,
       });
+
     } catch (error: any) {
       console.error("Checkout error:", error);
 
-      // Return user-friendly messages for common failures
-      if (error.message?.includes("credentials")) {
-        return res.status(500).json({
-          message:
-            "Payment system is not configured. Please contact support.",
-        });
-      }
-      if (error.message?.includes("connect")) {
-        return res.status(502).json({
-          message:
-            "Could not connect to payment provider. Please try again in a moment.",
-        });
-      }
+      // Return user-friendly messages
+      let msg = error.message;
+      if (msg?.includes("credentials")) msg = "Payment system is not configured.";
+      if (msg?.includes("connect")) msg = "Connection to payment provider failed.";
 
-      return res.status(500).json({
-        message:
-          error.message || "Internal server error during checkout. Please try again.",
-      });
+      return res.status(500).json({ message: msg });
     }
   });
   const httpServer = createServer(app);

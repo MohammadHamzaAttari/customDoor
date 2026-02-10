@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 2260" width="800" height="2260">
+  <defs>
+    <style>
+      .frame { fill: #f5f0e8; stroke: #333333; stroke-width: 2; }
+      .panel { fill: #e8e0d0; stroke: #a09080; stroke-width: 1; }
+      .rail { fill: #d4cbbf; stroke: #333333; stroke-width: 1; }
+      .dimension { font-family: Arial, sans-serif; font-size: 12px; fill: #666; }
+      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: #333; }
+    </style>
+  </defs>
+  <rect class="frame" x="100" y="100" width="600" height="2000" />
+  <path class="panel" d="M 205 1995 L 595 1995 L 595 205 L 205 205 Z" />
+  <circle cx="122" cy="NaN" r="17.5" fill="#444" stroke="#333" stroke-width="1" fill-opacity="0.3" />
+  <circle cx="122" cy="NaN" r="2" fill="#333" />
+  <line x1="100" y1="2140" x2="700" y2="2140" stroke="#999" stroke-width="1" />
+  <line x1="100" y1="2135" x2="100" y2="2145" stroke="#999" stroke-width="1" />
+  <line x1="700" y1="2135" x2="700" y2="2145" stroke="#999" stroke-width="1" />
+  <text class="dimension" x="400" y="2160" text-anchor="middle">600mm</text>
+  <line x1="60" y1="2100" x2="60" y2="100" stroke="#999" stroke-width="1" />
+  <line x1="55" y1="2100" x2="65" y2="2100" stroke="#999" stroke-width="1" />
+  <line x1="55" y1="100" x2="65" y2="100" stroke="#999" stroke-width="1" />
+  <text class="dimension" x="45" y="1100" text-anchor="end" dominant-baseline="middle">2000mm</text>
+  <text class="title" x="100" y="2230">Door: 600mm x 2000mm | single | STANDARD_12MM panel | MR MDF</text>
+</svg>

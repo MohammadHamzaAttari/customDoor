@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 2460" width="1000" height="2460">
+  <defs>
+    <style>
+      .frame { fill: #f5f0e8; stroke: #333333; stroke-width: 2; }
+      .panel { fill: #e8e0d0; stroke: #a09080; stroke-width: 1; }
+      .rail { fill: #d4cbbf; stroke: #333333; stroke-width: 1; }
+      .dimension { font-family: Arial, sans-serif; font-size: 12px; fill: #666; }
+      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: #333; }
+    </style>
+  </defs>
+  <defs><clipPath id="clip-100-1770720537018"><path d="M 100 2300 L 100 500 L 250 100 L 900 100 L 900 2300 Z" /></clipPath></defs>
+  <path class="frame" d="M 100 2300 L 100 500 L 250 100 L 900 100 L 900 2300 Z" />
+  <rect class="rail" x="220" y="NaN" width="590" height="undefined" clip-path="url(#clip-100-1770720537018)" />
+  <circle cx="122" cy="NaN" r="17.5" fill="#444" stroke="#333" stroke-width="1" fill-opacity="0.3" />
+  <circle cx="122" cy="NaN" r="2" fill="#333" />
+  <circle cx="122" cy="NaN" r="17.5" fill="#444" stroke="#333" stroke-width="1" fill-opacity="0.3" />
+  <circle cx="122" cy="NaN" r="2" fill="#333" />
+  <circle cx="122" cy="NaN" r="17.5" fill="#444" stroke="#333" stroke-width="1" fill-opacity="0.3" />
+  <circle cx="122" cy="NaN" r="2" fill="#333" />
+  <line x1="100" y1="2340" x2="900" y2="2340" stroke="#999" stroke-width="1" />
+  <line x1="100" y1="2335" x2="100" y2="2345" stroke="#999" stroke-width="1" />
+  <line x1="900" y1="2335" x2="900" y2="2345" stroke="#999" stroke-width="1" />
+  <text class="dimension" x="500" y="2360" text-anchor="middle">800mm</text>
+  <line x1="60" y1="2300" x2="60" y2="100" stroke="#999" stroke-width="1" />
+  <line x1="55" y1="2300" x2="65" y2="2300" stroke="#999" stroke-width="1" />
+  <line x1="55" y1="100" x2="65" y2="100" stroke="#999" stroke-width="1" />
+  <text class="dimension" x="45" y="1200" text-anchor="end" dominant-baseline="middle">2200mm</text>
+  <text class="title" x="100" y="2430">Door: 800mm x 2200mm | single | STANDARD_12MM panel | MR MDF</text>
+</svg>

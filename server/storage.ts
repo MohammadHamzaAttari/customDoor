@@ -42,6 +42,8 @@ import {
   type InsertSystemSetting,
   type ShopifySyncLogEntry,
   type InsertShopifySyncLogEntry,
+  type OrderAttachment,
+  type InsertOrderAttachment,
 } from "@shared/schema";
 import type { DoorConfig, CartItem } from "@shared/doorSchema";
 
@@ -136,6 +138,10 @@ export interface IStorage {
   // Shopify Sync
   logShopifySync(entry: InsertShopifySyncLogEntry): Promise<ShopifySyncLogEntry>;
   getShopifySyncLogs(orderId: number): Promise<ShopifySyncLogEntry[]>;
+
+  // Order Attachments
+  createOrderAttachment(attachment: InsertOrderAttachment): Promise<OrderAttachment>;
+  getOrderAttachments(orderId: number): Promise<OrderAttachment[]>;
 }
 
 // =====================================================
@@ -597,6 +603,19 @@ export class DatabaseStorage implements IStorage {
 
   async getShopifySyncLogs(orderId: number): Promise<ShopifySyncLogEntry[]> {
     return db.select().from(shopifySyncLog).where(eq(shopifySyncLog.orderId, orderId)).orderBy(desc(shopifySyncLog.createdAt));
+  }
+
+  // =====================================================
+  // ORDER ATTACHMENTS
+  // =====================================================
+
+  async createOrderAttachment(attachment: InsertOrderAttachment): Promise<OrderAttachment> {
+    const [created] = await db.insert(orderAttachments).values(attachment).returning();
+    return created;
+  }
+
+  async getOrderAttachments(orderId: number): Promise<OrderAttachment[]> {
+    return db.select().from(orderAttachments).where(eq(orderAttachments.orderId, orderId));
   }
 }
 
