@@ -44,8 +44,8 @@ import {
   type InsertShopifySyncLogEntry,
   type OrderAttachment,
   type InsertOrderAttachment,
-} from "@shared/schema";
-import type { DoorConfig, CartItem } from "@shared/doorSchema";
+} from "../shared/schema";
+import type { DoorConfig, CartItem } from "../shared/doorSchema";
 
 // =====================================================
 // STORAGE INTERFACE

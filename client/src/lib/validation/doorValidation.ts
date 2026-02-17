@@ -73,7 +73,7 @@ export const doorConfigValidationSchema = z.object({
     .min(35, "Bottom rail must be at least 35mm")
     .max(300, "Bottom rail cannot exceed 300mm"),
 
-  // Angled corners
+  // Angled corners - RELAXED validation
   angledLeft: z.boolean(),
   angledRight: z.boolean(),
   leftTriangleCutoutWidth: z.number().min(0).optional(),
@@ -103,8 +103,8 @@ export const doorConfigValidationSchema = z.object({
   hingeDrilling: z.boolean(),
   hinges: z.array(hingeSchema),
 
-  // Finish
-  finish: z.enum(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED"]),
+  // Finish - FIXED: removed PRIMED
+  finish: z.enum(["RAW_UNASSEMBLED", "ASSEMBLED_PREP"]),
 }).superRefine((data, ctx) => {
 
   // ── RULE: 18mm thickness only for slab doors ──
@@ -132,7 +132,7 @@ export const doorConfigValidationSchema = z.object({
     if (hingeSides.has("LEFT") && data.leftStile < MIN_BORDER_WITH_HINGES) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `Left stile must be at least ${MIN_BORDER_WITH_HINGES}mm when hinges are on the left side (space needed for hinge boss fixing plate).`,
+        message: `Left stile must be at least ${MIN_BORDER_WITH_HINGES}mm when hinges are on the left side.`,
         path: ["leftStile"],
       });
     }
@@ -140,7 +140,7 @@ export const doorConfigValidationSchema = z.object({
     if (hingeSides.has("RIGHT") && data.rightStile < MIN_BORDER_WITH_HINGES) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `Right stile must be at least ${MIN_BORDER_WITH_HINGES}mm when hinges are on the right side (space needed for hinge boss fixing plate).`,
+        message: `Right stile must be at least ${MIN_BORDER_WITH_HINGES}mm when hinges are on the right side.`,
         path: ["rightStile"],
       });
     }
@@ -167,35 +167,24 @@ export const doorConfigValidationSchema = z.object({
     }
   }
 
-  // ── RULE: Angled corner validation ──
+  // ── RULE: Angled corner validation - RELAXED ──
+  // Now allows full-width cutouts (triangle doors)
   if (data.angledLeft) {
     const lcw = data.leftTriangleCutoutWidth || 0;
     const lch = data.leftTriangleCutoutHeight || 0;
 
-    if (lcw < 50) {
+    if (lcw > data.width) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Left triangle cutout width must be at least 50mm",
-        path: ["leftTriangleCutoutWidth"],
-      });
-    } else if (lcw > data.width - 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Left cutout width exceeds max safe limit (${data.width - 100}mm)`,
+        message: "Left cutout width cannot exceed door width",
         path: ["leftTriangleCutoutWidth"],
       });
     }
 
-    if (lch < 50) {
+    if (lch > data.height) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Left triangle cutout height must be at least 50mm",
-        path: ["leftTriangleCutoutHeight"],
-      });
-    } else if (lch > data.height - 150) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Left cutout height exceeds max safe limit (${data.height - 150}mm)`,
+        message: "Left cutout height cannot exceed door height",
         path: ["leftTriangleCutoutHeight"],
       });
     }
@@ -205,30 +194,18 @@ export const doorConfigValidationSchema = z.object({
     const rcw = data.rightTriangleCutoutWidth || 0;
     const rch = data.rightTriangleCutoutHeight || 0;
 
-    if (rcw < 50) {
+    if (rcw > data.width) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Right triangle cutout width must be at least 50mm",
-        path: ["rightTriangleCutoutWidth"],
-      });
-    } else if (rcw > data.width - 100) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Right cutout width exceeds max safe limit (${data.width - 100}mm)`,
+        message: "Right cutout width cannot exceed door width",
         path: ["rightTriangleCutoutWidth"],
       });
     }
 
-    if (rch < 50) {
+    if (rch > data.height) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Right triangle cutout height must be at least 50mm",
-        path: ["rightTriangleCutoutHeight"],
-      });
-    } else if (rch > data.height - 150) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Right cutout height exceeds max safe limit (${data.height - 150}mm)`,
+        message: "Right cutout height cannot exceed door height",
         path: ["rightTriangleCutoutHeight"],
       });
     }
@@ -245,7 +222,6 @@ export const doorConfigValidationSchema = z.object({
     }
 
     data.hinges.forEach((hinge, index) => {
-      // Check hinge doesn't exceed door height
       if (hinge.positionFromBottomMm > data.height - 50) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -254,8 +230,6 @@ export const doorConfigValidationSchema = z.object({
         });
       }
 
-      // Check if hinge is in angled cutout area
-      // Hinge center X = 22.5mm from edge (5mm gap + 17.5mm half cup)
       if (hinge.side === "LEFT" && data.angledLeft) {
         const hX = HINGE_CENTER_OFFSET_MM;
         const hY = hinge.positionFromBottomMm;
@@ -269,7 +243,7 @@ export const doorConfigValidationSchema = z.object({
             if (hX < maxXAtThisHeight) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `Hinge ${index + 1} is in the left angled cutout area. Move it lower or remove the angle.`,
+                message: `Hinge ${index + 1} is in the left angled cutout area. Move it lower.`,
                 path: ["hinges", index, "positionFromBottomMm"],
               });
             }
@@ -290,7 +264,7 @@ export const doorConfigValidationSchema = z.object({
             if (hX > minXAtThisHeight) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `Hinge ${index + 1} is in the right angled cutout area. Move it lower or remove the angle.`,
+                message: `Hinge ${index + 1} is in the right angled cutout area. Move it lower.`,
                 path: ["hinges", index, "positionFromBottomMm"],
               });
             }
@@ -337,9 +311,7 @@ export const orderSubmissionSchema = z.object({
   phone: z.string()
     .min(1, "Phone number is required")
     .refine((val) => {
-      // Accept UK numbers: 07xxx, +447xxx, 01234, etc.
       const cleaned = val.replace(/[\s\-\(\)]/g, "");
-      // Must be at least 10 digits when stripped
       const digits = cleaned.replace(/[^\d]/g, "");
       return digits.length >= 10 && digits.length <= 15;
     }, "Please enter a valid UK phone number"),

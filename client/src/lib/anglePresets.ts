@@ -116,6 +116,11 @@ export function calculateAngleFromCutout(width: number, height: number): number 
   return Math.round(Math.atan(height / width) * (180 / Math.PI));
 }
 
+/**
+ * Validate angle cutout dimensions.
+ * FIXED: Now allows full-width cutouts (triangle doors where short side = 0).
+ * The cutout width CAN equal the door width — this creates a pointed top.
+ */
 export function validateAngleCutout(
   doorWidth: number,
   doorHeight: number,
@@ -124,31 +129,29 @@ export function validateAngleCutout(
   borderWidth: number
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (cutWidth <= 0 || cutHeight <= 0) {
     return { valid: true, errors: [] };
   }
-  
-  const remainingWidth = doorWidth - cutWidth;
-  if (remainingWidth < borderWidth + 50) {
-    errors.push("Cutout too wide - insufficient frame width remaining");
+
+  // Allow cutWidth up to full door width (triangle door).
+  // Only reject if it physically exceeds the door.
+  if (cutWidth > doorWidth) {
+    errors.push("Cutout width cannot exceed door width");
   }
-  
-  const remainingHeight = doorHeight - cutHeight;
-  if (remainingHeight < borderWidth + 100) {
-    errors.push("Cutout too tall - insufficient top rail remaining");
+
+  // Cut height: the triangle removed from the top.
+  // Short side height = doorHeight - cutHeight. This CAN be 0 (pointed).
+  // But cutHeight cannot exceed the full door height.
+  if (cutHeight > doorHeight) {
+    errors.push("Cutout height cannot exceed door height");
   }
-  
-  const cutoutArea = (cutWidth * cutHeight) / 2;
-  const doorArea = doorWidth * doorHeight;
-  if (cutoutArea > doorArea * 0.40) {
-    errors.push("Cutout exceeds 40% of door area");
-  }
-  
+
+  // Sanity: angle range
   const angle = calculateAngleFromCutout(cutWidth, cutHeight);
-  if (angle < 15 || angle > 70) {
-    errors.push(`Angle ${angle}° is outside recommended range (15°-70°)`);
+  if (angle > 0 && (angle < 3 || angle > 87)) {
+    errors.push(`Angle ${angle}° is extreme — consider adjusting (recommended 5°–85°)`);
   }
-  
+
   return { valid: errors.length === 0, errors };
 }

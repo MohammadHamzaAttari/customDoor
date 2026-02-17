@@ -21,10 +21,12 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy built files from builder stage
+# Copy built files and source files needed for tsx
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/shared ./shared
 
 # Set environment to production
 ENV NODE_ENV=production

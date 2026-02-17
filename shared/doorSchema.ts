@@ -14,10 +14,10 @@ export const panelTypeValues = [
   "NONE",
 ] as const;
 
+// FIXED: Removed PRIMED per client feedback
 export const finishTypeValues = [
   "RAW_UNASSEMBLED",
   "ASSEMBLED_PREP",
-  "PRIMED",
 ] as const;
 
 export const hingeTypeValues = [
@@ -91,7 +91,7 @@ export const doorConfigSchema = z.object({
   rebateWidthMm: z.number().min(5).max(20).default(10),
   rebateDepthMm: z.number().min(8).max(20).default(14),
   frontFaceThicknessMm: z.number().min(4).max(12).default(8),
-  cornerRadiusMm: z.number().min(0).max(10).default(2.5),
+  cornerRadiusMm: z.number().min(0).max(10).default(0),
 
   // Angled corners
   angledLeft: z.boolean().default(false),
@@ -102,6 +102,7 @@ export const doorConfigSchema = z.object({
   rightTriangleCutoutHeight: z.number().min(0).default(0),
   leftAngleDegrees: z.number().min(0).max(90).default(0),
   rightAngleDegrees: z.number().min(0).max(90).default(0),
+  angledRailWidth: z.number().min(35).max(200).default(90),
 
   // Mid rails
   midRailsEnabled: z.boolean().default(false),
@@ -186,7 +187,7 @@ export type DoorConfig = z.infer<typeof doorConfigSchema>;
 // =====================================================
 
 export const cartItemSchema = z.object({
-  id: z.union([z.string(), z.number()]),  // Accept both string and number
+  id: z.union([z.string(), z.number()]),
   label: z.string().default("Custom Door"),
   config: doorConfigSchema,
   quantity: z.number().min(1).max(100).default(1),
@@ -230,33 +231,26 @@ export function calculateDoorPrice(
   panelUpgrade: number;
   unitTotal: number;
 } {
-  // Door area in square metres (always use full rectangular area, even for angled)
   const doorAreaM2 = (config.width * config.height) / 1_000_000;
 
-  // Panel area in square metres (for panel upgrade pricing)
   const panelWidth = config.width - config.leftStile - config.rightStile;
   const panelHeight = config.height - config.topRail - config.bottomRail;
   const panelAreaM2 = Math.max(0, (panelWidth * panelHeight) / 1_000_000);
 
-  // Base: fixed fee + area rate
   const isSlab = config.panelType === "NONE";
   const sqmRate = isSlab ? pricing.SQM_RATE_SLAB : pricing.SQM_RATE_SHAKER;
   const basePrice = pricing.FIXED_FEE_PER_DOOR + (doorAreaM2 * sqmRate);
 
-  // Angled surcharge (flat fee if ANY angle)
   const angledSurcharge = (config.angledLeft || config.angledRight)
     ? pricing.ANGLED_SURCHARGE
     : 0;
 
-  // Mid rail surcharge
   const midRailCount = config.midRailsEnabled ? config.midRails.length : 0;
   const midRailSurcharge = midRailCount * pricing.MID_RAIL_SURCHARGE;
 
-  // Hinge surcharge
   const hingeCount = config.hingeDrilling ? config.hinges.length : 0;
   const hingeSurcharge = hingeCount * pricing.HINGE_HOLE_SURCHARGE;
 
-  // Panel upgrade surcharge (uses PANEL area, not door area)
   let panelUpgrade = 0;
   if (config.panelType === "REEDED_19MM") {
     panelUpgrade = pricing.REEDED_PANEL_FIXED + (panelAreaM2 * pricing.REEDED_PANEL_SQM);
@@ -264,15 +258,13 @@ export function calculateDoorPrice(
     panelUpgrade = pricing.MELAMINE_PANEL_FIXED + (panelAreaM2 * pricing.MELAMINE_PANEL_SQM);
   }
 
-  // Finish multipliers (from requirements: Raw = 1.0, Assembled = 1.15, Primed = 1.3)
+  // FIXED: Removed PRIMED multiplier
   const finishMultipliers: Record<typeof config.finish, number> = {
     RAW_UNASSEMBLED: 1.0,
     ASSEMBLED_PREP: 1.15,
-    PRIMED: 1.3,
   };
   const finishMultiplier = finishMultipliers[config.finish] || 1.0;
 
-  // Total per unit with finish multiplier applied
   const unitTotal = (basePrice + angledSurcharge + midRailSurcharge + hingeSurcharge + panelUpgrade) * finishMultiplier;
 
   return {

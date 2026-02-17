@@ -1,6 +1,5 @@
-// client/src/lib/stores/useDoorStore.ts
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { calculateDoorPrice, DEFAULT_PRICING } from "@shared/doorSchema";
 import {
   MIN_BORDER_WITH_HINGES,
@@ -43,6 +42,7 @@ export interface DoorOrderItem {
   rightTriangleCutoutHeight: number;
   leftAngleDegrees: number;
   rightAngleDegrees: number;
+  angledRailWidth: number;
 
   // Borders
   borderWidth: number;
@@ -126,6 +126,7 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   rightTriangleCutoutHeight: 0,
   leftAngleDegrees: 0,
   rightAngleDegrees: 0,
+  angledRailWidth: 90,
 
   borderWidth: 90,
   customBorders: false,
@@ -173,7 +174,7 @@ function computePrice(door: DoorOrderItem): { unitPrice: number; lineTotal: numb
   const result = calculateDoorPrice({
     width: door.width,
     height: door.height,
-    thickness: door.thickness,
+    thickness: door.thickness as 18 | 22,
     preset: door.preset,
     panelType: door.panelType,
     panelCount: door.panelCount,
@@ -195,6 +196,7 @@ function computePrice(door: DoorOrderItem): { unitPrice: number; lineTotal: numb
     rightTriangleCutoutHeight: door.rightTriangleCutoutHeight,
     leftAngleDegrees: door.leftAngleDegrees,
     rightAngleDegrees: door.rightAngleDegrees,
+    angledRailWidth: door.angledRailWidth ?? 90,
     midRailsEnabled: door.midRailsEnabled,
     midRails: door.midRails,
     hingeDrilling: door.hingeDrilling,
@@ -476,7 +478,77 @@ export const useDoorStore = create<DoorStore>()(
     }),
     {
       name: "door-order-storage",
-      version: 2,
+      version: 4,
+      migrate: (persistedState: any, version: number) => {
+        const migrated = persistedState || { doors: [], activeDoorId: null };
+
+        // Ensure doors array exists
+        if (!Array.isArray(migrated.doors)) {
+          migrated.doors = [];
+        }
+
+        // Migration v2 -> v3: Add angledRailWidth
+        if (version < 3) {
+          migrated.doors = migrated.doors.map((d: any) => ({
+            ...d,
+            angledRailWidth: d.angledRailWidth ?? 90,
+          }));
+        }
+
+        // Migration v3 -> v4: Ensure all fields exist with defaults
+        if (version < 4) {
+          migrated.doors = migrated.doors.map((d: any) => {
+            // Ensure arrays are initialized
+            if (!Array.isArray(d.midRails)) {
+              d.midRails = [];
+            }
+            if (!Array.isArray(d.hinges)) {
+              d.hinges = [];
+            }
+
+            // Ensure critical numeric fields have defaults
+            if (typeof d.rebateWidthMm !== 'number' || isNaN(d.rebateWidthMm)) {
+              d.rebateWidthMm = DEFAULT_DOOR.rebateWidthMm;
+            }
+            if (typeof d.rebateDepthMm !== 'number' || isNaN(d.rebateDepthMm)) {
+              d.rebateDepthMm = DEFAULT_DOOR.rebateDepthMm;
+            }
+            if (typeof d.frontFaceThicknessMm !== 'number' || isNaN(d.frontFaceThicknessMm)) {
+              d.frontFaceThicknessMm = DEFAULT_DOOR.frontFaceThicknessMm;
+            }
+            if (typeof d.cornerRadiusMm !== 'number' || isNaN(d.cornerRadiusMm)) {
+              d.cornerRadiusMm = DEFAULT_DOOR.cornerRadiusMm;
+            }
+            if (typeof d.angledRailWidth !== 'number' || isNaN(d.angledRailWidth)) {
+              d.angledRailWidth = DEFAULT_DOOR.angledRailWidth;
+            }
+
+            return d;
+          });
+        }
+
+        return migrated;
+      },
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (!state) {
+          console.warn("Door store hydration failed or state is empty");
+        } else {
+          console.log("Door store hydrated:", state.doors.length, "doors");
+          // Ensure all doors have valid prices
+          try {
+            state.doors.forEach((door) => {
+              if (typeof door.unitPrice !== 'number' || isNaN(door.unitPrice)) {
+                const { unitPrice, lineTotal } = computePrice(door);
+                door.unitPrice = unitPrice;
+                door.lineTotal = lineTotal;
+              }
+            });
+          } catch (error) {
+            console.error("Error recalculating prices on hydration:", error);
+          }
+        }
+      },
     }
   )
 );

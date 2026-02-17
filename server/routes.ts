@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { doorConfigSchema, cartItemSchema } from "@shared/doorSchema";
+import { doorConfigSchema, cartItemSchema } from "../shared/doorSchema";
 import { generateDoorDxf, type DxfDoorConfig } from "./dxfGenerator";
 import { generateDoorSvg, type SvgDoorConfig } from "./svgGenerator";
 import { z } from "zod";
@@ -9,7 +9,7 @@ import {
   insertCustomerSchema,
   insertOrderSchema,
   insertOrderItemSchema,
-} from "@shared/schema";
+} from "../shared/schema";
 const { verifyDoorPrice } = await import("./pricing");
 const { doorConfigSchema } = await import("../shared/doorSchema");
 import { createShopifyDraftOrder, createQuickCheckout } from "./shopify";

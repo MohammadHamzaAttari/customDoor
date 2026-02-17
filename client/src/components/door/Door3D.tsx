@@ -1,331 +1,165 @@
-// client/src/components/door/Door3D.tsx
 import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { DoorDimensions } from "./DimensionLabel";
 import { HINGE_CENTER_OFFSET_MM, HINGE_CUP_DIAMETER_MM } from "@/lib/stores/useDoorConfig";
+import {
+  getOuterEdgesAtY,
+  getInnerEdgesAtY,
+  getHoleSections,
+  createRoofPoints,
+  HoleSection,
+  RoofPoint
+} from "@/lib/doorUtils";
 
-// ============================================
-// CONSTANTS (from requirements)
-// ============================================
+const HINGE_CENTER_M = HINGE_CENTER_OFFSET_MM / 1000;
+const HINGE_CUP_RADIUS_M = (HINGE_CUP_DIAMETER_MM / 2) / 1000;
 
-const HINGE_CENTER_M = HINGE_CENTER_OFFSET_MM / 1000;   // 0.0225m
-const HINGE_CUP_RADIUS_M = (HINGE_CUP_DIAMETER_MM / 2) / 1000; // 0.0175m
-const HINGE_CUP_DEPTH_M = 13 / 1000; // 0.013m
-
-// ============================================
-// GEOMETRY UTILITIES (unchanged — keep existing)
-// ============================================
-
-interface RoofPoint {
-  x: number;
-  y: number;
-}
-
-interface DoorGeometryParams {
-  width: number;
-  height: number;
-  thickness: number;
-  leftStile: number;
-  rightStile: number;
-  topRail: number;
-  bottomRail: number;
-  angledLeft: boolean;
-  angledRight: boolean;
-  leftCutW: number;
-  leftCutH: number;
-  rightCutW: number;
-  rightCutH: number;
-  cornerRadius: number;
-  rebateWidth: number;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function validateAngledParams(params: DoorGeometryParams): DoorGeometryParams {
-  const { width, height, leftStile, rightStile, topRail } = params;
-  let { leftCutW, leftCutH, rightCutW, rightCutH } = params;
-
-  const maxCutWidth = width * 0.8;
-  const maxCutHeight = height * 0.7;
-  const minRemaining = 0.05;
-
-  if (params.angledLeft) {
-    leftCutW = clamp(leftCutW, 0, Math.min(maxCutWidth, width - rightStile - minRemaining));
-    leftCutH = clamp(leftCutH, 0, Math.min(maxCutHeight, height - topRail - minRemaining));
-  }
-
-  if (params.angledRight) {
-    rightCutW = clamp(rightCutW, 0, Math.min(maxCutWidth, width - leftStile - minRemaining));
-    rightCutH = clamp(rightCutH, 0, Math.min(maxCutHeight, height - topRail - minRemaining));
-  }
-
-  return { ...params, leftCutW, leftCutH, rightCutW, rightCutH };
-}
-
-function createRoofPoints(
-  holeRightX: number,
-  holeLeftX: number,
-  yOffset: number,
-  params: DoorGeometryParams
-): RoofPoint[] {
-  const { width, height, angledLeft, angledRight, leftCutW, leftCutH, rightCutW, rightCutH } = params;
-  const w = width;
-  const h = height;
-
-  const hasLeftAngle = angledLeft && leftCutH > 0.001 && leftCutW > 0.001;
-  const hasRightAngle = angledRight && rightCutH > 0.001 && rightCutW > 0.001;
-
-  const mR = hasRightAngle ? -rightCutH / rightCutW : 0;
-  const cR = hasRightAngle ? h / 2 - mR * (w / 2 - rightCutW) : h / 2;
-  const mL = hasLeftAngle ? leftCutH / leftCutW : 0;
-  const cL = hasLeftAngle ? h / 2 - mL * (-w / 2 + leftCutW) : h / 2;
-
-  const getY = (x: number): number => {
-    let y = h / 2;
-    if (hasRightAngle && x > w / 2 - rightCutW) {
-      y = mR * x + cR;
-    } else if (hasLeftAngle && x < -w / 2 + leftCutW) {
-      y = mL * x + cL;
-    }
-    return y - yOffset;
-  };
-
-  const sampleX: number[] = [holeRightX, holeLeftX];
-
-  if (hasRightAngle) {
-    const startX = w / 2 - rightCutW;
-    if (startX < holeRightX && startX > holeLeftX) sampleX.push(startX);
-  }
-  if (hasLeftAngle) {
-    const startX = -w / 2 + leftCutW;
-    if (startX < holeRightX && startX > holeLeftX) sampleX.push(startX);
-  }
-
-  const sortedX = Array.from(new Set(sampleX)).sort((a, b) => b - a);
-
-  return sortedX.map((x) => ({
-    x,
-    y: Math.max(getY(x), -h / 2 + 0.01),
-  }));
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
 }
 
 // ============================================
-// WOOD GRAIN NORMAL MAP (unchanged)
+// WOOD GRAIN NORMAL MAP
 // ============================================
 
 function createWoodGrainNormalMap(): THREE.CanvasTexture {
-  const size = 512;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d")!;
-
-  ctx.fillStyle = "rgb(128, 128, 255)";
-  ctx.fillRect(0, 0, size, size);
-
-  for (let y = 0; y < size; y += 3) {
-    const variation = Math.sin(y * 0.05) * 8 + Math.sin(y * 0.13) * 4;
-    const r = 128 + variation;
-    ctx.strokeStyle = `rgb(${Math.floor(r)}, 128, 255)`;
+  const s = 512;
+  const c = document.createElement("canvas");
+  c.width = s;
+  c.height = s;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "rgb(128,128,255)";
+  ctx.fillRect(0, 0, s, s);
+  for (let y = 0; y < s; y += 3) {
+    const v = Math.sin(y * 0.05) * 8 + Math.sin(y * 0.13) * 4;
+    ctx.strokeStyle = `rgb(${Math.floor(128 + v)},128,255)`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, y);
-    for (let x = 0; x < size; x += 10) {
-      const waveY = y + Math.sin((x + y) * 0.02) * 2;
-      ctx.lineTo(x, waveY);
+    for (let x = 0; x < s; x += 10) {
+      ctx.lineTo(x, y + Math.sin((x + y) * 0.02) * 2);
     }
     ctx.stroke();
   }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 2);
-  return texture;
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1, 2);
+  return tex;
 }
 
 // ============================================
-// MID-RAIL GEOMETRY BUILDER (unchanged)
+// DOOR OUTLINE SHAPE (door-center coords)
+// x: -w/2..+w/2, y: -h/2..+h/2
 // ============================================
 
-interface MidRailGeometryData {
-  geometry: THREE.ExtrudeGeometry;
-  centerX: number;
-  centerY: number;
-}
+function createDoorOutline(
+  w: number,
+  h: number,
+  angledLeft: boolean,
+  angledRight: boolean,
+  leftCutW: number,
+  leftCutH: number,
+  rightCutW: number,
+  rightCutH: number
+): THREE.Shape {
+  const shape = new THREE.Shape();
+  // Bottom-left, clockwise
+  shape.moveTo(-w / 2, -h / 2);
+  shape.lineTo(w / 2, -h / 2);
 
-function buildMidRailGeometries(
-  midRails: any[],
-  w: number, h: number, t: number,
-  angledLeft: boolean, angledRight: boolean,
-  leftCutW: number, leftCutH: number,
-  rightCutW: number, rightCutH: number
-): MidRailGeometryData[] {
-  return midRails.map((rail) => {
-    const railY = -h / 2 + rail.positionFromBottom / 1000;
-    const railDim = rail.dimension / 1000;
-    const halfDim = railDim / 2;
-
-    let railLeftX = -w / 2;
-    let railRightX = w / 2;
-
-    if (angledLeft && leftCutH > 0.001 && leftCutW > 0.001) {
-      const railTopY = railY + halfDim;
-      const distFromTop = h / 2 - railTopY;
-      if (distFromTop < leftCutH) {
-        railLeftX = -w / 2 + (leftCutW / leftCutH) * (leftCutH - distFromTop);
-      }
-    }
-
-    if (angledRight && rightCutH > 0.001 && rightCutW > 0.001) {
-      const railTopY = railY + halfDim;
-      const distFromTop = h / 2 - railTopY;
-      if (distFromTop < rightCutH) {
-        railRightX = w / 2 - (rightCutW / rightCutH) * (rightCutH - distFromTop);
-      }
-    }
-
-    const railWidth = Math.max(railRightX - railLeftX, 0.01);
-    const centerX = (railLeftX + railRightX) / 2;
-
-    const shape = new THREE.Shape();
-    shape.moveTo(-railWidth / 2, -halfDim);
-    shape.lineTo(railWidth / 2, -halfDim);
-    shape.lineTo(railWidth / 2, halfDim);
-    shape.lineTo(-railWidth / 2, halfDim);
-    shape.closePath();
-
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      steps: 1, depth: t, bevelEnabled: false,
-    });
-    geometry.translate(0, 0, -t / 2);
-    geometry.computeVertexNormals();
-
-    return { geometry, centerX, centerY: railY };
-  });
-}
-
-// ============================================
-// PANEL SECTION BUILDER
-// Builds separate panel geometries for each section between rails
-// ============================================
-
-interface PanelSectionData {
-  geometry: THREE.ExtrudeGeometry;
-  centerY: number;
-  thickness: number;
-}
-
-function buildPanelSections(
-  panelType: string,
-  midRails: any[],
-  w: number, h: number, t: number,
-  leftStile: number, rightStile: number,
-  topRail: number, bottomRail: number,
-  rw: number, cornerRadius: number,
-  angledLeft: boolean, angledRight: boolean,
-  params: DoorGeometryParams
-): PanelSectionData[] {
-  if (panelType === "NONE") return [];
-
-  const pT = panelType === "REEDED_19MM" ? 0.019
-    : panelType === "MELAMINE_18MM" ? 0.018
-      : 0.012;
-
-  // Determine vertical sections
-  interface Section { bottomY: number; topY: number; }
-  const sections: Section[] = [];
-
-  const doorBottom = -h / 2;
-  const doorTop = h / 2;
-  // Extend panel into rebate groove vertically (matching horizontal +2*rw in innerWidth)
-  const panelBottom = doorBottom + bottomRail - rw;
-  const panelTop = doorTop - topRail + rw;
-
-  if (midRails.length === 0) {
-    sections.push({ bottomY: panelBottom, topY: panelTop });
+  if (angledRight && rightCutH > 0.001 && rightCutW > 0.001) {
+    shape.lineTo(w / 2, h / 2 - rightCutH);
+    shape.lineTo(w / 2 - rightCutW, h / 2);
   } else {
-    // Sort mid-rails by position
-    const sorted = [...midRails]
-      .map(r => ({
-        posY: doorBottom + r.positionFromBottom / 1000,
-        dim: r.dimension / 1000,
-      }))
-      .sort((a, b) => a.posY - b.posY);
-
-    let lastTop = panelBottom;
-    for (const rail of sorted) {
-      const railBottom = rail.posY - rail.dim / 2;
-      const railTop = rail.posY + rail.dim / 2;
-      if (railBottom > lastTop + 0.01) {
-        sections.push({ bottomY: lastTop, topY: railBottom });
-      }
-      lastTop = railTop;
-    }
-    if (lastTop < panelTop - 0.01) {
-      sections.push({ bottomY: lastTop, topY: panelTop });
-    }
+    shape.lineTo(w / 2, h / 2);
   }
 
-  // Build geometry for each section
-  return sections.map((section) => {
-    const sectionHeight = section.topY - section.bottomY;
-    const sectionCenterY = (section.bottomY + section.topY) / 2;
+  if (angledLeft && leftCutH > 0.001 && leftCutW > 0.001) {
+    shape.lineTo(-w / 2 + leftCutW, h / 2);
+    shape.lineTo(-w / 2, h / 2 - leftCutH);
+  } else {
+    shape.lineTo(-w / 2, h / 2);
+  }
 
-    const innerWidth = w - leftStile - rightStile + 2 * rw;
-    const innerHalfW = innerWidth / 2;
-    const cx = (leftStile - rightStile) / 2;
-    const r = cornerRadius + rw;
-
-    const isTopSection = Math.abs(section.topY - panelTop) < 0.001;
-
-    const shape = new THREE.Shape();
-    const halfH = sectionHeight / 2;
-
-    // Bottom-left
-    shape.moveTo(cx - innerHalfW + r, -halfH);
-    // Bottom-right
-    shape.lineTo(cx + innerHalfW - r, -halfH);
-    shape.absarc(cx + innerHalfW - r, -halfH + r, r, -Math.PI / 2, 0, false);
-
-    // Right side up
-    if (isTopSection && (angledLeft || angledRight)) {
-      const holeRightX = cx + innerHalfW;
-      const holeLeftX = cx - innerHalfW;
-      const yOffset = topRail - rw;
-      const roofPoints = createRoofPoints(holeRightX, holeLeftX, yOffset, params);
-
-      // Map roof points relative to section center
-      for (const p of roofPoints) {
-        shape.lineTo(p.x, p.y - sectionCenterY);
-      }
-      shape.lineTo(cx - innerHalfW, -halfH + r);
-    } else {
-      // Normal rectangle top
-      shape.lineTo(cx + innerHalfW, halfH - r);
-      shape.absarc(cx + innerHalfW - r, halfH - r, r, 0, Math.PI / 2, false);
-      shape.lineTo(cx - innerHalfW + r, halfH);
-      shape.absarc(cx - innerHalfW + r, halfH - r, r, Math.PI / 2, Math.PI, false);
-      shape.lineTo(cx - innerHalfW, -halfH + r);
-    }
-
-    shape.absarc(cx - innerHalfW + r, -halfH + r, r, Math.PI, Math.PI * 1.5, false);
-
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      steps: 1, depth: pT, bevelEnabled: false,
-    });
-    geo.translate(0, 0, -pT / 2);
-    geo.computeVertexNormals();
-
-    return { geometry: geo, centerY: sectionCenterY, thickness: pT };
-  });
+  shape.closePath();
+  return shape;
 }
 
 // ============================================
-// SINGLE DOOR LEAF (main rendering component)
+// Create a rectangular hole path
+
+// ============================================
+// Create a rectangular hole path
+// ============================================
+
+function createHolePath(
+  left: number,
+  right: number,
+  bottom: number,
+  top: number,
+  _cornerR: number,
+  isTopSection: boolean,
+  w: number,
+  h: number,
+  angledLeft: boolean,
+  angledRight: boolean,
+  leftCutW: number,
+  leftCutH: number,
+  rightCutW: number,
+  rightCutH: number,
+  flatTopInset: number,
+  angledInset: number
+): THREE.Path | null {
+  const holeW = right - left;
+  const holeH = top - bottom;
+
+  if (holeW <= 0.002 || holeH <= 0.002) return null;
+
+  const hole = new THREE.Path();
+
+  // Start bottom-left, go clockwise — sharp corners (no arcs)
+  hole.moveTo(left, bottom);
+  hole.lineTo(right, bottom);
+
+  if (isTopSection && (angledLeft || angledRight)) {
+    const roofPts = createRoofPoints(
+      right,
+      left,
+      flatTopInset,
+      angledInset,
+      w,
+      h,
+      angledLeft,
+      angledRight,
+      leftCutW,
+      leftCutH,
+      rightCutW,
+      rightCutH
+    );
+    if (roofPts.length > 0) {
+      hole.lineTo(right, Math.max(roofPts[0].y, bottom));
+    }
+    for (const p of roofPts) {
+      hole.lineTo(p.x, Math.max(p.y, bottom));
+    }
+    hole.lineTo(left, bottom);
+  } else {
+    hole.lineTo(right, top);
+    hole.lineTo(left, top);
+    hole.lineTo(left, bottom);
+  }
+
+  return hole;
+}
+
+// ============================================
+// Hole sections split by mid rails
+// (Uses shared getHoleSections from doorUtils)
+// ============================================
+
+// ============================================
+// SINGLE DOOR LEAF
 // ============================================
 
 interface SingleDoorLeafProps {
@@ -354,263 +188,363 @@ interface SingleDoorLeafProps {
   cornerRadiusMm?: number;
   hingeDrilling?: boolean;
   hinges?: any[];
+  angledRailWidth?: number;
+  panelCount?: number;
   onPartClick: (section: string) => void;
 }
 
 function SingleDoorLeaf({
-  width, height, thickness, panelType,
+  width: widthMm,
+  height: heightMm,
+  thickness: thicknessMm,
+  panelType,
   position = [0, 0, 0],
   doorColor,
-  angledLeft = false, angledRight = false,
-  leftCutoutWidth = 0, leftCutoutHeight = 0,
-  rightCutoutWidth = 0, rightCutoutHeight = 0,
-  borderWidths, midRails = [],
-  rebateWidthMm = 10, rebateDepthMm = 14,
-  frontFaceThicknessMm = 8, cornerRadiusMm = 2.5,
-  hingeDrilling = false, hinges = [],
+  angledLeft = false,
+  angledRight = false,
+  leftCutoutWidth = 0,
+  leftCutoutHeight = 0,
+  rightCutoutWidth = 0,
+  rightCutoutHeight = 0,
+  borderWidths,
+  midRails = [],
+  rebateWidthMm = 10,
+  rebateDepthMm = 14,
+  frontFaceThicknessMm = 8,
+  cornerRadiusMm = 2.5,
+  hingeDrilling = false,
+  hinges = [],
+  angledRailWidth: angledRailWidthMm = 90,
+  panelCount = 1,
   onPartClick,
 }: SingleDoorLeafProps) {
-  const w = width / 1000;
-  const h = height / 1000;
-  const t = thickness / 1000;
+  // ── Convert to metres ──
+  const w = widthMm / 1000;
+  const h = heightMm / 1000;
+  const t = thicknessMm / 1000;
   const rw = rebateWidthMm / 1000;
-  const rd = rebateDepthMm / 1000;
-  const ff = frontFaceThicknessMm / 1000;
+  const cr = cornerRadiusMm / 1000;
 
-  const rawParams: DoorGeometryParams = {
-    width: w, height: h, thickness: t,
-    leftStile: borderWidths.leftStile / 1000,
-    rightStile: borderWidths.rightStile / 1000,
-    topRail: borderWidths.topRail / 1000,
-    bottomRail: borderWidths.bottomRail / 1000,
-    angledLeft, angledRight,
-    leftCutW: Math.min(leftCutoutWidth, width / 2 - 10) / 1000,
-    leftCutH: Math.min(leftCutoutHeight, height - 20) / 1000,
-    rightCutW: Math.min(rightCutoutWidth, width - 20) / 1000,
-    rightCutH: Math.min(rightCutoutHeight, height - 20) / 1000,
-    cornerRadius: cornerRadiusMm / 1000,
-    rebateWidth: rw,
-  };
+  // Clamp front face + rebate depth to thickness
+  let ff = frontFaceThicknessMm / 1000;
+  let rd = rebateDepthMm / 1000;
+  if (ff + rd > t) {
+    const ratio = t / (ff + rd);
+    ff *= ratio;
+    rd *= ratio;
+  }
+  const backT = Math.max(0, t - ff - rd);
 
-  const params = validateAngledParams(rawParams);
-  const { leftCutW, leftCutH, rightCutW, rightCutH } = params;
-  const leftStile = params.leftStile;
-  const rightStile = params.rightStile;
-  const topRail = params.topRail;
-  const bottomRail = params.bottomRail;
-  const cornerRadius = params.cornerRadius;
+  const ls = borderWidths.leftStile / 1000;
+  const rs = borderWidths.rightStile / 1000;
+  const tr = borderWidths.topRail / 1000;
+  const br = borderWidths.bottomRail / 1000;
+  const arw = angledRailWidthMm / 1000;
 
-  const innerWidth = w - leftStile - rightStile;
-  const innerHeight = h - topRail - bottomRail;
-  const innerCenterX = (leftStile - rightStile) / 2;
-  const innerCenterY = (bottomRail - topRail) / 2;
+  const lcw = clamp(leftCutoutWidth / 1000, 0, w - 0.001);
+  const lch = clamp(leftCutoutHeight / 1000, 0, h - 0.001);
+  const rcw = clamp(rightCutoutWidth / 1000, 0, w - 0.001);
+  const rch = clamp(rightCutoutHeight / 1000, 0, h - 0.001);
+
+  // Inner opening edges (where the panel hole starts on the front face)
+  const innerLeft = -w / 2 + ls;
+  const innerRight = w / 2 - rs;
+  const innerBottom = -h / 2 + br;
+  const innerTop = h / 2 - tr;
+
+  // Rebate opening edges (stepped back, wider by rw)
+  // Clamp so rebate holes stay within door outline
+  const rebateLeft = Math.max(-w / 2 + 0.002, innerLeft - rw);
+  const rebateRight = Math.min(w / 2 - 0.002, innerRight + rw);
+  const rebateBottom = Math.max(-h / 2 + 0.002, innerBottom - rw);
+  // For top, in angled doors the constraint is more complex but
+  // for the flat portion we just make sure it stays within bounds
+  const rebateTopFlat = Math.min(h / 2 - 0.002, innerTop + rw);
+
+  // Z positions (front face is at z = -t/2, back face at z = +t/2)
+  const zFront = -t / 2;
+  const zRebateStart = zFront + ff;
+  const zRebateEnd = zRebateStart + rd;
 
   const woodNormalMap = useMemo(() => createWoodGrainNormalMap(), []);
 
-  // ── Reeded Normal Map ──
   const reededNormalMap = useMemo(() => {
     if (panelType !== "REEDED_19MM") return null;
-    const size = 512;
-    const canvas = document.createElement("canvas");
-    canvas.width = size; canvas.height = size;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.fillStyle = "rgb(128, 128, 255)";
-    ctx.fillRect(0, 0, size, size);
-    const reedCount = 40;
-    const reedWidth = size / reedCount;
-    for (let i = 0; i < reedCount; i++) {
-      const xStart = i * reedWidth;
-      const gradient = ctx.createLinearGradient(xStart, 0, xStart + reedWidth, 0);
-      gradient.addColorStop(0, "rgb(40, 128, 255)");
-      gradient.addColorStop(0.3, "rgb(100, 128, 255)");
-      gradient.addColorStop(0.5, "rgb(128, 128, 255)");
-      gradient.addColorStop(0.7, "rgb(156, 128, 255)");
-      gradient.addColorStop(1, "rgb(216, 128, 255)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(xStart, 0, reedWidth, size);
+    const sz = 512;
+    const c = document.createElement("canvas");
+    c.width = sz;
+    c.height = sz;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "rgb(128,128,255)";
+    ctx.fillRect(0, 0, sz, sz);
+    const cnt = 40;
+    for (let i = 0; i < cnt; i++) {
+      const x = (i * sz) / cnt;
+      const g = ctx.createLinearGradient(x, 0, x + sz / cnt, 0);
+      g.addColorStop(0, "rgb(40,128,255)");
+      g.addColorStop(0.5, "rgb(128,128,255)");
+      g.addColorStop(1, "rgb(216,128,255)");
+      ctx.fillStyle = g;
+      ctx.fillRect(x, 0, sz / cnt, sz);
     }
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    // Repeat texture to ensure seamless tiling in both directions
-    // X: 5 repeats for horizontal reed pattern
-    // Y: 5 repeats to ensure vertical tiling without gaps
-    texture.repeat.set(5, 5);
-    texture.needsUpdate = true;
-    return texture;
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(5, 5);
+    return tex;
   }, [panelType]);
 
-  // ── Front Face Geometry (frame with panel hole) ──
-  const frontFaceGeometry = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(-w / 2, -h / 2);
-    shape.lineTo(w / 2, -h / 2);
-    if (angledRight && rightCutH > 0.001 && rightCutW > 0.001) {
-      shape.lineTo(w / 2, h / 2 - rightCutH);
-      shape.lineTo(w / 2 - rightCutW, h / 2);
-    } else {
-      shape.lineTo(w / 2, h / 2);
-    }
-    if (angledLeft && leftCutH > 0.001 && leftCutW > 0.001) {
-      shape.lineTo(-w / 2 + leftCutW, h / 2);
-      shape.lineTo(-w / 2, h / 2 - leftCutH);
-    } else {
-      shape.lineTo(-w / 2, h / 2);
-    }
-    shape.lineTo(-w / 2, -h / 2);
+  const hasPanels = panelType !== "NONE";
 
-    // Only cut panel hole if not slab
-    if (panelType !== "NONE") {
-      const hole = new THREE.Path();
-      const r = cornerRadius;
-      const ih = innerHeight / 2;
-      const iw = innerWidth / 2;
-      const cx = innerCenterX;
-      const cy = innerCenterY;
+  // ── Hole sections ──
+  const holeSections = useMemo(
+    () => getHoleSections(midRails, h, br, tr, panelCount),
+    [midRails, h, br, tr, panelCount]
+  );
 
-      hole.moveTo(cx - iw + r, cy - ih);
-      hole.lineTo(cx + iw - r, cy - ih);
-      hole.absarc(cx + iw - r, cy - ih + r, r, -Math.PI / 2, 0, false);
+  // ════════════════════════════════════════════
+  // GEOMETRY LAYER 1: FRONT FACE (depth = ff)
+  // Full door outline with panel holes punched through
+  // ════════════════════════════════════════════
+  const frontFaceGeo = useMemo(() => {
+    const shape = createDoorOutline(
+      w, h, angledLeft, angledRight, lcw, lch, rcw, rch
+    );
 
-      const holeRightX = cx + iw;
-      const holeLeftX = cx - iw;
-
-      if (angledLeft || angledRight) {
-        const roofPoints = createRoofPoints(holeRightX, holeLeftX, topRail, params);
-        roofPoints.forEach((p) => hole.lineTo(p.x, p.y));
-        hole.lineTo(holeLeftX, cy - ih + r);
-      } else {
-        hole.lineTo(holeRightX, cy + ih - r);
-        hole.absarc(cx + iw - r, cy + ih - r, r, 0, Math.PI / 2, false);
-        hole.lineTo(cx - iw + r, cy + ih);
-        hole.absarc(cx - iw + r, cy + ih - r, r, Math.PI / 2, Math.PI, false);
-        hole.lineTo(holeLeftX, cy - ih + r);
+    if (hasPanels && holeSections.length > 0) {
+      for (const sec of holeSections) {
+        const hole = createHolePath(
+          innerLeft, innerRight, sec.bottom, sec.top, cr,
+          sec.isTop, w, h, angledLeft, angledRight,
+          lcw, lch, rcw, rch, tr, arw
+        );
+        if (hole) shape.holes.push(hole);
       }
-
-      hole.absarc(cx - iw + r, cy - ih + r, r, Math.PI, Math.PI * 1.5, false);
-      shape.holes.push(hole);
     }
 
-    const geo = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: ff, bevelEnabled: false });
-    geo.translate(0, 0, -t / 2);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      steps: 1, depth: ff, bevelEnabled: false,
+    });
+    geo.translate(0, 0, zFront);
     geo.computeVertexNormals();
     return geo;
-  }, [w, h, t, ff, panelType, angledLeft, angledRight, leftCutW, leftCutH, rightCutW, rightCutH,
-    innerWidth, innerHeight, innerCenterX, innerCenterY, cornerRadius, topRail, params]);
+  }, [w, h, t, ff, hasPanels, angledLeft, angledRight, lcw, lch, rcw, rch,
+    innerLeft, innerRight, cr, tr, arw, holeSections, zFront]);
 
-  // ── Rebate Wall Geometry ──
-  const rebateWallGeometry = useMemo(() => {
-    if (panelType === "NONE") return null;
+  // ════════════════════════════════════════════
+  // GEOMETRY LAYER 2: REBATE WALL (depth = rd)
+  // Full door outline with LARGER holes (expanded by rw)
+  // This creates the rebate step/ledge
+  // ════════════════════════════════════════════
+  const rebateWallGeo = useMemo(() => {
+    if (!hasPanels || holeSections.length === 0) return null;
 
-    const shape = new THREE.Shape();
-    shape.moveTo(-w / 2, -h / 2);
-    shape.lineTo(w / 2, -h / 2);
-    if (angledRight && rightCutH > 0.001 && rightCutW > 0.001) {
-      shape.lineTo(w / 2, h / 2 - rightCutH);
-      shape.lineTo(w / 2 - rightCutW, h / 2);
-    } else { shape.lineTo(w / 2, h / 2); }
-    if (angledLeft && leftCutH > 0.001 && leftCutW > 0.001) {
-      shape.lineTo(-w / 2 + leftCutW, h / 2);
-      shape.lineTo(-w / 2, h / 2 - leftCutH);
-    } else { shape.lineTo(-w / 2, h / 2); }
-    shape.lineTo(-w / 2, -h / 2);
+    const shape = createDoorOutline(
+      w, h, angledLeft, angledRight, lcw, lch, rcw, rch
+    );
 
-    const hole = new THREE.Path();
-    const r = cornerRadius + rw;
-    const ih = (innerHeight + 2 * rw) / 2;
-    const iw = (innerWidth + 2 * rw) / 2;
-    const cx = innerCenterX;
-    const cy = innerCenterY;
+    for (const sec of holeSections) {
+      // Expanded hole for the rebate
+      const holeLeft = rebateLeft;
+      const holeRight = rebateRight;
+      const holeBottom = Math.max(-h / 2 + 0.002, sec.bottom - rw);
+      const holeTop = Math.min(h / 2 - 0.002, sec.top + rw);
 
-    hole.moveTo(cx - iw + r, cy - ih);
-    hole.lineTo(cx + iw - r, cy - ih);
-    hole.absarc(cx + iw - r, cy - ih + r, r, -Math.PI / 2, 0, false);
-
-    const holeRightX = cx + iw;
-    const holeLeftX = cx - iw;
-
-    if (angledLeft || angledRight) {
-      const roofPoints = createRoofPoints(holeRightX, holeLeftX, topRail - rw, params);
-      roofPoints.forEach((p) => hole.lineTo(p.x, p.y));
-      hole.lineTo(holeLeftX, cy - ih + r);
-    } else {
-      hole.lineTo(holeRightX, cy + ih - r);
-      hole.absarc(cx + iw - r, cy + ih - r, r, 0, Math.PI / 2, false);
-      hole.lineTo(cx - iw + r, cy + ih);
-      hole.absarc(cx - iw + r, cy + ih - r, r, Math.PI / 2, Math.PI, false);
-      hole.lineTo(holeLeftX, cy - ih + r);
+      const hole = createHolePath(
+        holeLeft, holeRight, holeBottom, holeTop, cr + rw,
+        sec.isTop, w, h, angledLeft, angledRight,
+        lcw, lch, rcw, rch,
+        tr - rw, arw - rw
+      );
+      if (hole) shape.holes.push(hole);
     }
 
-    hole.absarc(cx - iw + r, cy - ih + r, r, Math.PI, Math.PI * 1.5, false);
-    shape.holes.push(hole);
-
-    const geo = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: rd, bevelEnabled: false });
-    geo.translate(0, 0, -t / 2 + ff);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      steps: 1, depth: rd, bevelEnabled: false,
+    });
+    geo.translate(0, 0, zRebateStart);
     geo.computeVertexNormals();
     return geo;
-  }, [w, h, t, ff, rd, rw, panelType, angledLeft, angledRight, leftCutW, leftCutH, rightCutW, rightCutH,
-    innerWidth, innerHeight, innerCenterX, innerCenterY, cornerRadius, topRail, params]);
+  }, [w, h, rd, hasPanels, angledLeft, angledRight, lcw, lch, rcw, rch,
+    rebateLeft, rebateRight, rw, cr, tr, arw, holeSections, zRebateStart]);
 
-  // ── Back Panel (always render — the frame back behind the rebate) ──
-  const backPanelGeometry = useMemo(() => {
-    const backThickness = t - ff - rd;
-    if (backThickness <= 0.001) return null;
-    const shape = new THREE.Shape();
-    shape.moveTo(-w / 2, -h / 2);
-    shape.lineTo(w / 2, -h / 2);
-    if (angledRight && rightCutH > 0.001 && rightCutW > 0.001) {
-      shape.lineTo(w / 2, h / 2 - rightCutH);
-      shape.lineTo(w / 2 - rightCutW, h / 2);
-    } else { shape.lineTo(w / 2, h / 2); }
-    if (angledLeft && leftCutH > 0.001 && leftCutW > 0.001) {
-      shape.lineTo(-w / 2 + leftCutW, h / 2);
-      shape.lineTo(-w / 2, h / 2 - leftCutH);
-    } else { shape.lineTo(-w / 2, h / 2); }
-    shape.lineTo(-w / 2, -h / 2);
+  // ════════════════════════════════════════════
+  // GEOMETRY LAYER 3: BACK PANEL (depth = backT)
+  // Full solid door outline, no holes
+  // ════════════════════════════════════════════
+  const backPanelGeo = useMemo(() => {
+    if (backT <= 0.001) return null;
 
-    const geo = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: backThickness, bevelEnabled: false });
-    geo.translate(0, 0, -t / 2 + ff + rd);
+    const shape = createDoorOutline(
+      w, h, angledLeft, angledRight, lcw, lch, rcw, rch
+    );
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      steps: 1, depth: backT, bevelEnabled: false,
+    });
+    geo.translate(0, 0, zRebateEnd);
     geo.computeVertexNormals();
     return geo;
-  }, [w, h, t, ff, rd, angledLeft, angledRight, leftCutW, leftCutH, rightCutW, rightCutH]);
+  }, [w, h, backT, angledLeft, angledRight, lcw, lch, rcw, rch, zRebateEnd]);
 
-  // ── Multi-Panel Sections (split at mid-rails) ──
+  // ════════════════════════════════════════════
+  // PANEL INSERTS
+  // Fit inside the rebate groove
+  // ════════════════════════════════════════════
   const panelSections = useMemo(() => {
-    return buildPanelSections(
-      panelType, midRails,
-      w, h, t,
-      leftStile, rightStile, topRail, bottomRail,
-      rw, cornerRadius,
-      angledLeft, angledRight,
-      params
-    );
-  }, [panelType, midRails, w, h, t, leftStile, rightStile, topRail, bottomRail,
-    rw, cornerRadius, angledLeft, angledRight, params]);
+    if (!hasPanels || holeSections.length === 0) return [];
 
-  // ── Mid-Rail Geometries ──
-  const midRailGeometries = useMemo(() => {
+    const pT =
+      panelType === "REEDED_19MM"
+        ? 0.019
+        : panelType === "MELAMINE_18MM"
+          ? 0.018
+          : panelType === "GLASS"
+            ? 0.004
+            : 0.012;
+    const clampedPT = Math.min(pT, rd);
+
+    return holeSections
+      .map((sec) => {
+        // Panel sits in the rebate opening (the larger hole)
+        const panelLeft = rebateLeft;
+        const panelRight = rebateRight;
+        const panelBottom = Math.max(-h / 2 + 0.002, sec.bottom - rw);
+        const panelTop = Math.min(h / 2 - 0.002, sec.top + rw);
+
+        const pw = panelRight - panelLeft;
+        const ph = panelTop - panelBottom;
+        if (pw <= 0.002 || ph <= 0.002) return null;
+
+        const pcx = (panelLeft + panelRight) / 2;
+        const pcy = (panelBottom + panelTop) / 2;
+
+        const shape = new THREE.Shape();
+
+        // Build in panel-local coords (centered on pcx, pcy) — sharp corners
+        shape.moveTo(-pw / 2, -ph / 2);
+        shape.lineTo(pw / 2, -ph / 2);
+
+        if (sec.isTop && (angledLeft || angledRight)) {
+          const roofPts = createRoofPoints(
+            panelRight, panelLeft,
+            tr - rw, arw - rw,
+            w, h, angledLeft, angledRight,
+            lcw, lch, rcw, rch
+          );
+          if (roofPts.length > 0) {
+            shape.lineTo(
+              pw / 2,
+              Math.max(roofPts[0].y - pcy, -ph / 2)
+            );
+          }
+          for (const p of roofPts) {
+            shape.lineTo(p.x - pcx, Math.max(p.y - pcy, -ph / 2));
+          }
+          shape.lineTo(-pw / 2, -ph / 2);
+        } else {
+          shape.lineTo(pw / 2, ph / 2);
+          shape.lineTo(-pw / 2, ph / 2);
+          shape.lineTo(-pw / 2, -ph / 2);
+        }
+
+        const geo = new THREE.ExtrudeGeometry(shape, {
+          steps: 1, depth: clampedPT, bevelEnabled: false,
+        });
+        geo.translate(0, 0, -clampedPT / 2);
+        geo.computeVertexNormals();
+
+        return { geometry: geo, centerX: pcx, centerY: pcy, thickness: clampedPT };
+      })
+      .filter(Boolean) as {
+        geometry: THREE.ExtrudeGeometry;
+        centerX: number;
+        centerY: number;
+        thickness: number;
+      }[];
+  }, [
+    hasPanels, panelType, holeSections, rebateLeft, rebateRight,
+    rw, cr, tr, arw, rd, w, h, angledLeft, angledRight,
+    lcw, lch, rcw, rch,
+  ]);
+
+  // ════════════════════════════════════════════
+  // MID RAIL GEOMETRIES
+  // Rails span between stiles at the FRONT FACE depth.
+  // They should be flush with the frame, not recessed.
+  // ════════════════════════════════════════════
+  const midRailGeos = useMemo(() => {
     if (!midRails || midRails.length === 0) return [];
-    return buildMidRailGeometries(
-      midRails, w, h, t,
-      angledLeft, angledRight,
-      leftCutW, leftCutH, rightCutW, rightCutH
-    );
-  }, [midRails, w, h, t, angledLeft, angledRight, leftCutW, leftCutH, rightCutW, rightCutH]);
 
-  // ── Frame Material ──
-  const frameMaterialProps = useMemo(() => ({
-    color: doorColor,
-    roughness: 0.45,
-    metalness: 0.08,
-    clearcoat: 0.25,
-    clearcoatRoughness: 0.3,
-    normalMap: woodNormalMap,
-    normalScale: new THREE.Vector2(0.12, 0.12),
-    envMapIntensity: 1.2,
-  }), [doorColor, woodNormalMap]);
+    return midRails
+      .map((rail: any) => {
+        const railBottomFromDoorBottom = rail.positionFromBottom / 1000;
+        const railDim = rail.dimension / 1000;
 
-  // ── Panel colors by type ──
+        // Door-center coords
+        const railBottom = -h / 2 + railBottomFromDoorBottom;
+        const railTop = railBottom + railDim;
+        const railCenterY = (railBottom + railTop) / 2;
+
+        // Check rail is within the door's panel area
+        const panelAreaBottom = -h / 2 + br;
+        const panelAreaTop = h / 2 - tr;
+        if (railTop <= panelAreaBottom || railBottom >= panelAreaTop) return null;
+
+        // Find narrowest width along the rail's height
+        // by sampling the door edges at multiple Y positions
+        let railLeft = innerLeft;
+        let railRight = innerRight;
+
+        const numSamples = 8;
+        for (let i = 0; i <= numSamples; i++) {
+          const sampleY = railBottom + (railTop - railBottom) * (i / numSamples);
+
+          const { leftInner, rightInner } = getInnerEdgesAtY(
+            sampleY, w, h, ls, rs, tr, br, arw,
+            angledLeft, angledRight, lcw, lch, rcw, rch
+          );
+
+          railLeft = Math.max(railLeft, leftInner);
+          railRight = Math.min(railRight, rightInner);
+        }
+
+        const railWidth = railRight - railLeft;
+        if (railWidth <= 0.01) return null;
+
+        const railCenterX = (railLeft + railRight) / 2;
+
+        return {
+          width: railWidth,
+          height: railDim,
+          centerX: railCenterX,
+          centerY: railCenterY
+        };
+      })
+      .filter(Boolean) as {
+        width: number;
+        height: number;
+        centerX: number;
+        centerY: number;
+      }[];
+  }, [
+    midRails, h, innerLeft, innerRight, ls, rs, br, tr,
+    angledLeft, angledRight, lcw, lch, rcw, rch, w, arw,
+  ]);
+
+  // ── Materials ──
+  const frameMat = useMemo(
+    () => ({
+      color: doorColor,
+      roughness: 0.45,
+      metalness: 0.08,
+      clearcoat: 0.25,
+      clearcoatRoughness: 0.3,
+      normalMap: woodNormalMap,
+      normalScale: new THREE.Vector2(0.12, 0.12),
+      envMapIntensity: 1.2,
+    }),
+    [doorColor, woodNormalMap]
+  );
+
   const panelColors: Record<string, string> = {
     STANDARD_12MM: "#a08b70",
     REEDED_19MM: "#8b7860",
@@ -618,183 +552,185 @@ function SingleDoorLeaf({
     FRETWORK: "#9b8570",
     GLASS: "#e8f4f8",
   };
-  const panelRoughness: Record<string, number> = {
-    STANDARD_12MM: 0.5,
-    REEDED_19MM: 0.3,
-    MELAMINE_18MM: 0.2,
-    FRETWORK: 0.6,
-    GLASS: 0.1,
-  };
 
-  // ========================================
-  // RENDER
-  // ========================================
+  // ── Render ──
   const components = useMemo(() => {
     const parts: JSX.Element[] = [];
 
-    // ── Front Face ──
+    // Front face
     parts.push(
-      <mesh key="front-face" castShadow receiveShadow geometry={frontFaceGeometry}
+      <mesh
+        key="front"
+        castShadow
+        receiveShadow
+        geometry={frontFaceGeo}
         onClick={(e) => { e.stopPropagation(); onPartClick("borders"); }}
         onPointerOver={() => (document.body.style.cursor = "pointer")}
         onPointerOut={() => (document.body.style.cursor = "auto")}
       >
-        <meshPhysicalMaterial {...frameMaterialProps} />
+        <meshPhysicalMaterial {...frameMat} />
       </mesh>
     );
 
-    // ── Rebate Wall ──
-    if (rebateWallGeometry) {
+    // Rebate wall
+    if (rebateWallGeo) {
       parts.push(
-        <mesh key="rebate-wall" castShadow receiveShadow geometry={rebateWallGeometry}
+        <mesh
+          key="rebate"
+          castShadow
+          receiveShadow
+          geometry={rebateWallGeo}
           onClick={(e) => { e.stopPropagation(); onPartClick("rebates"); }}
           onPointerOver={() => (document.body.style.cursor = "pointer")}
           onPointerOut={() => (document.body.style.cursor = "auto")}
         >
-          <meshPhysicalMaterial color="#5a4a3a" roughness={0.6} metalness={0.04} clearcoat={0.08} envMapIntensity={0.8} />
+          <meshPhysicalMaterial
+            color="#5a4a3a"
+            roughness={0.6}
+            metalness={0.04}
+            clearcoat={0.08}
+            envMapIntensity={0.8}
+          />
         </mesh>
       );
     }
 
-    // ── Back Panel (always render) ──
-    if (backPanelGeometry) {
+    // Back panel
+    if (backPanelGeo) {
       parts.push(
-        <mesh key="back-panel" castShadow receiveShadow geometry={backPanelGeometry}
+        <mesh
+          key="back"
+          castShadow
+          receiveShadow
+          geometry={backPanelGeo}
           onClick={(e) => { e.stopPropagation(); onPartClick("door-style"); }}
           onPointerOver={() => (document.body.style.cursor = "pointer")}
           onPointerOut={() => (document.body.style.cursor = "auto")}
         >
-          <meshPhysicalMaterial color="#6b5d50" roughness={0.65} metalness={0.05} envMapIntensity={0.6} />
+          <meshPhysicalMaterial {...frameMat} />
         </mesh>
       );
     }
 
-    // ── Panel Sections (split at mid-rails) ──
-    panelSections.forEach((section, index) => {
-      // Panel sits at the front face depth
-      // The panel geometry already extends into rebate area via innerWidth calculation
-      const zPos = -t / 2 + ff;
+    // Panel sections
+    panelSections.forEach((sec, i) => {
+      // Center the panel in the rebate groove depth
+      const panelZ = zRebateStart + rd / 2;
+      const isReeded = panelType === "REEDED_19MM";
+
       parts.push(
-        <mesh key={`panel-section-${index}`}
-          position={[0, section.centerY, zPos]}
-          castShadow receiveShadow geometry={section.geometry}
+        <mesh
+          key={`panel-${i}`}
+          position={[sec.centerX, sec.centerY, panelZ]}
+          castShadow
+          receiveShadow
+          geometry={sec.geometry}
           onClick={(e) => { e.stopPropagation(); onPartClick("door-style"); }}
           onPointerOver={() => (document.body.style.cursor = "pointer")}
           onPointerOut={() => (document.body.style.cursor = "auto")}
         >
           <meshPhysicalMaterial
             color={panelColors[panelType] || "#a08b70"}
-            roughness={panelRoughness[panelType] || 0.5}
+            roughness={isReeded ? 0.3 : 0.5}
             metalness={0.04}
             clearcoat={panelType === "MELAMINE_18MM" ? 0.4 : 0.15}
             clearcoatRoughness={0.4}
-            normalMap={panelType === "REEDED_19MM" ? reededNormalMap ?? undefined : woodNormalMap}
+            normalMap={isReeded ? (reededNormalMap ?? undefined) : woodNormalMap}
             normalScale={
-              panelType === "REEDED_19MM"
+              isReeded
                 ? new THREE.Vector2(1.2, 1.2)
                 : new THREE.Vector2(0.08, 0.08)
             }
             envMapIntensity={1.0}
-            // Glass panel transparency
             transparent={panelType === "GLASS"}
             opacity={panelType === "GLASS" ? 0.3 : 1.0}
-            transmission={panelType === "GLASS" ? 0.9 : 0}
-            thickness={panelType === "GLASS" ? 0.004 : 0}
           />
         </mesh>
       );
     });
 
-    // ── Mid-Rails ──
-    midRailGeometries.forEach((rail, index) => {
+    // Mid rails - simple boxes at full thickness, rendered with polygon offset
+    // to avoid z-fighting with the frame layers
+    midRailGeos.forEach((rail, i) => {
+      // Create a thin bar that sits flush with the front face
+      // Mid-rail should be at the front face depth, not recessed
+      const railGeo = new THREE.BoxGeometry(rail.width, rail.height, ff);
+      railGeo.computeVertexNormals();
+
       parts.push(
-        <mesh key={`mid-rail-${index}`}
-          position={[rail.centerX, rail.centerY, 0.001]}
-          castShadow receiveShadow geometry={rail.geometry}
+        <mesh
+          key={`midrail-${i}`}
+          position={[rail.centerX, rail.centerY, zFront + ff / 2]}
+          castShadow
+          receiveShadow
+          geometry={railGeo}
           onClick={(e) => { e.stopPropagation(); onPartClick("mid-rails"); }}
           onPointerOver={() => (document.body.style.cursor = "pointer")}
           onPointerOut={() => (document.body.style.cursor = "auto")}
         >
-          <meshPhysicalMaterial {...frameMaterialProps}
-            polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1}
+          <meshPhysicalMaterial
+            {...frameMat}
+            polygonOffset
+            polygonOffsetFactor={-0.5}
+            polygonOffsetUnits={-0.5}
           />
         </mesh>
       );
     });
 
-    // ── Hinges (FIXED: 35mm cup, 22.5mm center) ──
+    // Hinges
     if (hingeDrilling && hinges.length > 0) {
       hinges.forEach((hinge: any) => {
         const hY = -h / 2 + hinge.positionFromBottomMm / 1000;
-        const hX = hinge.side === "LEFT" ? -w / 2 + HINGE_CENTER_M : w / 2 - HINGE_CENTER_M;
+        const hX =
+          hinge.side === "LEFT"
+            ? -w / 2 + HINGE_CENTER_M
+            : w / 2 - HINGE_CENTER_M;
 
-        // Check if hinge is in angled cutout
-        let hidden = false;
-        if (hinge.side === "LEFT" && angledLeft && leftCutH > 0.001) {
-          const fromTop = h / 2 - hY;
-          if (fromTop < leftCutH) {
-            const maxX = -w / 2 + leftCutW * (1 - fromTop / leftCutH);
-            if (hX < maxX) hidden = true;
-          }
+        const fromBottom = hinge.positionFromBottomMm / 1000;
+        if (hinge.side === "LEFT" && angledLeft && lch > 0.001) {
+          if (fromBottom > h - lch) return;
         }
-        if (hinge.side === "RIGHT" && angledRight && rightCutH > 0.001) {
-          const fromTop = h / 2 - hY;
-          if (fromTop < rightCutH) {
-            const minX = w / 2 - rightCutW * (1 - fromTop / rightCutH);
-            if (hX > minX) hidden = true;
-          }
+        if (hinge.side === "RIGHT" && angledRight && rch > 0.001) {
+          if (fromBottom > h - rch) return;
         }
-        if (hidden) return;
 
-        const isInserta = hinge.type === "INSERTA";
+        const cupZ = t / 2;
 
         parts.push(
-          <group key={`hinge-${hinge.id}`} position={[hX, hY, -t / 2 + 0.005]}>
-            {/* Cup hole — FIXED: 35mm diameter = 0.0175m radius */}
-            <mesh rotation={[Math.PI / 2, 0, 0]}
-              onClick={(e) => { e.stopPropagation(); onPartClick("hinges"); }}
-              onPointerOver={() => (document.body.style.cursor = "pointer")}
-              onPointerOut={() => (document.body.style.cursor = "auto")}
+          <group key={`hinge-${hinge.id}`} position={[hX, hY, 0]}>
+            {/* Cup ring on back surface */}
+            <mesh position={[0, 0, cupZ]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry
+                args={[HINGE_CUP_RADIUS_M, HINGE_CUP_RADIUS_M, 0.002, 32]}
+              />
+              <meshPhysicalMaterial
+                color="#b0b0b0"
+                metalness={0.95}
+                roughness={0.05}
+                clearcoat={1.0}
+                envMapIntensity={2.5}
+              />
+            </mesh>
+            {/* Cup cavity */}
+            <mesh
+              position={[0, 0, cupZ - 0.007]}
+              rotation={[Math.PI / 2, 0, 0]}
             >
-              <cylinderGeometry args={[HINGE_CUP_RADIUS_M, HINGE_CUP_RADIUS_M, 0.003, 32]} />
-              <meshPhysicalMaterial color="#c0c0c0" metalness={0.95} roughness={0.08}
-                clearcoat={0.9} clearcoatRoughness={0.05} envMapIntensity={2.0} />
+              <cylinderGeometry
+                args={[
+                  HINGE_CUP_RADIUS_M - 0.001,
+                  HINGE_CUP_RADIUS_M - 0.001,
+                  0.013,
+                  32,
+                ]}
+              />
+              <meshPhysicalMaterial
+                color="#2a2a2a"
+                metalness={0.3}
+                roughness={0.8}
+              />
             </mesh>
-            {/* Cup depth indicator */}
-            <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.002]}>
-              <cylinderGeometry args={[HINGE_CUP_RADIUS_M - 0.002, HINGE_CUP_RADIUS_M - 0.002, 0.01, 32]} />
-              <meshPhysicalMaterial color="#a0a0a0" metalness={0.92} roughness={0.1}
-                clearcoat={0.7} envMapIntensity={1.8} />
-            </mesh>
-
-            {/* Fixing points — different for screw vs inserta */}
-            {isInserta ? (
-              <>
-                {/* Inserta: 8mm holes (0.004m radius) */}
-                <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.0095, 0]}>
-                  <cylinderGeometry args={[0.004, 0.004, 0.004, 16]} />
-                  <meshPhysicalMaterial color="#333" metalness={0.9} roughness={0.1} />
-                </mesh>
-                <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.0095, 0]}>
-                  <cylinderGeometry args={[0.004, 0.004, 0.004, 16]} />
-                  <meshPhysicalMaterial color="#333" metalness={0.9} roughness={0.1} />
-                </mesh>
-              </>
-            ) : (
-              <>
-                {/* Screw points: small 4mm V-point marks */}
-                <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0.0095, 0.001]}>
-                  <cylinderGeometry args={[0.002, 0.002, 0.002, 12]} />
-                  <meshPhysicalMaterial color="#d0d0d0" metalness={0.98} roughness={0.03}
-                    clearcoat={1.0} envMapIntensity={2.5} />
-                </mesh>
-                <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.0095, 0.001]}>
-                  <cylinderGeometry args={[0.002, 0.002, 0.002, 12]} />
-                  <meshPhysicalMaterial color="#d0d0d0" metalness={0.98} roughness={0.03}
-                    clearcoat={1.0} envMapIntensity={2.5} />
-                </mesh>
-              </>
-            )}
           </group>
         );
       });
@@ -802,10 +738,10 @@ function SingleDoorLeaf({
 
     return parts;
   }, [
-    frontFaceGeometry, rebateWallGeometry, backPanelGeometry, panelSections,
-    midRailGeometries, reededNormalMap, woodNormalMap, doorColor, frameMaterialProps,
-    panelType, t, ff, h, w, hingeDrilling, hinges, angledLeft, angledRight,
-    leftCutW, leftCutH, rightCutW, rightCutH, onPartClick,
+    frontFaceGeo, rebateWallGeo, backPanelGeo, panelSections, midRailGeos,
+    reededNormalMap, woodNormalMap, frameMat, panelType, t, ff, rd, h, w,
+    hingeDrilling, hinges, angledLeft, angledRight, lcw, lch, rcw, rch,
+    onPartClick, doorColor, zFront, zRebateStart, zRebateEnd,
   ]);
 
   return <group position={position}>{components}</group>;
@@ -827,87 +763,65 @@ export function Door3D({
   const meshRef = useRef<THREE.Group>(null);
 
   const {
-    width, height, thickness, panelType, preset,
+    width, height, thickness, panelType,
     angledLeft, angledRight,
     leftTriangleCutoutWidth, leftTriangleCutoutHeight,
     rightTriangleCutoutWidth, rightTriangleCutoutHeight,
     borderWidth, customBorders, leftStile, rightStile, bottomRail, topRail,
     midRailsEnabled, midRails,
     rebateWidthMm, rebateDepthMm, frontFaceThicknessMm, cornerRadiusMm,
-    hingeDrilling, hinges,
+    hingeDrilling, hinges, angledRailWidth,
   } = config;
 
   const DOOR_FRAME_COLOR = "#8B7355";
 
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.12) * 0.025;
+      meshRef.current.rotation.y =
+        Math.sin(state.clock.elapsedTime * 0.12) * 0.025;
     }
   });
 
   const finalBorders = customBorders
     ? { leftStile, rightStile, bottomRail, topRail }
-    : { leftStile: borderWidth, rightStile: borderWidth, bottomRail: borderWidth, topRail: borderWidth };
+    : {
+      leftStile: borderWidth,
+      rightStile: borderWidth,
+      bottomRail: borderWidth,
+      topRail: borderWidth,
+    };
 
   const activeMidRails = midRailsEnabled ? midRails : [];
 
-  const isDouble = preset === "double";
-  const gap = 2;
-  const leafWidth = isDouble ? (width - gap) / 2 : width;
+  // Door bottom at y=0
+  const doorYOffset = height / 1000 / 2;
 
   return (
-    <group ref={meshRef} position={[0, 0, 0]}>
-      {isDouble ? (
-        <>
-          <SingleDoorLeaf
-            width={leafWidth} height={height} thickness={thickness}
-            panelType={panelType}
-            position={[-(leafWidth / 2 + gap / 2) / 1000, 0, 0]}
-            doorColor={DOOR_FRAME_COLOR}
-            angledLeft={angledLeft} angledRight={false}
-            leftCutoutWidth={leftTriangleCutoutWidth}
-            leftCutoutHeight={leftTriangleCutoutHeight}
-            borderWidths={finalBorders} midRails={activeMidRails}
-            rebateWidthMm={rebateWidthMm} rebateDepthMm={rebateDepthMm}
-            frontFaceThicknessMm={frontFaceThicknessMm} cornerRadiusMm={cornerRadiusMm}
-            hingeDrilling={hingeDrilling}
-            hinges={hinges.filter((h: any) => h.side === "LEFT")}
-            onPartClick={onPartClick}
-          />
-          <SingleDoorLeaf
-            width={leafWidth} height={height} thickness={thickness}
-            panelType={panelType}
-            position={[(leafWidth / 2 + gap / 2) / 1000, 0, 0]}
-            doorColor={DOOR_FRAME_COLOR}
-            angledLeft={false} angledRight={angledRight}
-            rightCutoutWidth={rightTriangleCutoutWidth}
-            rightCutoutHeight={rightTriangleCutoutHeight}
-            borderWidths={finalBorders} midRails={activeMidRails}
-            rebateWidthMm={rebateWidthMm} rebateDepthMm={rebateDepthMm}
-            frontFaceThicknessMm={frontFaceThicknessMm} cornerRadiusMm={cornerRadiusMm}
-            hingeDrilling={hingeDrilling}
-            hinges={hinges.filter((h: any) => h.side === "RIGHT")}
-            onPartClick={onPartClick}
-          />
-        </>
-      ) : (
-        <SingleDoorLeaf
-          width={width} height={height} thickness={thickness}
-          panelType={panelType}
-          position={[0, 0, 0]}
-          doorColor={DOOR_FRAME_COLOR}
-          angledLeft={angledLeft} angledRight={angledRight}
-          leftCutoutWidth={leftTriangleCutoutWidth}
-          leftCutoutHeight={leftTriangleCutoutHeight}
-          rightCutoutWidth={rightTriangleCutoutWidth}
-          rightCutoutHeight={rightTriangleCutoutHeight}
-          borderWidths={finalBorders} midRails={activeMidRails}
-          rebateWidthMm={rebateWidthMm} rebateDepthMm={rebateDepthMm}
-          frontFaceThicknessMm={frontFaceThicknessMm} cornerRadiusMm={cornerRadiusMm}
-          hingeDrilling={hingeDrilling} hinges={hinges}
-          onPartClick={onPartClick}
-        />
-      )}
+    <group ref={meshRef} position={[0, doorYOffset, 0]}>
+      <SingleDoorLeaf
+        width={width}
+        height={height}
+        thickness={thickness}
+        panelType={panelType}
+        position={[0, 0, 0]}
+        doorColor={DOOR_FRAME_COLOR}
+        angledLeft={angledLeft}
+        angledRight={angledRight}
+        leftCutoutWidth={leftTriangleCutoutWidth}
+        leftCutoutHeight={leftTriangleCutoutHeight}
+        rightCutoutWidth={rightTriangleCutoutWidth}
+        rightCutoutHeight={rightTriangleCutoutHeight}
+        borderWidths={finalBorders}
+        midRails={activeMidRails}
+        rebateWidthMm={rebateWidthMm}
+        rebateDepthMm={rebateDepthMm}
+        frontFaceThicknessMm={frontFaceThicknessMm}
+        cornerRadiusMm={cornerRadiusMm}
+        hingeDrilling={hingeDrilling}
+        hinges={hinges}
+        angledRailWidth={angledRailWidth}
+        onPartClick={onPartClick}
+      />
       <DoorDimensions config={config} forceHideLabels={forceHideLabels} />
     </group>
   );

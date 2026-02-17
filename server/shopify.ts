@@ -2,7 +2,7 @@ import { shopifyApi, ApiVersion } from "@shopify/shopify-api";
 import "@shopify/shopify-api/adapters/node";
 import fetch from "node-fetch";
 import { storage } from "./storage";
-import type { Order, OrderItem, Customer } from "@shared/schema";
+import type { Order, OrderItem, Customer } from "../shared/schema";
 
 // Initialize Shopify API
 const shopify = shopifyApi({

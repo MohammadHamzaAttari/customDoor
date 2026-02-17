@@ -1,24 +1,61 @@
 import React from "react";
 
 /**
- * Handles numeric input changes by removing leading zeros and updating the state.
- * @param e The change event from the input field
- * @param setter The state setter function
+ * Handles numeric input changes with debounced validation.
+ * Allows free typing without immediate reversion.
  */
 export const handleNumberChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: (n: number) => void
+  e: React.ChangeEvent<HTMLInputElement>,
+  setter: (n: number) => void
 ) => {
-    let val = e.target.value;
+  const val = e.target.value;
 
-    // Remove leading zeros: e.g., "0345" -> "345", "00" -> "0"
-    const sanitized = val.replace(/^0+(?!$)/, "");
+  // Allow empty field while typing (don't force to 0)
+  if (val === "" || val === "-") {
+    return;
+  }
 
-    if (val !== sanitized) {
-        e.target.value = sanitized;
-        val = sanitized;
-    }
+  // Remove leading zeros but allow the value
+  const sanitized = val.replace(/^0+(?=\d)/, "");
 
-    const parsed = parseInt(val, 10);
-    setter(isNaN(parsed) ? 0 : parsed);
+  const parsed = parseFloat(sanitized);
+  if (!isNaN(parsed)) {
+    setter(parsed);
+  }
+};
+
+/**
+ * Handle blur event to enforce minimum values and clean up
+ */
+export const handleNumberBlur = (
+  e: React.FocusEvent<HTMLInputElement>,
+  setter: (n: number) => void,
+  min?: number,
+  fallback?: number
+) => {
+  const val = e.target.value;
+  const parsed = parseFloat(val);
+
+  if (isNaN(parsed) || val === "") {
+    // Restore to fallback or min
+    const restoreValue = fallback ?? min ?? 0;
+    setter(restoreValue);
+    e.target.value = String(restoreValue);
+    return;
+  }
+
+  if (min !== undefined && parsed < min) {
+    setter(min);
+    e.target.value = String(min);
+    return;
+  }
+
+  setter(parsed);
+};
+
+/**
+ * Focus handler - select all text for easy overwriting
+ */
+export const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+  e.target.select();
 };

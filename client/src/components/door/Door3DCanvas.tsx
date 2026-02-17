@@ -1,7 +1,9 @@
+// client/src/components/door/Door3DCanvas.tsx
 import {
   forwardRef,
   useImperativeHandle,
   useRef,
+  useMemo,
 } from "react";
 import { Canvas } from "@react-three/fiber";
 import {
@@ -11,6 +13,8 @@ import {
   ContactShadows,
 } from "@react-three/drei";
 import { Door3D } from "./Door3D";
+import * as THREE from "three";
+
 export interface Door3DHandle {
   resetView: () => void;
 }
@@ -27,15 +31,33 @@ const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
   ({ config, onPartClick, rotationEnabled, forceHideLabels }, ref) => {
     const controlsRef = useRef<any>(null);
 
+    // Calculate door center height for camera target
+    // Door bottom is now at y=0, so center is at height/2 in metres
+    const doorHeightM = (config?.height || 720) / 1000;
+    const doorCenterY = doorHeightM / 2;
+
+    // Camera distance based on door size
+    const doorWidthM = (config?.width || 600) / 1000;
+    const maxDim = Math.max(doorHeightM, doorWidthM);
+    const cameraDistance = Math.max(1.5, maxDim * 2.2);
+
     useImperativeHandle(ref, () => ({
-      resetView: () => controlsRef.current?.reset(),
+      resetView: () => {
+        if (controlsRef.current) {
+          controlsRef.current.target.set(0, doorCenterY, 0);
+          controlsRef.current.reset();
+        }
+      },
     }));
 
     return (
       <Canvas
         shadows
         dpr={[1, 1.5]}
-        camera={{ position: [0, 0, 2.5], fov: 45 }}
+        camera={{
+          position: [0, doorCenterY, cameraDistance],
+          fov: 45,
+        }}
         gl={{
           antialias: true,
           alpha: true,
@@ -51,10 +73,10 @@ const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
         {/* Soft fog */}
         <fog attach="fog" args={["#0c0c0e", 5, 14]} />
 
-        {/* ── Strong ambient so door is always visible ── */}
+        {/* ── Ambient so door is always visible ── */}
         <ambientLight intensity={0.6} color="#e8ddd0" />
 
-        {/* ── Key Light — Bright warm golden from top-right ── */}
+        {/* ── Key Light — warm golden from top-right ── */}
         <directionalLight
           position={[4, 8, 5]}
           intensity={2.5}
@@ -69,14 +91,14 @@ const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
           shadow-bias={-0.0001}
         />
 
-        {/* ── Fill from front-left — warm white ── */}
+        {/* ── Fill from front-left ── */}
         <directionalLight
           position={[-3, 4, 6]}
           intensity={1.5}
           color="#fff5e6"
         />
 
-        {/* ── Rim Light — Cool blue-violet from back-left ── */}
+        {/* ── Rim Light — cool blue-violet from back ── */}
         <spotLight
           position={[-6, 4, -5]}
           angle={0.4}
@@ -94,47 +116,41 @@ const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
           color="#f5a623"
         />
 
-        {/* ── Top highlight — clean white for material sheen ── */}
+        {/* ── Top highlight ── */}
         <pointLight position={[0, 6, 2]} intensity={0.8} color="#ffffff" />
 
         {/* ── Bottom warm uplighting ── */}
-        <pointLight position={[0, -2, 3]} intensity={0.4} color="#d4a06a" />
+        <pointLight position={[0, -1, 3]} intensity={0.4} color="#d4a06a" />
 
-        {/* ── Back accent — purple edge separation ── */}
+        {/* ── Back accent ── */}
         <pointLight position={[3, 1, -4]} intensity={0.5} color="#9b7df5" />
 
         {/* ── Front lower — ensures bottom of door is lit ── */}
-        <pointLight position={[0, -1, 4]} intensity={0.5} color="#e8d5c0" />
+        <pointLight position={[0, 0, 4]} intensity={0.5} color="#e8d5c0" />
 
         {/* Studio environment for reflections */}
         <Environment preset="studio" background={false} />
 
-        <Stage
-          intensity={0.15}
-          environment="studio"
-          adjustCamera={false}
-          shadows={{ type: "contact", opacity: 0.7, blur: 2.5 }}
-        >
-          <Door3D
-            config={config}
-            onPartClick={onPartClick}
-            forceHideLabels={forceHideLabels}
-          />
-        </Stage>
+        {/* Door - now sits with bottom at y=0 */}
+        <Door3D
+          config={config}
+          onPartClick={onPartClick}
+          forceHideLabels={forceHideLabels}
+        />
 
-        {/* Ground contact shadow */}
+        {/* Ground contact shadow - FIXED: at y=0 where door bottom sits */}
         <ContactShadows
-          position={[0, -0.85, 0]}
-          opacity={0.8}
+          position={[0, 0, 0]}
+          opacity={0.7}
           scale={15}
-          blur={2.0}
+          blur={2.5}
           far={5}
           color="#000000"
         />
 
-        {/* Subtle ground reflection */}
+        {/* Ground plane - at y=0 */}
         <mesh
-          position={[0, -0.855, 0]}
+          position={[0, -0.005, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
           receiveShadow
         >
@@ -153,6 +169,7 @@ const Door3DCanvas = forwardRef<Door3DHandle, Door3DCanvasProps>(
           ref={controlsRef}
           makeDefault
           enabled={rotationEnabled}
+          target={[0, doorCenterY, 0]}
           minPolarAngle={Math.PI / 8}
           maxPolarAngle={Math.PI / 1.4}
           minDistance={0.8}

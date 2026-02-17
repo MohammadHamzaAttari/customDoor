@@ -9,7 +9,7 @@ import {
     surchargeTypes,
     deliveryOptions,
     systemSettings,
-} from "@shared/schema";
+} from "../shared/schema";
 
 async function seed() {
     console.log("🌱 Starting database seed...");
