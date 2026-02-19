@@ -18,6 +18,7 @@ export const panelTypeValues = [
 export const finishTypeValues = [
   "RAW_UNASSEMBLED",
   "ASSEMBLED_PREP",
+  "PRIMED",
 ] as const;
 
 export const hingeTypeValues = [
@@ -262,6 +263,7 @@ export function calculateDoorPrice(
   const finishMultipliers: Record<typeof config.finish, number> = {
     RAW_UNASSEMBLED: 1.0,
     ASSEMBLED_PREP: 1.15,
+    PRIMED: 1.5,
   };
   const finishMultiplier = finishMultipliers[config.finish] || 1.0;
 

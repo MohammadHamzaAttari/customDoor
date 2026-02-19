@@ -150,15 +150,82 @@
         console.log('Door Designer modal closed');
       }
       
-      // Handle scroll to top (when order is submitted, etc.)
-      if (data.type === 'scrollToTop') {
-        window.scrollTo({ top: container.offsetTop - 20, behavior: 'smooth' });
+      // Handle add to cart from the door designer
+      if (data.type === 'SHOPIFY_ADD_TO_CART' && data.items) {
+        console.log('Door Designer triggered Add to Cart:', data.items);
+        handleShopifyCartAdd(data);
       }
-      
+
       // Log other messages
       console.log('Message from Door Designer:', data);
     }
   });
+
+      // Helper to add items to Shopify native cart
+      async function handleShopifyCartAdd(data) {
+        const items = data.items;
+        const invoiceUrl = data.invoiceUrl;
+        
+        try {
+          // 1. Try to find a variant ID (Contextual product > Selected base product)
+          let variantId = {{ product.variants.first.id | default: 'null' }};
+          
+          if (!variantId && {{ block.settings.base_product.variants.first.id | default: 'null' }}) {
+            variantId = {{ block.settings.base_product.variants.first.id | default: 'null' }};
+            console.log('Using fallback base product variant:', variantId);
+          }
+
+          // 2. If no variant ID, redirect directly to invoice (Direct Checkout Fallback)
+          if (!variantId) {
+            console.warn('No Product ID found for cart. Falling back to Direct Checkout.');
+            if (invoiceUrl) {
+              window.location.href = invoiceUrl;
+            } else {
+              alert('Checkout error: No product configured and no checkout URL available.');
+            }
+            return;
+          }
+
+          // 3. Add to Shopify Cart via AJAX
+          for (const item of items) {
+            const properties = {
+              'Width': item.width + 'mm',
+              'Height': item.height + 'mm',
+              'Thickness': item.thickness + 'mm',
+              'Panel Type': item.panelType,
+              'Finish': item.finish,
+              'Shape': (item.angledLeft || item.angledRight) ? 'Angled' : 'Rectangular'
+            };
+
+            if (item.angledLeft) properties['Left Angle'] = item.leftAngleDegrees + '°';
+            if (item.angledRight) properties['Right Angle'] = item.rightAngleDegrees + '°';
+            if (item.midRailsEnabled) properties['Mid Rails'] = item.midRails?.length || 0;
+            if (item.hingeDrilling) properties['Hinge Holes'] = item.hinges?.length || 0;
+
+            await fetch('/cart/add.js', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: variantId,
+                quantity: item.quantity || 1,
+                properties: properties
+              })
+            });
+          }
+
+          // Redirect to cart
+          window.location.href = '/cart';
+        } catch (err) {
+          console.error('Failed to add items to cart:', err);
+          // 4. Final safety net: jump to invoice if AJAX fails
+          if (invoiceUrl) {
+            console.log('AJAX cart failed, jumping to direct checkout invoice...');
+            window.location.href = invoiceUrl;
+          } else {
+            alert('Failed to update Shopify cart. Please try again.');
+          }
+        }
+      }
 
   // Send parent info to iframe when it loads
   iframe.addEventListener('load', function() {
@@ -221,6 +288,12 @@
         { "value": "right", "label": "Right" }
       ],
       "default": "center"
+    },
+    {
+      "type": "product",
+      "id": "base_product",
+      "label": "Base Product (Required for Home Page)",
+      "info": "The product used for cart integration when the designer is not on a specific product page."
     },
     {
       "type": "text",

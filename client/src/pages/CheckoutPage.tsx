@@ -466,9 +466,24 @@ export default function CheckoutPage() {
           description: "You'll complete your purchase on our secure checkout.",
         });
 
+        // ─── Native Shopify Integration Path ───
+        // If embedded in a Shopify iframe, send message to parent to use AJAX Cart
+        const isEmbedded = window.parent !== window;
+        if (isEmbedded) {
+          console.log("[Checkout] Embedded detected, messaging parent for Shopify Cart add...");
+          window.parent.postMessage({
+            type: 'SHOPIFY_ADD_TO_CART',
+            items: items,
+            invoiceUrl: data.invoiceUrl
+          }, '*');
+
+          // The parent will handle the redirect to /cart
+          return;
+        }
+
+        // ─── Standalone Fallback Path ───
         // Clear the Zustand store after successful checkout redirect
         // Note: Cart will be restored from session storage if user returns without paying
-        resetStore();
         resetStore();
 
         if (window.parent !== window) {
@@ -481,6 +496,75 @@ export default function CheckoutPage() {
       }
     } catch (error: any) {
       console.error("Checkout error:", error);
+
+      // ─── Storefront Fallback Logic ───
+      // If payment system is not configured, try to add to Shopify cart directly via AJAX
+      if (error.message?.includes("Payment system not configured") || error.message?.includes("credentials")) {
+        try {
+          toast.info("Configuring direct checkout...", {
+            description: "Server checkout is unconfigured. Attempting to add items to your Shopify cart instead.",
+          });
+
+          // This logic matches shopify-door-configurator.liquid
+          // It assumes we are embedded in a Shopify store
+          for (const door of doors) {
+            // Build properties for the AJAX API
+            const properties: Record<string, string> = {
+              'Width': `${door.width}mm`,
+              'Height': `${door.height}mm`,
+              'Thickness': `${door.thickness}mm`,
+              'Panel Type': door.panelType,
+              'Finish': door.finish,
+              'Door Type': door.preset === 'double' ? 'Double' : 'Single',
+            };
+
+            if (door.angledLeft) properties['Left Angle'] = `${door.leftAngleDegrees}°`;
+            if (door.angledRight) properties['Right Angle'] = `${door.rightAngleDegrees}°`;
+            if (door.midRailsEnabled) properties['Mid Rails'] = `${door.midRails.length}`;
+            if (door.hingeDrilling) properties['Hinge Holes'] = `${door.hinges.length}`;
+
+            // Add each door to the Shopify cart
+            // We use /cart/add.js which is the standard Shopify AJAX API
+            const addToCartRes = await fetch('/cart/add.js', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                // Note: We don't have a specific Variant ID here because the configurator 
+                // is usually used on a Product page where the base product ID is known.
+                // In an embedded context, we might need a dummy product ID.
+                // For now, we try to use a common pattern or fallback to error.
+                id: (window as any).ShopifyAnalytics?.lib?.config?.workspace_id ||
+                  (window as any).meta?.product?.variants?.[0]?.id ||
+                  null,
+                quantity: door.qty,
+                properties
+              })
+            });
+
+            if (!addToCartRes.ok) {
+              const errText = await addToCartRes.text();
+              throw new Error(`Shopify cart error: ${errText}`);
+            }
+          }
+
+          toast.success("Added to Shopify cart!", {
+            description: "Redirecting to your cart page...",
+          });
+
+          // Redirect to Shopify cart
+          setTimeout(() => {
+            window.location.href = '/cart';
+          }, 1000);
+          return; // Exit early as we've handled the fallback
+        } catch (fallbackError: any) {
+          console.error("Fallback error:", fallbackError);
+          toast.error("Checkout failed", {
+            description: "Payment system not configured and fallback to Shopify cart failed. Please contact the administrator.",
+          });
+          return;
+        }
+      }
+
       toast.error("Checkout failed", {
         description: error.message || "Please try again or contact support.",
         duration: 5000,

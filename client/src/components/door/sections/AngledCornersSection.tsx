@@ -1,14 +1,12 @@
 // client/src/components/door/sections/AngledCornersSection.tsx
 import { useDoorConfig } from "@/lib/stores/useDoorConfig";
-import { ANGLE_PRESETS, calculateAngleFromCutout, validateAngleCutout } from "@/lib/anglePresets";
-import { Button } from "@/components/ui/button";
+import { calculateAngleFromCutout, calculateCutoutFromAngle, validateAngleCutout } from "@/lib/anglePresets";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Check, ChevronRight, Info, Lock, Unlock } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, Check, Info } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -23,8 +21,6 @@ export function AngledCornersSection() {
     borderWidth,
     angledLeft,
     angledRight,
-    leftAnglePreset,
-    rightAnglePreset,
     leftTriangleCutoutWidth,
     leftTriangleCutoutHeight,
     rightTriangleCutoutWidth,
@@ -33,20 +29,33 @@ export function AngledCornersSection() {
     rightAngleDegrees,
     setAngledLeft,
     setAngledRight,
-    setLeftAnglePreset,
-    setRightAnglePreset,
     setLeftTriangleCutoutWidth,
     setLeftTriangleCutoutHeight,
     setRightTriangleCutoutWidth,
     setRightTriangleCutoutHeight,
   } = useDoorConfig();
 
-  const [showCustomLeft, setShowCustomLeft] = useState(leftAnglePreset === "custom");
-  const [showCustomRight, setShowCustomRight] = useState(rightAnglePreset === "custom");
-
   // Validation
   const leftValidation = validateAngleCutout(width, height, leftTriangleCutoutWidth, leftTriangleCutoutHeight, borderWidth);
   const rightValidation = validateAngleCutout(width, height, rightTriangleCutoutWidth, rightTriangleCutoutHeight, borderWidth);
+
+  /**
+   * When the user types an angle directly, recalculate the cutout dimensions
+   * to match the angle while preserving a reasonable proportional cutout.
+   */
+  const handleLeftAngleChange = (degrees: number) => {
+    if (isNaN(degrees) || degrees <= 0 || degrees >= 90) return;
+    const cutout = calculateCutoutFromAngle(degrees, width, height);
+    setLeftTriangleCutoutWidth(cutout.width);
+    setLeftTriangleCutoutHeight(cutout.height);
+  };
+
+  const handleRightAngleChange = (degrees: number) => {
+    if (isNaN(degrees) || degrees <= 0 || degrees >= 90) return;
+    const cutout = calculateCutoutFromAngle(degrees, width, height);
+    setRightTriangleCutoutWidth(cutout.width);
+    setRightTriangleCutoutHeight(cutout.height);
+  };
 
   return (
     <div className="space-y-6">
@@ -61,8 +70,8 @@ export function AngledCornersSection() {
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p className="text-sm">
-                  Perfect for under-stair cupboards and loft access. We've calculated optimal angles 
-                  based on UK building standards. Select a preset or customise for exact requirements.
+                  Perfect for under-stair cupboards and loft access. Enter the angle directly
+                  or specify cutout dimensions for exact requirements.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -70,7 +79,7 @@ export function AngledCornersSection() {
         </div>
       </div>
 
-      {/* Left Angled Section */}
+      {/* ── Left Angled Section ── */}
       <div className={cn(
         "rounded-xl border-2 transition-all duration-300",
         angledLeft ? "border-blue-200 bg-blue-50/50" : "border-gray-100 bg-gray-50/50"
@@ -101,59 +110,23 @@ export function AngledCornersSection() {
 
           {angledLeft && (
             <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-              {/* Preset Selection */}
-              <div className="grid grid-cols-3 gap-2">
-                {ANGLE_PRESETS.filter(p => p.id !== "custom").map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => {
-                      setLeftAnglePreset(preset.id as any);
-                      setShowCustomLeft(false);
-                    }}
-                    className={cn(
-                      "p-3 rounded-lg border-2 transition-all text-center hover:shadow-md",
-                      leftAnglePreset === preset.id
-                        ? "border-blue-500 bg-blue-100 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-blue-300"
-                    )}
-                  >
-                    <span className="text-lg mb-1 block">{preset.icon}</span>
-                    <span className="text-xs font-medium text-gray-700 block truncate">
-                      {preset.name}
-                    </span>
-                    <span className="text-[10px] text-gray-500">{preset.angle}°</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Toggle */}
-              <button
-                onClick={() => {
-                  setShowCustomLeft(!showCustomLeft);
-                  if (!showCustomLeft) {
-                    setLeftAnglePreset("custom");
-                  }
-                }}
-                className={cn(
-                  "w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all",
-                  showCustomLeft || leftAnglePreset === "custom"
-                    ? "border-amber-400 bg-amber-50"
-                    : "border-dashed border-gray-300 hover:border-gray-400"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {showCustomLeft ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  <span className="text-sm font-medium">Custom Dimensions</span>
+              {/* Angle Input */}
+              <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200">
+                <div>
+                  <Label className="text-xs text-gray-600 mb-1 block">Angle (degrees)</Label>
+                  <Input
+                    type="number"
+                    value={leftAngleDegrees}
+                    onChange={(e) => handleLeftAngleChange(Number(e.target.value))}
+                    min={5}
+                    max={85}
+                    className="h-9"
+                  />
+                  <span className="text-[10px] text-gray-400 mt-0.5 block">Recommended: 5° – 85°</span>
                 </div>
-                <ChevronRight className={cn(
-                  "w-4 h-4 transition-transform",
-                  showCustomLeft && "rotate-90"
-                )} />
-              </button>
 
-              {/* Custom Inputs */}
-              {(showCustomLeft || leftAnglePreset === "custom") && (
-                <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200 animate-in slide-in-from-top-2">
+                <div className="border-t pt-3">
+                  <Label className="text-xs text-gray-500 mb-2 block font-medium">Cutout Dimensions</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs text-gray-600 mb-1 block">Cut Width (mm)</Label>
@@ -174,15 +147,15 @@ export function AngledCornersSection() {
                       />
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-sm text-gray-600">Resulting Angle:</span>
-                    <Badge variant="outline" className="font-mono">
-                      {leftAngleDegrees}°
-                    </Badge>
-                  </div>
                 </div>
-              )}
+
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm text-gray-600">Resulting Angle:</span>
+                  <Badge variant="outline" className="font-mono">
+                    {leftAngleDegrees}°
+                  </Badge>
+                </div>
+              </div>
 
               {/* Validation Warnings */}
               {!leftValidation.valid && (
@@ -197,11 +170,11 @@ export function AngledCornersSection() {
               )}
 
               {/* Success State */}
-              {leftValidation.valid && leftAnglePreset !== "custom" && (
+              {leftValidation.valid && leftAngleDegrees > 0 && (
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
                   <Check className="w-4 h-4 text-green-600" />
                   <span className="text-xs text-green-700">
-                    Optimised for {ANGLE_PRESETS.find(p => p.id === leftAnglePreset)?.description}
+                    {leftAngleDegrees}° angle configured — {leftTriangleCutoutWidth}mm × {leftTriangleCutoutHeight}mm cutout
                   </span>
                 </div>
               )}
@@ -210,7 +183,7 @@ export function AngledCornersSection() {
         </div>
       </div>
 
-      {/* Right Angled Section - Mirror of Left */}
+      {/* ── Right Angled Section ── */}
       <div className={cn(
         "rounded-xl border-2 transition-all duration-300",
         angledRight ? "border-purple-200 bg-purple-50/50" : "border-gray-100 bg-gray-50/50"
@@ -241,59 +214,23 @@ export function AngledCornersSection() {
 
           {angledRight && (
             <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-              {/* Preset Selection */}
-              <div className="grid grid-cols-3 gap-2">
-                {ANGLE_PRESETS.filter(p => p.id !== "custom").map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => {
-                      setRightAnglePreset(preset.id as any);
-                      setShowCustomRight(false);
-                    }}
-                    className={cn(
-                      "p-3 rounded-lg border-2 transition-all text-center hover:shadow-md",
-                      rightAnglePreset === preset.id
-                        ? "border-purple-500 bg-purple-100 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-purple-300"
-                    )}
-                  >
-                    <span className="text-lg mb-1 block">{preset.icon}</span>
-                    <span className="text-xs font-medium text-gray-700 block truncate">
-                      {preset.name}
-                    </span>
-                    <span className="text-[10px] text-gray-500">{preset.angle}°</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Toggle */}
-              <button
-                onClick={() => {
-                  setShowCustomRight(!showCustomRight);
-                  if (!showCustomRight) {
-                    setRightAnglePreset("custom");
-                  }
-                }}
-                className={cn(
-                  "w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all",
-                  showCustomRight || rightAnglePreset === "custom"
-                    ? "border-amber-400 bg-amber-50"
-                    : "border-dashed border-gray-300 hover:border-gray-400"
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  {showCustomRight ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  <span className="text-sm font-medium">Custom Dimensions</span>
+              {/* Angle Input */}
+              <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200">
+                <div>
+                  <Label className="text-xs text-gray-600 mb-1 block">Angle (degrees)</Label>
+                  <Input
+                    type="number"
+                    value={rightAngleDegrees}
+                    onChange={(e) => handleRightAngleChange(Number(e.target.value))}
+                    min={5}
+                    max={85}
+                    className="h-9"
+                  />
+                  <span className="text-[10px] text-gray-400 mt-0.5 block">Recommended: 5° – 85°</span>
                 </div>
-                <ChevronRight className={cn(
-                  "w-4 h-4 transition-transform",
-                  showCustomRight && "rotate-90"
-                )} />
-              </button>
 
-              {/* Custom Inputs */}
-              {(showCustomRight || rightAnglePreset === "custom") && (
-                <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200 animate-in slide-in-from-top-2">
+                <div className="border-t pt-3">
+                  <Label className="text-xs text-gray-500 mb-2 block font-medium">Cutout Dimensions</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs text-gray-600 mb-1 block">Cut Width (mm)</Label>
@@ -314,15 +251,15 @@ export function AngledCornersSection() {
                       />
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-sm text-gray-600">Resulting Angle:</span>
-                    <Badge variant="outline" className="font-mono">
-                      {rightAngleDegrees}°
-                    </Badge>
-                  </div>
                 </div>
-              )}
+
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm text-gray-600">Resulting Angle:</span>
+                  <Badge variant="outline" className="font-mono">
+                    {rightAngleDegrees}°
+                  </Badge>
+                </div>
+              </div>
 
               {/* Validation */}
               {!rightValidation.valid && (
@@ -336,11 +273,11 @@ export function AngledCornersSection() {
                 </div>
               )}
 
-              {rightValidation.valid && rightAnglePreset !== "custom" && (
+              {rightValidation.valid && rightAngleDegrees > 0 && (
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
                   <Check className="w-4 h-4 text-green-600" />
                   <span className="text-xs text-green-700">
-                    Optimised for {ANGLE_PRESETS.find(p => p.id === rightAnglePreset)?.description}
+                    {rightAngleDegrees}° angle configured — {rightTriangleCutoutWidth}mm × {rightTriangleCutoutHeight}mm cutout
                   </span>
                 </div>
               )}

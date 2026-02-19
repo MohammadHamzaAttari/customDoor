@@ -1,0 +1,6 @@
+export RDS_ENDPOINT="door-designer-db.ch46u6wy835i.eu-west-2.rds.amazonaws.com"
+export RDS_PORT="5432"
+export DB_USERNAME="dooradmin"
+export DB_PASSWORD="Getaichatbots9871"
+export DB_NAME="doordesigner"
+export DATABASE_URL="postgresql://dooradmin:Getaichatbots9871@door-designer-db.ch46u6wy835i.eu-west-2.rds.amazonaws.com:5432/doordesigner"

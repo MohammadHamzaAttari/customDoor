@@ -57,6 +57,7 @@ export function ProductDetailsSidebar() {
     hinges,
     material,
     showDimensions,
+    isNewSession,
   } = config;
 
   // Cart count derived from the single source of truth: useDoorStore
@@ -270,8 +271,11 @@ export function ProductDetailsSidebar() {
                 Unit Price
               </p>
               <p className="text-3xl font-bold mt-1 text-white">
-                £{price.toFixed(2)}
+                £{isNewSession ? '0.00' : price.toFixed(2)}
               </p>
+              {isNewSession && (
+                <p className="text-xs text-stone-400 mt-1">Configure your door to see the price</p>
+              )}
             </div>
           </div>
         </div>

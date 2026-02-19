@@ -23,8 +23,10 @@ export interface ShopifyCredentials {
   accessToken: string;
 }
 
+// server/shopifyCheckout.ts
+// REPLACE getShopifyCredentials with this improved version:
+
 export async function getShopifyCredentials(): Promise<ShopifyCredentials | null> {
-  // 1. Try DB first (set via OAuth flow)
   let accessToken: string | null = null;
   let shopDomain: string | null = null;
 
@@ -33,17 +35,14 @@ export async function getShopifyCredentials(): Promise<ShopifyCredentials | null
     if (dbToken?.settingValue && dbToken.settingValue.startsWith("shpat_")) {
       accessToken = dbToken.settingValue;
     }
-
     const dbDomain = await storage.getSetting("shopify_shop_domain");
     if (dbDomain?.settingValue) {
       shopDomain = dbDomain.settingValue;
     }
   } catch (e) {
-    // DB might not be available; fall through to env vars
     console.log("[ShopifyCheckout] DB settings lookup failed, using env vars");
   }
 
-  // 2. Fallback to env vars — try BOTH naming conventions
   if (!accessToken) {
     accessToken =
       process.env.SHOPIFY_ACCESS_TOKEN ||
@@ -58,11 +57,38 @@ export async function getShopifyCredentials(): Promise<ShopifyCredentials | null
       null;
   }
 
+  // ── NEW: Validate token format ──
+  if (accessToken && !accessToken.startsWith("shpat_")) {
+    console.error(
+      `[ShopifyCheckout] ❌ Token doesn't start with 'shpat_'. ` +
+      `Got prefix: '${accessToken.substring(0, 10)}'. ` +
+      `This looks like an API Secret, not an Access Token.`
+    );
+    return null;
+  }
+
+  // ── NEW: Normalize domain ──
+  if (shopDomain) {
+    shopDomain = shopDomain
+      .replace(/^https?:\/\//, "")
+      .replace(/\/$/, "")
+      .trim();
+  }
+
   console.log(
-    `[ShopifyCheckout] Credentials: domain=${shopDomain ? "✓" : "✗"}, token=${accessToken ? "✓" : "✗"}`
+    `[ShopifyCheckout] Credentials: domain=${shopDomain ?? "MISSING"}, ` +
+    `token=${accessToken ? accessToken.substring(0, 12) + "..." : "MISSING"}`
   );
 
-  if (!accessToken || !shopDomain) return null;
+  if (!accessToken || !shopDomain) {
+    console.error(
+      "[ShopifyCheckout] ❌ Missing credentials:\n" +
+      `  SHOPIFY_ACCESS_TOKEN: ${process.env.SHOPIFY_ACCESS_TOKEN ? "SET" : "NOT SET"}\n` +
+      `  SHOPIFY_ADMIN_ACCESS_TOKEN: ${process.env.SHOPIFY_ADMIN_ACCESS_TOKEN ? "SET" : "NOT SET"}\n` +
+      `  SHOPIFY_SHOP_DOMAIN: ${process.env.SHOPIFY_SHOP_DOMAIN ? "SET" : "NOT SET"}`
+    );
+    return null;
+  }
 
   return { shopDomain, accessToken };
 }

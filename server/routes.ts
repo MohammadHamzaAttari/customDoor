@@ -10,8 +10,7 @@ import {
   insertOrderSchema,
   insertOrderItemSchema,
 } from "../shared/schema";
-const { verifyDoorPrice } = await import("./pricing");
-const { doorConfigSchema } = await import("../shared/doorSchema");
+import { verifyDoorPrice } from "./pricing";
 import { createShopifyDraftOrder, createQuickCheckout } from "./shopify";
 import { registerOAuthRoutes } from "./oauth";
 
@@ -650,6 +649,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         height: number;
         thickness: number;
         panelType: string;
+        panelOrientation?: string;
+        material?: string;
         finish: string;
         price: number;
         quantity: number;
@@ -658,10 +659,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         angledRight?: boolean;
         leftAngleDegrees?: number;
         rightAngleDegrees?: number;
+        leftTriangleCutoutWidth?: number;
+        leftTriangleCutoutHeight?: number;
+        rightTriangleCutoutWidth?: number;
+        rightTriangleCutoutHeight?: number;
         midRailsEnabled?: boolean;
         midRails?: any[];
+        midRailsEqualise?: boolean;
         hingeDrilling?: boolean;
         hinges?: any[];
+        customBorders?: boolean;
+        borderWidth?: number;
+        leftStile?: number;
+        rightStile?: number;
+        topRail?: number;
+        bottomRail?: number;
+        rebateWidthMm?: number;
+        rebateDepthMm?: number;
+        frontFaceThicknessMm?: number;
+        cornerRadiusMm?: number | string;
       }> = [];
 
       if (Array.isArray(body.items) && body.items.length > 0) {
@@ -797,7 +813,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Actually, we are inside an async function in a module, __dirname might not be available directly if we were pure ESM, 
       // but typical TS/Node setups here inject it. 
       // Let's rely on standard process.cwd() or relative path from project root.
-      const storageDir = path.resolve(process.cwd(), "storage", "orders", newOrder.id.toString());
+      const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+      const baseDir = isLambda ? "/tmp" : process.cwd();
+      const storageDir = path.resolve(baseDir, "storage", "orders", newOrder.id.toString());
       if (!fs.existsSync(storageDir)) {
         await fs.promises.mkdir(storageDir, { recursive: true });
       }
@@ -863,8 +881,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createMidRail({
               itemId: dbItem.id,
               railNumber: idx + 1,
-              positionFromBottomMm: rail.position,
-              railWidthMm: rail.height || 100, // Default width if missing
+              positionFromBottomMm: rail.positionFromBottom ?? rail.position,
+              railWidthMm: rail.dimension ?? rail.height ?? 100, // Default width if missing
             });
           }
         }
@@ -874,7 +892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const h of item.hinges) {
             await storage.createHinge({
               orderItemId: dbItem.id,
-              positionFromBottomMm: h.position,
+              positionFromBottomMm: h.positionFromBottomMm ?? h.position,
               side: h.side || "LEFT",
               cupDiameterMm: 35,
               cupDepthMm: 13,
@@ -952,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const creds = await getShopifyCredentials();
       if (!creds) {
         console.error("Missing Shopify credentials");
-        throw new Error("Payment system not configured.");
+        throw new Error("Payment system not configured. Please visit /api/auth to connect your Shopify store.");
       }
 
       const result = await createDraftOrderFromLineItems(lineItems, creds);
@@ -973,14 +991,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error: any) {
-      console.error("Checkout error:", error);
+      console.error("Checkout error:", error.message);
 
-      // Return user-friendly messages
-      let msg = error.message;
-      if (msg?.includes("credentials")) msg = "Payment system is not configured.";
-      if (msg?.includes("connect")) msg = "Connection to payment provider failed.";
+      let msg = error.message || "An unexpected error occurred.";
+      let statusCode = 500;
 
-      return res.status(500).json({ message: msg });
+      if (msg?.includes("credentials") || msg?.includes("not configured")) {
+        msg = "Payment system is not configured. Please contact the administrator.";
+        statusCode = 503;
+      } else if (msg?.includes("Failed to connect to Shopify")) {
+        msg = `Shopify connection failed: ${error.message}`;
+        statusCode = 502;
+      } else if (msg?.includes("Payment provider did not return")) {
+        msg = "Checkout URL not received from Shopify. Please try again.";
+      }
+
+      return res.status(statusCode).json({ message: msg, debug: process.env.NODE_ENV !== 'production' ? error.message : undefined });
+    }
+  });
+  // server/routes.ts - add before httpServer creation
+
+  app.get("/api/shopify/status", async (req, res) => {
+    try {
+      const { getShopifyCredentials } = await import("./shopifyCheckout");
+      const creds = await getShopifyCredentials();
+
+      if (!creds) {
+        return res.status(503).json({
+          configured: false,
+          message: "Missing SHOPIFY_ACCESS_TOKEN or SHOPIFY_SHOP_DOMAIN",
+          env: {
+            hasToken: !!(process.env.SHOPIFY_ACCESS_TOKEN || process.env.SHOPIFY_ADMIN_ACCESS_TOKEN),
+            hasDomain: !!(process.env.SHOPIFY_SHOP_DOMAIN || process.env.SHOPIFY_STORE_DOMAIN),
+            tokenPrefix: (process.env.SHOPIFY_ACCESS_TOKEN || "").substring(0, 8) || "MISSING",
+          }
+        });
+      }
+
+      // Test the connection
+      const testUrl = `https://${creds.shopDomain}/admin/api/2025-01/shop.json`;
+      const testRes = await fetch(testUrl, {
+        headers: { "X-Shopify-Access-Token": creds.accessToken }
+      });
+
+      if (!testRes.ok) {
+        const body = await testRes.text();
+        return res.status(502).json({
+          configured: true,
+          connected: false,
+          httpStatus: testRes.status,
+          message: testRes.status === 401
+            ? "Invalid access token - token rejected by Shopify"
+            : testRes.status === 404
+            ? "Shop domain not found - check SHOPIFY_SHOP_DOMAIN"
+            : `Shopify returned ${testRes.status}`,
+          detail: body.substring(0, 200)
+        });
+      }
+
+      const shopData: any = await testRes.json();
+      return res.json({
+        configured: true,
+        connected: true,
+        shop: shopData.shop?.name,
+        domain: shopData.shop?.domain,
+        plan: shopData.shop?.plan_name,
+      });
+
+    } catch (e: any) {
+      return res.status(500).json({ configured: false, error: e.message });
     }
   });
   const httpServer = createServer(app);

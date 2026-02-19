@@ -1,70 +1,121 @@
-  import "dotenv/config";
-  import express, { type Request, Response, NextFunction } from "express";
-  import { registerRoutes } from "./routes";
-  import { setupVite, serveStatic, log } from "./vite";
+// server/index.ts — COMPLETE FIXED VERSION
 
-  const app = express();
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
+import { registerRoutes } from "./routes";
 
-  app.use((req, res, next) => {
-    const start = Date.now();
-    const path = req.path;
-    let capturedJsonResponse: Record<string, any> | undefined = undefined;
+// Load dotenv for local development (safe for both ESM and CJS)
+try {
+  if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require("dotenv").config();
+  }
+} catch (e) {
+  // dotenv not available — that's fine in production
+}
 
-    const originalResJson = res.json;
-    res.json = function (bodyJson, ...args) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.apply(res, [bodyJson, ...args]);
-    };
+const app = express();
 
-    res.on("finish", () => {
-      const duration = Date.now() - start;
-      if (path.startsWith("/api")) {
-        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-        if (capturedJsonResponse) {
-          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-        }
+/* ===============================
+   Trust proxy (ALB / API Gateway)
+================================ */
+app.set("trust proxy", true);
 
-        if (logLine.length > 80) {
-          logLine = logLine.slice(0, 79) + "…";
-        }
+/* ===============================
+   Body parsing
+================================ */
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
 
-        log(logLine);
-      }
-    });
+/* ===============================
+   Request logging
+================================ */
+app.use((req, res, next) => {
+  const start = Date.now();
+  const pathReq = req.path;
+  let capturedJsonResponse: unknown;
 
-    next();
-  });
+  const originalJson = res.json.bind(res);
+  res.json = (body: any) => {
+    capturedJsonResponse = body;
+    return originalJson(body);
+  };
 
-  (async () => {
-    const server = await registerRoutes(app);
+  res.on("finish", () => {
+    if (!pathReq.startsWith("/api")) return;
 
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
+    const duration = Date.now() - start;
+    let logLine = `${req.method} ${pathReq} ${res.statusCode} ${duration}ms`;
 
-      res.status(status).json({ message });
-      throw err;
-    });
-
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
-    if (app.get("env") === "development") {
-      await setupVite(app, server);
-    } else {
-      serveStatic(app);
+    if (capturedJsonResponse && process.env.NODE_ENV !== "production") {
+      logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
     }
 
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client
-    const port = 5000;
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
-      log(`serving on port ${port}`);
+    if (logLine.length > 200) {
+      logLine = logLine.slice(0, 199) + "…";
+    }
+
+    console.log(logLine);
+  });
+
+  next();
+});
+
+/* ===============================
+   Health check
+================================ */
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    runtime: process.env.AWS_LAMBDA_FUNCTION_NAME ? "lambda" : "server",
+    node: process.version,
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* ===============================
+   Routes
+================================ */
+registerRoutes(app);
+
+/* ===============================
+   Error handler
+================================ */
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("🔥 Unhandled error:", err);
+
+  const status = err.statusCode || err.status || 500;
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal Server Error"
+      : err.message || "Internal Server Error";
+
+  res.status(status).json({ message });
+});
+
+/* ===============================
+   Standalone server only
+================================ */
+const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+if (!isLambda) {
+  const PORT = Number(process.env.PORT || 5000);
+
+  if (process.env.NODE_ENV === "production") {
+    const clientPath = path.join(process.cwd(), "dist", "client");
+    app.use(express.static(clientPath));
+
+    // ✅ FIX: Use {*path} instead of * for Express 5 / path-to-regexp v8
+    app.get("/{*path}", (req, res, next) => {
+      if (req.path.startsWith("/api")) return next();
+      res.sendFile(path.join(clientPath, "index.html"));
     });
-  })();
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  });
+}
+
+export { app };

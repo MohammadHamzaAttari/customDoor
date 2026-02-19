@@ -15,7 +15,7 @@ const Door3DLazy = lazy(() => import("@/components/door/Door3DLazy"));
 export default function DoorConfigurator() {
   const isMobile = useIsMobile();
   const config = useDoorConfig();
-  const { price, setSelectedSection } = config;
+  const { price, setSelectedSection, isNewSession } = config;
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [rotationEnabled, setRotationEnabled] = useState(!isMobile);
   const [viewMode, setViewMode] = useState<"front" | "back" | "3d">("front");
@@ -45,7 +45,7 @@ export default function DoorConfigurator() {
           </div>
           <div className="text-right">
             <span className="text-xs text-zinc-400 font-medium block">Price:</span>
-            <span className="text-lg font-bold text-amber-400">£{price.toFixed(2)}</span>
+            <span className="text-lg font-bold text-amber-400">£{isNewSession ? '0.00' : price.toFixed(2)}</span>
           </div>
         </div>
       )}
@@ -83,6 +83,17 @@ export default function DoorConfigurator() {
           {viewMode === "3d" ? (
             <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-zinc-400">Loading 3D view...</div>}>
               <Door3DLazy ref={canvasRef} config={config} onPartClick={handlePartClick} rotationEnabled={rotationEnabled} isMobile={isMobile} forceHideLabels={isMobile && isSheetOpen} />
+              {isNewSession && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-[2px] z-10">
+                  <div className="text-center py-8 px-6">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-900/50 to-purple-900/50 flex items-center justify-center shadow-sm border border-zinc-700/40">
+                      <Settings2 className="w-8 h-8 text-indigo-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-zinc-200 mb-2">Configure Your Door</h3>
+                    <p className="text-sm text-zinc-400 max-w-xs">Use the sidebar to set dimensions, style, and options. The preview and price will update as you go.</p>
+                  </div>
+                </div>
+              )}
               <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
                 <Button variant="secondary" size="icon" onClick={handleResetView} className="bg-zinc-900/80 backdrop-blur-md shadow-lg hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/50" title="Reset View">
                   <RotateCcw className="w-4 h-4" />
@@ -95,8 +106,19 @@ export default function DoorConfigurator() {
               </div>
             </Suspense>
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-white">
+            <div className="w-full h-full flex items-center justify-center bg-white relative">
               <Door2D face={viewMode} />
+              {isNewSession && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[2px] z-10">
+                  <div className="text-center py-8 px-6">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center shadow-sm">
+                      <Settings2 className="w-8 h-8 text-orange-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">Configure Your Door</h3>
+                    <p className="text-sm text-gray-500 max-w-xs">Use the sidebar to set dimensions, style, and options. The preview and price will update as you go.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

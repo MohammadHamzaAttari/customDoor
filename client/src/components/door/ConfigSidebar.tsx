@@ -2,11 +2,10 @@
 import { useState } from "react";
 import {
   useDoorConfig,
-  AnglePresetId,
   MIN_BORDER_WITH_HINGES,
   MIN_BORDER_WITHOUT_HINGES,
 } from "@/lib/stores/useDoorConfig";
-import { ANGLE_PRESETS, validateAngleCutout } from "@/lib/anglePresets";
+import { AngledCornersSection } from "@/components/door/sections/AngledCornersSection";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -29,10 +28,6 @@ import {
   Plus,
   X,
   AlertTriangle,
-  Check,
-  ChevronRight,
-  Lock,
-  Unlock,
   ArrowLeftRight,
   Equal,
 } from "lucide-react";
@@ -375,197 +370,7 @@ function BorderWidthsSection() {
   );
 }
 
-// ============================================
-// ANGLED CORNERS
-// ============================================
-
-function AngledCornersSection() {
-  const {
-    width, height, borderWidth,
-    angledLeft, angledRight,
-    leftAnglePreset, rightAnglePreset,
-    leftTriangleCutoutWidth, leftTriangleCutoutHeight,
-    rightTriangleCutoutWidth, rightTriangleCutoutHeight,
-    leftAngleDegrees, rightAngleDegrees,
-    angledRailWidth, setAngledRailWidth,
-    setAngledLeft, setAngledRight,
-    setLeftAnglePreset, setRightAnglePreset,
-    setLeftTriangleCutoutWidth, setLeftTriangleCutoutHeight,
-    setRightTriangleCutoutWidth, setRightTriangleCutoutHeight,
-  } = useDoorConfig();
-
-  const [showCustomLeft, setShowCustomLeft] = useState(leftAnglePreset === "custom");
-  const [showCustomRight, setShowCustomRight] = useState(rightAnglePreset === "custom");
-
-  const leftValidation = validateAngleCutout(width, height, leftTriangleCutoutWidth, leftTriangleCutoutHeight, borderWidth);
-  const rightValidation = validateAngleCutout(width, height, rightTriangleCutoutWidth, rightTriangleCutoutHeight, borderWidth);
-
-  const presets = ANGLE_PRESETS.filter((p) => p.id !== "custom");
-
-  const renderAngleSide = (
-    side: "left" | "right",
-    enabled: boolean,
-    setEnabled: (v: boolean) => void,
-    anglePreset: string,
-    setAnglePreset: (id: AnglePresetId) => void,
-    cutW: number,
-    cutH: number,
-    setCutW: (v: number) => void,
-    setCutH: (v: number) => void,
-    angleDeg: number,
-    showCustom: boolean,
-    setShowCustom: (v: boolean) => void,
-    validation: { valid: boolean; errors: string[] },
-    accentColor: string,
-  ) => {
-    const label = side === "left" ? "Left Angle" : "Right Angle";
-    const icon = side === "left" ? "◢" : "◣";
-    const shortSideHeight = height - cutH;
-
-    return (
-      <div className={cn(
-        "rounded-xl border-2 transition-all duration-300",
-        enabled
-          ? accentColor === "orange" ? "border-orange-200 bg-orange-50/50" : "border-purple-200 bg-purple-50/50"
-          : "border-gray-100 bg-gray-50/50"
-      )}>
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-10 h-10 rounded-lg flex items-center justify-center transition-colors text-lg",
-                enabled
-                  ? accentColor === "orange" ? "bg-orange-500 text-white" : "bg-purple-500 text-white"
-                  : "bg-gray-200 text-gray-500"
-              )}>
-                {icon}
-              </div>
-              <div>
-                <span className="font-medium text-gray-900">{label}</span>
-                {enabled && <Badge variant="secondary" className="ml-2 text-xs">{angleDeg}°</Badge>}
-              </div>
-            </div>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
-          </div>
-
-          {enabled && (
-            <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-              <div className="grid grid-cols-3 gap-2">
-                {presets.map((preset) => (
-                  <button key={preset.id}
-                    onClick={() => { setAnglePreset(preset.id as AnglePresetId); setShowCustom(false); }}
-                    className={cn("p-3 rounded-lg border-2 transition-all text-center hover:shadow-md",
-                      anglePreset === preset.id ? "border-orange-500 bg-orange-100 shadow-sm" : "border-gray-200 bg-white hover:border-orange-300")}>
-                    <span className="text-lg mb-1 block">{preset.icon}</span>
-                    <span className="text-xs font-medium text-gray-700 block truncate">{preset.name}</span>
-                    <span className="text-[10px] text-gray-500">{preset.angle}°</span>
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => { setShowCustom(!showCustom); if (!showCustom) setAnglePreset("custom"); }}
-                className={cn("w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all",
-                  showCustom || anglePreset === "custom" ? "border-amber-400 bg-amber-50" : "border-dashed border-gray-300 hover:border-gray-400")}>
-                <div className="flex items-center gap-2">
-                  {showCustom ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  <span className="text-sm font-medium">Custom Dimensions</span>
-                </div>
-                <ChevronRight className={cn("w-4 h-4 transition-transform", showCustom && "rotate-90")} />
-              </button>
-
-              {(showCustom || anglePreset === "custom") && (
-                <div className="space-y-3 p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs text-gray-600 mb-1 block">Cut Width (mm)</Label>
-                      <NumberInput value={cutW} onChange={setCutW} min={0} max={width} className="h-9" />
-                    </div>
-                    <div>
-                      <Label className="text-xs text-gray-600 mb-1 block">Short Side Height (mm)</Label>
-                      <NumberInput
-                        value={shortSideHeight}
-                        onChange={(v) => setCutH(height - Math.max(0, Math.min(height, v)))}
-                        min={0}
-                        max={height}
-                        className="h-9"
-                      />
-                      <span className="text-[10px] text-gray-400 mt-0.5 block">Measured from bottom up. 0 = pointed top.</span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-500 bg-gray-50 rounded p-2 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Door height:</span><span className="font-mono">{height}mm</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Short side (from bottom):</span><span className="font-mono">{Math.max(0, shortSideHeight)}mm</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Material removed (top):</span><span className="font-mono">{cutH}mm</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-sm text-gray-600">Resulting Angle:</span>
-                    <Badge variant="outline" className="font-mono">{angleDeg}°</Badge>
-                  </div>
-                </div>
-              )}
-
-              {!validation.valid && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
-                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-red-700 space-y-1">
-                    {validation.errors.map((error, i) => <p key={i}>{error}</p>)}
-                  </div>
-                </div>
-              )}
-
-              {validation.valid && anglePreset !== "custom" && (
-                <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
-                  <Check className="w-4 h-4 text-green-600" />
-                  <span className="text-xs text-green-700">
-                    Optimised for {ANGLE_PRESETS.find((p) => p.id === anglePreset)?.description}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <InfoTip>
-          <p>Perfect for under-stair cupboards and loft access. £25 surcharge per angled door. Short side height is measured from the bottom up.</p>
-        </InfoTip>
-        <span className="text-xs text-gray-500">Select preset or customise</span>
-      </div>
-
-      {renderAngleSide("left", angledLeft, setAngledLeft, leftAnglePreset, setLeftAnglePreset,
-        leftTriangleCutoutWidth, leftTriangleCutoutHeight, setLeftTriangleCutoutWidth, setLeftTriangleCutoutHeight,
-        leftAngleDegrees, showCustomLeft, setShowCustomLeft, leftValidation, "orange")}
-
-      {renderAngleSide("right", angledRight, setAngledRight, rightAnglePreset, setRightAnglePreset,
-        rightTriangleCutoutWidth, rightTriangleCutoutHeight, setRightTriangleCutoutWidth, setRightTriangleCutoutHeight,
-        rightAngleDegrees, showCustomRight, setShowCustomRight, rightValidation, "purple")}
-
-      {(angledLeft || angledRight) && (
-        <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm text-gray-700">Angled Rail Width (mm)</Label>
-            <InfoTip><p>Width of the frame rail along the angled edge. Controls how thick the border is on the angled side.</p></InfoTip>
-          </div>
-          <NumberInput value={angledRailWidth} onChange={setAngledRailWidth} min={35} max={200} className="bg-white" />
-        </div>
-      )}
-    </div>
-  );
-}
+// AngledCornersSection is imported from ./sections/AngledCornersSection
 
 // ============================================
 // MID RAILS

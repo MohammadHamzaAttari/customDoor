@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Shopify Simulated Parent</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f4f4f4;
+        }
+
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            height: 200px;
+            overflow-y: scroll;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Shopify Parent Mock</h1>
+        <p>This page simulates the Shopify environment. It listens for <code>SHOPIFY_ADD_TO_CART</code> messages.</p>
+        <div id="log">Logs will appear here...</div>
+        <iframe id="app-iframe" src="http://localhost:5000"></iframe>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        function addLog(msg, data) {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg} ${data ? JSON.stringify(data) : ''}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        window.addEventListener('message', function (event) {
+            addLog('Message received from iframe:', event.data);
+
+            if (event.data.type === 'SHOPIFY_ADD_TO_CART') {
+                addLog('SUCCESS: Shopify Add to Cart triggered!', event.data.items);
+                // Mocking the cart redirect
+                setTimeout(() => {
+                    alert('Mock Shopify: Adding ' + event.data.items.length + ' item(s) to cart and redirecting to /cart');
+                }, 500);
+            }
+
+            // Respond with parent info like designer_section.liquid does
+            if (event.data.type === 'parentResize' || event.data.type === 'parentInfo') {
+                // Ignore these for noise
+            }
+        });
+    </script>
+</body>
+
+</html>

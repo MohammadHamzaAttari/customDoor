@@ -1,7 +1,7 @@
 // client/src/lib/stores/useDoorConfig.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { getPresetById, calculateAngleFromCutout } from "../anglePresets";
+import { calculateAngleFromCutout } from "../anglePresets";
 import { calculateDoorPrice, DEFAULT_PRICING } from "@shared/doorSchema";
 
 export type DoorPreset = "single" | "double" | "shaker_2" | "shaker_4" | "shaker_6" | "panel_3" | "panel_4" | "panel_6";
@@ -10,9 +10,8 @@ export type PanelOrientation = "vertical" | "horizontal";
 export type BorderStyle = "none" | "simple" | "detailed";
 export type DoorShape = "rectangular" | "angled";
 export type MaterialType = "MDF";
-export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP";
+export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED";
 export type HingeType = "SCREW_POINTS" | "INSERTA";
-export type AnglePresetId = "under-stair-standard" | "under-stair-gentle" | "loft-access" | "corner-unit" | "steep-attic" | "custom";
 
 // Hinge center offset: 5mm gap to edge + 17.5mm (half of 35mm cup) = 22.5mm
 export const HINGE_CENTER_OFFSET_MM = 22.5;
@@ -48,8 +47,6 @@ export interface DoorConfig {
 
   angledLeft: boolean;
   angledRight: boolean;
-  leftAnglePreset: AnglePresetId;
-  rightAnglePreset: AnglePresetId;
   leftTriangleCutoutWidth: number;
   leftTriangleCutoutHeight: number;
   rightTriangleCutoutWidth: number;
@@ -82,6 +79,8 @@ export interface DoorConfig {
   showDimensions: boolean;
   price: number;
   selectedSection: string;
+  isNewSession: boolean;
+  _hasInteracted: boolean;
 }
 
 interface DoorConfigStore extends DoorConfig {
@@ -96,14 +95,11 @@ interface DoorConfigStore extends DoorConfig {
 
   setAngledLeft: (enabled: boolean) => void;
   setAngledRight: (enabled: boolean) => void;
-  setLeftAnglePreset: (presetId: AnglePresetId) => void;
-  setRightAnglePreset: (presetId: AnglePresetId) => void;
   setLeftTriangleCutoutWidth: (width: number) => void;
   setLeftTriangleCutoutHeight: (height: number) => void;
   setRightTriangleCutoutWidth: (width: number) => void;
   setRightTriangleCutoutHeight: (height: number) => void;
   setAngledRailWidth: (width: number) => void;
-  applyAnglePreset: (side: "left" | "right", presetId: AnglePresetId) => void;
 
   setBorderWidth: (width: number) => void;
   setCustomBorders: (enabled: boolean) => void;
@@ -135,6 +131,7 @@ interface DoorConfigStore extends DoorConfig {
   calculatePrice: () => void;
   resetConfig: () => void;
   setSelectedSection: (section: string) => void;
+  clearNewSession: () => void;
 
   // Computed helpers
   getMinBorderForSide: (side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM") => number;
@@ -152,8 +149,6 @@ const initialState: DoorConfig = {
 
   angledLeft: false,
   angledRight: false,
-  leftAnglePreset: "under-stair-standard",
-  rightAnglePreset: "under-stair-standard",
   leftTriangleCutoutWidth: 180,
   leftTriangleCutoutHeight: 400,
   rightTriangleCutoutWidth: 180,
@@ -186,6 +181,8 @@ const initialState: DoorConfig = {
   showDimensions: true,
   price: 0,
   selectedSection: "dimensions",
+  isNewSession: true,
+  _hasInteracted: false,
 };
 
 let midRailIdCounter = 0;
@@ -209,6 +206,41 @@ function getMinBorder(hingeDrilling: boolean, hinges: Hinge[], side: "LEFT" | "R
   return MIN_BORDER_WITHOUT_HINGES;
 }
 
+/**
+ * Resilient storage adapter for Zustand persist.
+ * Tries localStorage first; if blocked (e.g. cross-origin iframe), falls back to sessionStorage.
+ */
+function createResilientStorage(): Storage {
+  // Test if localStorage is available and writable
+  try {
+    const testKey = '__storage_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    return localStorage;
+  } catch {
+    // localStorage blocked (third-party iframe, private browsing, etc.)
+    try {
+      const testKey = '__storage_test__';
+      sessionStorage.setItem(testKey, '1');
+      sessionStorage.removeItem(testKey);
+      console.warn('[DoorConfig] localStorage unavailable, using sessionStorage fallback');
+      return sessionStorage;
+    } catch {
+      // Both blocked — return a no-op in-memory storage
+      console.warn('[DoorConfig] No web storage available, state will not persist');
+      const memoryStore: Record<string, string> = {};
+      return {
+        get length() { return Object.keys(memoryStore).length; },
+        clear() { Object.keys(memoryStore).forEach(k => delete memoryStore[k]); },
+        getItem(key: string) { return memoryStore[key] ?? null; },
+        key(index: number) { return Object.keys(memoryStore)[index] ?? null; },
+        removeItem(key: string) { delete memoryStore[key]; },
+        setItem(key: string, value: string) { memoryStore[key] = value; },
+      };
+    }
+  }
+}
+
 export const useDoorConfig = create<DoorConfigStore>()(
   persist(
     (set, get) => ({
@@ -219,34 +251,29 @@ export const useDoorConfig = create<DoorConfigStore>()(
         return getMinBorder(state.hingeDrilling, state.hinges, side);
       },
 
+      clearNewSession: () => {
+        if (get().isNewSession) {
+          set({ isNewSession: false, _hasInteracted: true });
+        }
+      },
+
       setWidth: (width: number) => {
         // Guard against invalid values that would reset the config
         if (width <= 0 || isNaN(width)) return;
+        get().clearNewSession();
         set({ width });
-        const state = get();
-        if (state.angledLeft && state.leftAnglePreset !== "custom") {
-          get().applyAnglePreset("left", state.leftAnglePreset);
-        }
-        if (state.angledRight && state.rightAnglePreset !== "custom") {
-          get().applyAnglePreset("right", state.rightAnglePreset);
-        }
         get().calculatePrice();
       },
 
       setHeight: (height: number) => {
         if (height <= 0 || isNaN(height)) return;
+        get().clearNewSession();
         set({ height });
-        const state = get();
-        if (state.angledLeft && state.leftAnglePreset !== "custom") {
-          get().applyAnglePreset("left", state.leftAnglePreset);
-        }
-        if (state.angledRight && state.rightAnglePreset !== "custom") {
-          get().applyAnglePreset("right", state.rightAnglePreset);
-        }
         get().calculatePrice();
       },
 
       setThickness: (thickness: 22 | 18) => {
+        get().clearNewSession();
         const state = get();
         if (thickness === 18 && state.panelType !== "NONE") {
           set({ thickness, panelType: "NONE" });
@@ -257,11 +284,13 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setPreset: (preset: DoorPreset) => {
+        get().clearNewSession();
         set({ preset });
         get().calculatePrice();
       },
 
       setPanelType: (panelType: PanelType) => {
+        get().clearNewSession();
         const state = get();
         if (state.thickness === 18 && panelType !== "NONE") {
           set({ panelType, thickness: 22 });
@@ -278,6 +307,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setPanelCount: (panelCount: number) => {
+        get().clearNewSession();
         set({ panelCount });
         get().calculatePrice();
       },
@@ -291,56 +321,15 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setAngledLeft: (angledLeft: boolean) => {
+        get().clearNewSession();
         set({ angledLeft });
-        if (angledLeft) {
-          get().applyAnglePreset("left", get().leftAnglePreset);
-        }
         get().calculatePrice();
       },
 
       setAngledRight: (angledRight: boolean) => {
+        get().clearNewSession();
         set({ angledRight });
-        if (angledRight) {
-          get().applyAnglePreset("right", get().rightAnglePreset);
-        }
         get().calculatePrice();
-      },
-
-      setLeftAnglePreset: (presetId: AnglePresetId) => {
-        set({ leftAnglePreset: presetId });
-        if (presetId !== "custom") {
-          get().applyAnglePreset("left", presetId);
-        }
-      },
-
-      setRightAnglePreset: (presetId: AnglePresetId) => {
-        set({ rightAnglePreset: presetId });
-        if (presetId !== "custom") {
-          get().applyAnglePreset("right", presetId);
-        }
-      },
-
-      applyAnglePreset: (side: "left" | "right", presetId: AnglePresetId) => {
-        const state = get();
-        const preset = getPresetById(presetId);
-        if (!preset || presetId === "custom") return;
-
-        const cutout = preset.calculateCutout(state.width, state.height, state.borderWidth);
-        const angle = calculateAngleFromCutout(cutout.width, cutout.height);
-
-        if (side === "left") {
-          set({
-            leftTriangleCutoutWidth: cutout.width,
-            leftTriangleCutoutHeight: cutout.height,
-            leftAngleDegrees: angle,
-          });
-        } else {
-          set({
-            rightTriangleCutoutWidth: cutout.width,
-            rightTriangleCutoutHeight: cutout.height,
-            rightAngleDegrees: angle,
-          });
-        }
       },
 
       setLeftTriangleCutoutWidth: (width: number) => {
@@ -348,7 +337,6 @@ export const useDoorConfig = create<DoorConfigStore>()(
         const state = get();
         set({
           leftTriangleCutoutWidth: width,
-          leftAnglePreset: "custom",
           leftAngleDegrees: calculateAngleFromCutout(width, state.leftTriangleCutoutHeight),
         });
       },
@@ -358,7 +346,6 @@ export const useDoorConfig = create<DoorConfigStore>()(
         const state = get();
         set({
           leftTriangleCutoutHeight: height,
-          leftAnglePreset: "custom",
           leftAngleDegrees: calculateAngleFromCutout(state.leftTriangleCutoutWidth, height),
         });
       },
@@ -368,7 +355,6 @@ export const useDoorConfig = create<DoorConfigStore>()(
         const state = get();
         set({
           rightTriangleCutoutWidth: width,
-          rightAnglePreset: "custom",
           rightAngleDegrees: calculateAngleFromCutout(width, state.rightTriangleCutoutHeight),
         });
       },
@@ -378,13 +364,13 @@ export const useDoorConfig = create<DoorConfigStore>()(
         const state = get();
         set({
           rightTriangleCutoutHeight: height,
-          rightAnglePreset: "custom",
           rightAngleDegrees: calculateAngleFromCutout(state.rightTriangleCutoutWidth, height),
         });
       },
 
       setBorderWidth: (borderWidth: number) => {
         if (isNaN(borderWidth) || borderWidth <= 0) return;
+        get().clearNewSession();
         set({
           borderWidth,
           leftStile: borderWidth,
@@ -392,14 +378,6 @@ export const useDoorConfig = create<DoorConfigStore>()(
           bottomRail: borderWidth,
           topRail: borderWidth,
         });
-
-        const s = get();
-        if (s.angledLeft && s.leftAnglePreset !== "custom") {
-          get().applyAnglePreset("left", s.leftAnglePreset);
-        }
-        if (s.angledRight && s.rightAnglePreset !== "custom") {
-          get().applyAnglePreset("right", s.rightAnglePreset);
-        }
         get().calculatePrice();
       },
 
@@ -444,6 +422,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       setCornerRadius: (cornerRadiusMm: number) => set({ cornerRadiusMm }),
 
       setMidRailsEnabled: (midRailsEnabled: boolean) => {
+        get().clearNewSession();
         set({ midRailsEnabled });
         if (midRailsEnabled && get().midRails.length === 0) {
           get().addMidRail();
@@ -498,6 +477,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setHingeDrilling: (hingeDrilling: boolean) => {
+        get().clearNewSession();
         set({ hingeDrilling });
         if (hingeDrilling && get().hinges.length === 0) {
           const state = get();
@@ -531,7 +511,6 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
         // Auto-equalise when adding
         if (updatedHinges.length >= 2) {
-          // Use setTimeout to ensure state is updated
           setTimeout(() => get().equaliseHinges(), 0);
         }
         get().calculatePrice();
@@ -601,6 +580,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setFinish: (finish: FinishType) => {
+        get().clearNewSession();
         set({ finish });
         get().calculatePrice();
       },
@@ -611,6 +591,12 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
       calculatePrice: () => {
         const state = get();
+
+        // New session: show £0.00 until user interacts
+        if (state.isNewSession) {
+          set({ price: 0 });
+          return;
+        }
 
         const result = calculateDoorPrice({
           ...state,
@@ -624,8 +610,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       resetConfig: () => {
-        set(initialState);
-        get().calculatePrice();
+        set({ ...initialState, isNewSession: true });
       },
 
       setSelectedSection: (selectedSection: string) => {
@@ -634,8 +619,8 @@ export const useDoorConfig = create<DoorConfigStore>()(
     }),
     {
       name: "door-config-storage",
-      storage: createJSONStorage(() => localStorage),
-      version: 3,
+      storage: createJSONStorage(() => createResilientStorage()),
+      version: 5,
       migrate: (persistedState: any, version: number) => {
         const migrated = persistedState || {};
 
@@ -648,15 +633,12 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
         // Migration v2 -> v3: Ensure all fields exist with defaults
         if (version < 3) {
-          // Ensure arrays are initialized
           if (!Array.isArray(migrated.midRails)) {
             migrated.midRails = [];
           }
           if (!Array.isArray(migrated.hinges)) {
             migrated.hinges = [];
           }
-
-          // Ensure numeric fields have defaults
           if (typeof migrated.angledRailWidth !== 'number' || isNaN(migrated.angledRailWidth)) {
             migrated.angledRailWidth = initialState.angledRailWidth;
           }
@@ -674,14 +656,30 @@ export const useDoorConfig = create<DoorConfigStore>()(
           }
         }
 
+        // Migration v3 -> v4: Remove angle preset fields
+        if (version < 4) {
+          delete migrated.leftAnglePreset;
+          delete migrated.rightAnglePreset;
+        }
+
+        // Migration v4 -> v5: Add _hasInteracted flag
+        if (version < 5) {
+          // If they had data from v4, they are a returning user
+          migrated._hasInteracted = true;
+        }
+
         return migrated as DoorConfigStore;
       },
       onRehydrateStorage: () => (state) => {
         if (state) {
-          try {
-            state.calculatePrice();
-          } catch (error) {
-            console.error("Error calculating price on hydration:", error);
+          if (state._hasInteracted) {
+            // Returning user — restore config and recalculate price
+            state.isNewSession = false;
+            setTimeout(() => useDoorConfig.getState().calculatePrice(), 0);
+          } else {
+            // Genuinely new user — show placeholder with £0.00
+            state.isNewSession = true;
+            state.price = 0;
           }
         }
       },
@@ -689,7 +687,4 @@ export const useDoorConfig = create<DoorConfigStore>()(
   )
 );
 
-// Initialize price on load
-setTimeout(() => {
-  useDoorConfig.getState().calculatePrice();
-}, 0);
+// No auto-calculate on load — price starts at £0.00 for new sessions
