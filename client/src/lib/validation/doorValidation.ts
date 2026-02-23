@@ -94,6 +94,9 @@ export const doorConfigValidationSchema = z.object({
   cornerRadiusMm: z.number()
     .min(0, "Corner radius cannot be negative")
     .max(10, "Corner radius cannot exceed 10mm"),
+  rearCornerRadiusMm: z.number()
+    .min(0, "Rear corner radius cannot be negative")
+    .max(10, "Rear corner radius cannot exceed 10mm"),
 
   // Mid rails
   midRailsEnabled: z.boolean(),

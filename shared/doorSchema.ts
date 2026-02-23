@@ -95,6 +95,7 @@ export const doorConfigSchema = z.object({
   rebateDepthMm: z.number().min(8).max(20).default(14),
   frontFaceThicknessMm: z.number().min(4).max(12).default(8),
   cornerRadiusMm: z.number().min(0).max(10).default(0),
+  rearCornerRadiusMm: z.number().min(0).max(10).default(2.5),
 
   // Angled corners
   angledLeft: z.boolean().default(false),

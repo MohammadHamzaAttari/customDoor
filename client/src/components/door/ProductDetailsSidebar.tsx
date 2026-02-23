@@ -49,6 +49,7 @@ export function ProductDetailsSidebar() {
     rebateDepthMm,
     frontFaceThicknessMm,
     cornerRadiusMm,
+    rearCornerRadiusMm,
     midRailsEnabled,
     midRailsEqualise,
     midRails,
@@ -63,12 +64,13 @@ export function ProductDetailsSidebar() {
   } = config;
 
   // ✅ Single source of truth
-  const cartCount = doors.reduce((sum, d) => sum + d.qty, 0);
+  const cartCount = doors.reduce((sum: number, d: any) => sum + d.qty, 0);
   const [justAdded, setJustAdded] = useState(false);
 
   // Panel type labels
   const panelLabels: Record<string, string> = {
     STANDARD_12MM: "Standard 12mm MDF",
+    STANDARD_9MM: "Standard 9mm MDF",
     REEDED_19MM: "Reeded 19mm MDF",
     MELAMINE_18MM: "Melamine 18mm",
     NONE: "Slab (No Panel)",
@@ -89,6 +91,10 @@ export function ProductDetailsSidebar() {
     PRIMED: {
       label: "Primed",
       color: "bg-emerald-100 text-emerald-700",
+    },
+    PAINTED: {
+      label: "Painted",
+      color: "bg-blue-100 text-blue-700",
     },
   };
 
@@ -141,6 +147,21 @@ export function ProductDetailsSidebar() {
     });
   }
 
+  if (panelType !== "NONE") {
+    features.push({
+      label: "Rebate",
+      value: `${rebateWidthMm}w × ${rebateDepthMm}d mm`,
+    });
+    features.push({
+      label: "Front Face",
+      value: `${frontFaceThicknessMm}mm`,
+    });
+    features.push({
+      label: "Radii (F/R)",
+      value: `R${cornerRadiusMm} / R${rearCornerRadiusMm}`,
+    });
+  }
+
   const buildDoorData = () => ({
     id: editingCartItemId || undefined,
     width,
@@ -171,6 +192,7 @@ export function ProductDetailsSidebar() {
     rebateDepthMm,
     frontFaceThicknessMm,
     cornerRadiusMm,
+    rearCornerRadiusMm,
     midRailsEnabled,
     midRailsEqualise: midRailsEqualise || false,
     midRails: midRailsEnabled ? midRails : [],
@@ -234,7 +256,7 @@ export function ProductDetailsSidebar() {
     setLocation("/checkout");
   };
 
-  const orderSubtotal = doors.reduce((sum, d) => sum + d.lineTotal, 0);
+  const orderSubtotal = doors.reduce((sum: number, d: any) => sum + d.lineTotal, 0);
 
   return (
     <div className="h-full flex flex-col bg-white">

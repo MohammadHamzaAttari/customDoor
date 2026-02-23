@@ -58,6 +58,7 @@ export interface DoorOrderItem {
   rebateDepthMm: number;
   frontFaceThicknessMm: number;
   cornerRadiusMm: number;
+  rearCornerRadiusMm: number;
 
   // Mid rails
   midRailsEnabled: boolean;
@@ -141,6 +142,7 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   rebateDepthMm: 14,
   frontFaceThicknessMm: 8,
   cornerRadiusMm: 2.5,
+  rearCornerRadiusMm: 2.5,
 
   midRailsEnabled: false,
   midRailsEqualise: false,
@@ -522,6 +524,9 @@ export const useDoorStore = create<DoorStore>()(
             }
             if (typeof d.cornerRadiusMm !== 'number' || isNaN(d.cornerRadiusMm)) {
               d.cornerRadiusMm = DEFAULT_DOOR.cornerRadiusMm;
+            }
+            if (typeof d.rearCornerRadiusMm !== 'number' || isNaN(d.rearCornerRadiusMm)) {
+              d.rearCornerRadiusMm = DEFAULT_DOOR.rearCornerRadiusMm;
             }
             if (typeof d.leftAngledRailWidth !== 'number' || isNaN(d.leftAngledRailWidth)) {
               d.leftAngledRailWidth = DEFAULT_DOOR.leftAngledRailWidth;

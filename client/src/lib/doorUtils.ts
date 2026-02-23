@@ -51,6 +51,7 @@ export function getOuterEdgesAtY(
 /**
  * Calculates the inner (panel/hole) edges at a given Y height.
  * Accounts for stile and rail widths, including angled ones.
+ * Now supports a perpendicular inset for perfect padding.
  * All units in meters.
  */
 export function getInnerEdgesAtY(
@@ -61,36 +62,37 @@ export function getInnerEdgesAtY(
     rs: number,
     ts: number,
     bs: number,
-    arw: number,
+    arwL: number,
+    arwR: number,
     angledLeft: boolean,
     angledRight: boolean,
     lcw: number,
     lch: number,
     rcw: number,
-    rch: number
+    rch: number,
+    inset: number = 0 // New parameter for perpendicular padding
 ): { leftInner: number; rightInner: number } {
-    // Horizontal stiles (left/right)
-    let leftInner = -w / 2 + ls;
-    let rightInner = w / 2 - rs;
-
-    // Bottom rail constraint
-    // (Usually handled by the bottom coordinate of the hole, but good to have here)
+    // stile + inset (if not angled)
+    let leftInner = -w / 2 + ls + inset;
+    let rightInner = w / 2 - rs - inset;
 
     // Angled side constraints
     if (angledLeft && lch > 0.001 && lcw > 0.001) {
         const hyp = Math.sqrt(lcw * lcw + lch * lch);
-        const verticalShift = arw * (hyp / lcw);
+        // We shift the line inward by (arwL + inset) perpendicularly
+        const totalVertShift = (arwL + inset) * (hyp / lcw);
         const m = lch / lcw;
-        const c = (h / 2 - lch) - m * (-w / 2) - verticalShift;
+        const c = (h / 2 - lch) - m * (-w / 2) - totalVertShift;
         const xAtY = (y - c) / m;
         leftInner = Math.max(leftInner, xAtY);
     }
 
     if (angledRight && rch > 0.001 && rcw > 0.001) {
         const hyp = Math.sqrt(rcw * rcw + rch * rch);
-        const verticalShift = arw * (hyp / rcw);
+        // We shift the line inward by (arwR + inset) perpendicularly
+        const totalVertShift = (arwR + inset) * (hyp / rcw);
         const m = -rch / rcw;
-        const c = (h / 2 - rch) - m * (w / 2) - verticalShift;
+        const c = (h / 2 - rch) - m * (w / 2) - totalVertShift;
         const xAtY = (y - c) / m;
         rightInner = Math.min(rightInner, xAtY);
     }
@@ -175,7 +177,8 @@ export function createRoofPoints(
     rightX: number,
     leftX: number,
     flatTopInset: number,
-    angledInset: number,
+    angledInsetL: number,
+    angledInsetR: number,
     w: number,
     h: number,
     angledLeft: boolean,
@@ -202,9 +205,9 @@ export function createRoofPoints(
         ? Math.sqrt(rightCutW * rightCutW + rightCutH * rightCutH)
         : 0;
     const lShift =
-        hasL && leftCutW > 0 ? angledInset * (lHyp / leftCutW) : 0;
+        hasL && leftCutW > 0 ? angledInsetL * (lHyp / leftCutW) : 0;
     const rShift =
-        hasR && rightCutW > 0 ? angledInset * (rHyp / rightCutW) : 0;
+        hasR && rightCutW > 0 ? angledInsetR * (rHyp / rightCutW) : 0;
 
     // Calculate intersection points for the inner lines
     // Inner Top Line: y = h/2 - flatTopInset

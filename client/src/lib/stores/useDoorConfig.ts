@@ -68,6 +68,7 @@ export interface DoorConfig {
   rebateDepthMm: number;
   frontFaceThicknessMm: number;
   cornerRadiusMm: number;
+  rearCornerRadiusMm: number;
 
   midRailsEnabled: boolean;
   midRailsEqualise: boolean;
@@ -79,6 +80,7 @@ export interface DoorConfig {
   material: MaterialType;
   finish: FinishType;
   showDimensions: boolean;
+  viewSide: ViewSide;
   price: number;
   selectedSection: string;
   editingCartItemId: string | null;
@@ -116,6 +118,7 @@ interface DoorConfigStore extends DoorConfig {
   setRebateDepth: (depth: number) => void;
   setFrontFaceThickness: (thickness: number) => void;
   setCornerRadius: (radius: number) => void;
+  setRearCornerRadius: (radius: number) => void;
 
   setMidRailsEnabled: (enabled: boolean) => void;
   setMidRailsEqualise: (enabled: boolean) => void;
@@ -124,7 +127,7 @@ interface DoorConfigStore extends DoorConfig {
   updateMidRail: (id: string, field: 'positionFromBottom' | 'dimension', value: number) => void;
 
   setHingeDrilling: (enabled: boolean) => void;
-  addHinge: () => void;
+  addHinge: (reference?: "TOP" | "BOTTOM") => void;
   removeHinge: (id: string) => void;
   updateHinge: (id: string, field: keyof Hinge, value: any) => void;
   swapHingeSide: () => void;
@@ -132,6 +135,7 @@ interface DoorConfigStore extends DoorConfig {
 
   setFinish: (finish: FinishType) => void;
   toggleDimensions: () => void;
+  setViewSide: (side: ViewSide) => void;
   calculatePrice: () => void;
   resetConfig: () => void;
   setSelectedSection: (section: string) => void;
@@ -172,9 +176,10 @@ const initialState: DoorConfig = {
   topRail: 90,
 
   rebateWidthMm: 10,
-  rebateDepthMm: 14,
-  frontFaceThicknessMm: 8,
-  cornerRadiusMm: 0,
+  rebateDepthMm: 10,
+  frontFaceThicknessMm: 12,
+  cornerRadiusMm: 1,
+  rearCornerRadiusMm: 2.5,
 
   midRailsEnabled: false,
   midRailsEqualise: false,
@@ -186,6 +191,7 @@ const initialState: DoorConfig = {
   material: "MDF",
   finish: "RAW_UNASSEMBLED",
   showDimensions: true,
+  viewSide: "front" as ViewSide,
   price: 0,
   selectedSection: "dimensions",
   editingCartItemId: null,
@@ -392,6 +398,16 @@ export const useDoorConfig = create<DoorConfigStore>()(
         });
       },
 
+      setLeftAngledRailWidth: (leftAngledRailWidth: number) => {
+        if (isNaN(leftAngledRailWidth)) return;
+        set({ leftAngledRailWidth: Math.max(35, Math.min(200, leftAngledRailWidth)) });
+      },
+
+      setRightAngledRailWidth: (rightAngledRailWidth: number) => {
+        if (isNaN(rightAngledRailWidth)) return;
+        set({ rightAngledRailWidth: Math.max(35, Math.min(200, rightAngledRailWidth)) });
+      },
+
       setBorderWidth: (borderWidth: number) => {
         if (isNaN(borderWidth) || borderWidth <= 0) return;
         get().clearNewSession();
@@ -401,6 +417,8 @@ export const useDoorConfig = create<DoorConfigStore>()(
           rightStile: borderWidth,
           bottomRail: borderWidth,
           topRail: borderWidth,
+          leftAngledRailWidth: borderWidth,
+          rightAngledRailWidth: borderWidth,
         });
         get().calculatePrice();
       },
@@ -414,6 +432,8 @@ export const useDoorConfig = create<DoorConfigStore>()(
             rightStile: state.borderWidth,
             bottomRail: state.borderWidth,
             topRail: state.borderWidth,
+            leftAngledRailWidth: state.borderWidth,
+            rightAngledRailWidth: state.borderWidth,
           });
         } else {
           set({ customBorders });
@@ -444,6 +464,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       setRebateDepth: (rebateDepthMm: number) => set({ rebateDepthMm }),
       setFrontFaceThickness: (frontFaceThicknessMm: number) => set({ frontFaceThicknessMm }),
       setCornerRadius: (cornerRadiusMm: number) => set({ cornerRadiusMm }),
+      setRearCornerRadius: (rearCornerRadiusMm: number) => set({ rearCornerRadiusMm }),
 
       setMidRailsEnabled: (midRailsEnabled: boolean) => {
         get().clearNewSession();
@@ -520,22 +541,34 @@ export const useDoorConfig = create<DoorConfigStore>()(
         get().calculatePrice();
       },
 
-      addHinge: () => {
+      addHinge: (ref?: "TOP" | "BOTTOM") => {
         const state = get();
         const existingSide = state.hinges.length > 0 ? state.hinges[0].side : "LEFT";
         const existingType = state.hinges.length > 0 ? state.hinges[0].type : "SCREW_POINTS";
+
+        // If ref not provided, intelligently pick
+        const reference = ref || (state.hinges.length > 0 && state.hinges[state.hinges.length - 1].reference === "TOP" ? "BOTTOM" : "TOP");
+
         const newHinge: Hinge = {
           id: `hinge_${Date.now()}_${++hingeIdCounter}`,
           positionMm: 100,
-          reference: state.hinges.length > 0 && state.hinges[state.hinges.length - 1].reference === "TOP" ? "BOTTOM" : "TOP",
+          reference,
           side: existingSide,
           type: existingType,
         };
-        const updatedHinges = [...state.hinges, newHinge];
+
+        let updatedHinges = [...state.hinges, newHinge];
+
+        // Ensure sorted order: Tops by distance from top, then Bottoms by distance from bottom
+        updatedHinges.sort((a, b) => {
+          if (a.reference === b.reference) return a.positionMm - b.positionMm;
+          return a.reference === "TOP" ? -1 : 1;
+        });
+
         set({ hinges: updatedHinges });
 
-        // Auto-equalise when adding
-        if (updatedHinges.length >= 2) {
+        // Auto-equalise only if they had no hinges or just one before
+        if (updatedHinges.length === 2 && state.hinges.length < 2) {
           setTimeout(() => get().equaliseHinges(), 0);
         }
         get().calculatePrice();
@@ -581,15 +614,6 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (state.rightStile < minRight) set({ rightStile: minRight });
       },
 
-      setLeftAngledRailWidth: (leftAngledRailWidth: number) => {
-        if (isNaN(leftAngledRailWidth)) return;
-        set({ leftAngledRailWidth: Math.max(35, Math.min(200, leftAngledRailWidth)) });
-      },
-
-      setRightAngledRailWidth: (rightAngledRailWidth: number) => {
-        if (isNaN(rightAngledRailWidth)) return;
-        set({ rightAngledRailWidth: Math.max(35, Math.min(200, rightAngledRailWidth)) });
-      },
 
       equaliseHinges: () => {
         const state = get();

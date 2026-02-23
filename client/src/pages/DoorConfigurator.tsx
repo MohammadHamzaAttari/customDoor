@@ -4,7 +4,7 @@ import { ConfigSidebar } from "@/components/door/ConfigSidebar";
 import { ProductDetailsSidebar } from "@/components/door/ProductDetailsSidebar";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, Settings2, RotateCcw, Move3d, Menu, Eye } from "lucide-react";
+import { ChevronUp, Settings2, RotateCcw, Menu, Eye } from "lucide-react";
 import { useState, useRef, useCallback } from "react";
 import { Door2D } from "@/components/door/Door2D";
 import { cn } from "@/lib/utils";

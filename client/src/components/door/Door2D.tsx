@@ -118,8 +118,6 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
   const bs = effectiveBottomRail / 1000;
   const arwL = (leftAngledRailWidth ?? 90) / 1000;
   const arwR = (rightAngledRailWidth ?? 90) / 1000;
-  // Fallback for uniform use if needed, but we'll adapt our inner/outer tools below.
-  const arw = arwL;
   const lcw = leftTriangleCutoutWidth / 1000;
   const lch = leftTriangleCutoutHeight / 1000;
   const rcw = rightTriangleCutoutWidth / 1000;
@@ -140,13 +138,12 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     // "Inner" = The panel boundary inside the rebate
 
     // On the FRONT:
-    // Solid line represents the visible frame edge (effectiveStile).
-    // Dotted line represents the panel extent inside the frame (effectiveStile - rebateWidthMm).
+    // Solid line represents the visible frame opening (effectiveStile).
+    // Dotted line represents the panel holding rebate (effectiveStile - rebateWidthMm).
 
     // On the BACK:
-    // The panel fills up to the rebate edge (effectiveStile - rebateWidthMm).
-    // Solid line is where the panel meets the frame.
-    // Dotted line represents the inner front frame edge (effectiveStile).
+    // Solid line represents the rebate edge (effectiveStile - rebateWidthMm).
+    // Dotted line represents the front frame opening edge (effectiveStile).
 
     // Therefore, visible frame edge is always:
     const visibleFrameStyle = isBack ? { strokeDasharray: frameDash } : {};
@@ -189,7 +186,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
       );
     } else {
       const visibleRoof = createRoofPoints(
-        w / 2 - rs, -w / 2 + ls, ts, arw, w, h,
+        w / 2 - rs, -w / 2 + ls, ts, arwL, arwR, w, h,
         angledLeft, angledRight, lcw, lch, rcw, rch
       );
       const vPoints = visibleRoof.map(p => `${toX((p.x + w / 2) * 1000)},${toY((p.y + h / 2) * 1000)}`).join(" ");
@@ -207,7 +204,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     const rR = width - (effectiveRightStile - rebateWidthMm);
     const rB = effectiveBottomRail - rebateWidthMm;
     const rT = height - (effectiveTopRail - rebateWidthMm);
-    const rStroke = "#a8a29e";
+    const rStroke = isBack ? "#78716c" : "#a8a29e"; // More prominent if it's the solid back edge
 
     lines.push(
       <line key="left-stile-rebate"
@@ -238,9 +235,9 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
         />
       );
     } else {
-      const rM = rebateWidthMm / 1000;
+      const rM = (rebateWidthMm) / 1000;
       const rebateRoof = createRoofPoints(
-        w / 2 - (rs - rM), -w / 2 + (ls - rM), ts - rM, arw - rM, w, h,
+        w / 2 - (rs - rM), -w / 2 + (ls - rM), ts - rM, arwL - rM, arwR - rM, w, h,
         angledLeft, angledRight, lcw, lch, rcw, rch
       );
       const rPoints = rebateRoof.map(p => `${toX((p.x + w / 2) * 1000)},${toY((p.y + h / 2) * 1000)}`).join(" ");
@@ -264,29 +261,34 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
       const yBottomM = -h / 2 + railBottom;
       const yTopM = -h / 2 + railTop;
 
-      // Calculate angled ends using inner edges (respecting angled rails)
-      const { leftInner: xLeftB, rightInner: xRightB } = getInnerEdgesAtY(
-        yBottomM, w, h, ls, rs, ts, bs, arw,
-        angledLeft, angledRight, lcw, lch, rcw, rch
-      );
+      const transitionY_L = h / 2 - lch;
+      const transitionY_R = h / 2 - rch;
 
-      const { leftInner: xLeftT, rightInner: xRightT } = getInnerEdgesAtY(
-        yTopM, w, h, ls, rs, ts, bs, arw,
-        angledLeft, angledRight, lcw, lch, rcw, rch
-      );
+      const steps = 4;
+      const ySamples: number[] = [];
+      for (let i = 0; i <= steps; i++) {
+        ySamples.push(yBottomM + (yTopM - yBottomM) * (i / steps));
+      }
+      if (angledLeft && transitionY_L > yBottomM && transitionY_L < yTopM) ySamples.push(transitionY_L);
+      if (angledRight && transitionY_R > yBottomM && transitionY_R < yTopM) ySamples.push(transitionY_R);
 
-      // Convert back to door-relative mm for toX/toY
-      const pts = [
-        `${toX((xLeftB + w / 2) * 1000)},${toY((yBottomM + h / 2) * 1000)}`,
-        `${toX((xLeftT + w / 2) * 1000)},${toY((yTopM + h / 2) * 1000)}`,
-        `${toX((xRightT + w / 2) * 1000)},${toY((yTopM + h / 2) * 1000)}`,
-        `${toX((xRightB + w / 2) * 1000)},${toY((yBottomM + h / 2) * 1000)}`,
-      ].join(" ");
+      ySamples.sort((a, b) => a - b);
+      const uniqueYSamples = Array.from(new Set(ySamples));
+
+      const points: string[] = [];
+      uniqueYSamples.forEach(y => {
+        const { leftInner: xL } = getInnerEdgesAtY(y, w, h, ls, rs, ts, bs, arwL, arwR, angledLeft, angledRight, lcw, lch, rcw, rch);
+        points.push(`${toX((xL + w / 2) * 1000)},${toY((y + h / 2) * 1000)}`);
+      });
+      [...uniqueYSamples].reverse().forEach(y => {
+        const { rightInner: xR } = getInnerEdgesAtY(y, w, h, ls, rs, ts, bs, arwL, arwR, angledLeft, angledRight, lcw, lch, rcw, rch);
+        points.push(`${toX((xR + w / 2) * 1000)},${toY((y + h / 2) * 1000)}`);
+      });
 
       return (
         <polygon
           key={rail.id}
-          points={pts}
+          points={points.join(" ")}
           fill={railFillColor}
           stroke={strokeColor}
           strokeWidth={1}
@@ -295,55 +297,70 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     });
   };
 
+  const getPanelPoints = (sec: HoleSection, pPadM: number, rM: number) => {
+    const pBottom = sec.bottom - rM + pPadM;
+    const pTop = sec.top + rM - pPadM;
+    if (pTop <= pBottom) return [];
+
+    const steps = 6;
+    const ySamples: number[] = [];
+    for (let i = 0; i <= steps; i++) {
+      ySamples.push(pBottom + (pTop - pBottom) * (i / steps));
+    }
+
+    // Inject precise elbow points where stile meets angled rail
+    if (angledLeft && lcw > 0.001 && lch > 0.001) {
+      const mL = lch / lcw;
+      const hypL = Math.sqrt(lcw * lcw + lch * lch);
+      const shiftL = (arwL + rM + pPadM) * (hypL / lcw);
+      const yElbowL = mL * (ls + rM + pPadM) + (h / 2 - lch) - shiftL;
+      if (yElbowL > pBottom && yElbowL < pTop) ySamples.push(yElbowL);
+    }
+
+    if (angledRight && rcw > 0.001 && rch > 0.001) {
+      const mR = -rch / rcw;
+      const hypR = Math.sqrt(rcw * rcw + rch * rch);
+      const shiftR = (arwR + rM + pPadM) * (hypR / rcw);
+      const yElbowR = -mR * (rs + rM + pPadM) + (h / 2 - rch) - shiftR;
+      if (yElbowR > pBottom && yElbowR < pTop) ySamples.push(yElbowR);
+    }
+
+    ySamples.sort((a, b) => a - b);
+    const uniqueYSamples = Array.from(new Set(ySamples));
+
+    const points: string[] = [];
+    uniqueYSamples.forEach(y => {
+      const { leftInner: li } = getInnerEdgesAtY(y, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM);
+      points.push(`${toX((li + w / 2) * 1000)},${toY((y + h / 2) * 1000)}`);
+    });
+
+    if (sec.isTop && (angledLeft || angledRight)) {
+      const { leftInner: liT } = getInnerEdgesAtY(pTop, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM);
+      const { rightInner: riT } = getInnerEdgesAtY(pTop, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM);
+      const roof = createRoofPoints(riT, liT, ts + rM + pPadM, arwL + rM + pPadM, arwR + rM + pPadM, w, h, angledLeft, angledRight, lcw, lch, rcw, rch);
+      roof.reverse().forEach(pt => {
+        points.push(`${toX((pt.x + w / 2) * 1000)},${toY((pt.y + h / 2) * 1000)}`);
+      });
+    }
+
+    [...uniqueYSamples].reverse().forEach(y => {
+      const { rightInner: ri } = getInnerEdgesAtY(y, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM);
+      points.push(`${toX((ri + w / 2) * 1000)},${toY((y + h / 2) * 1000)}`);
+    });
+
+    return points;
+  };
+
   const renderPanels = () => {
     if (panelType === "NONE" || holeSections.length === 0) return null;
+    const paddingMm = 15;
+    const pPadM = paddingMm / 1000;
+    const rM = (isBack ? -rebateWidthMm : 0) / 1000;
 
-    const panels: JSX.Element[] = [];
-
-    // Ensure panels visually drop into the rebate extent.
-    // If not isBack, visually panel lives exactly up to effective stile? 
-    // Or into the rebate if viewing from back?
-    // Client requested: Back view panel draws TO the rebate lines (panel is larger).
-    // Let's compute panel start boundaries:
-    const panelPadding = 15; // fixed mm padding to draw panel inside the lines visually
-    const pPadM = panelPadding / 1000;
-    const rM = (isBack ? -rebateWidthMm : 0) / 1000; // if back, panel extends outwards into the frame by rebateWidthMm
-
-    holeSections.forEach((sec, idx) => {
-      const secBottom = sec.bottom - rM;
-      const secTop = sec.top + rM;
-
-      // Note: we're using arbitrary 'arw' approximation here for midrails 
-      // since the utility function signature only takes one arw. We use Left Angled as a proxy, 
-      // but in real world mid-rails under angles are rare.
-      const { leftInner: liB, rightInner: riB } = getInnerEdgesAtY(secBottom, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arw, angledLeft, angledRight, lcw, lch, rcw, rch);
-      const { leftInner: liT, rightInner: riT } = getInnerEdgesAtY(secTop, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arw, angledLeft, angledRight, lcw, lch, rcw, rch);
-
-      const pBottom = secBottom + pPadM;
-      const pTop = secTop - pPadM;
-      if (pTop <= pBottom) return;
-
-      const pLeftB = liB + pPadM;
-      const pRightB = riB - pPadM;
-      const pLeftT = liT + pPadM;
-      const pRightT = riT - pPadM;
-
-      let points: string[] = [];
-      points.push(`${toX((pLeftB + w / 2) * 1000)},${toY((pBottom + h / 2) * 1000)}`);
-
-      if (sec.isTop && (angledLeft || angledRight)) {
-        const roof = createRoofPoints(pRightB, pLeftB, ts + rM + pPadM, arw + pPadM, w, h, angledLeft, angledRight, lcw, lch, rcw, rch);
-        roof.reverse().forEach(pt => {
-          points.push(`${toX((pt.x + w / 2) * 1000)},${toY((pt.y + h / 2) * 1000)}`);
-        });
-      } else {
-        points.push(`${toX((pLeftT + w / 2) * 1000)},${toY((pTop + h / 2) * 1000)}`);
-        points.push(`${toX((pRightT + w / 2) * 1000)},${toY((pTop + h / 2) * 1000)}`);
-      }
-
-      points.push(`${toX((pRightB + w / 2) * 1000)},${toY((pBottom + h / 2) * 1000)}`);
-
-      panels.push(
+    return holeSections.map((sec, idx) => {
+      const points = getPanelPoints(sec, pPadM, rM);
+      if (points.length === 0) return null;
+      return (
         <polygon
           key={`panel-sec-${idx}`}
           points={points.join(" ")}
@@ -353,52 +370,89 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
         />
       );
     });
+  };
 
-    return panels;
+  const renderReededLines = () => {
+    if (panelType !== "REEDED_19MM" || holeSections.length === 0) return null;
+
+    const reedSpacingMm = 12;
+    const reedStroke = "#a8a29e";
+    const reedStrokeWidth = 0.4;
+    const pPadM = 15 / 1000;
+    const rM = (isBack ? -rebateWidthMm : 0) / 1000;
+
+    const result: JSX.Element[] = [];
+
+    holeSections.forEach((sec, secIdx) => {
+      const pBottom = sec.bottom - rM + pPadM;
+      const pTop = sec.top + rM - pPadM;
+      if (pTop <= pBottom) return;
+
+      const points = getPanelPoints(sec, pPadM, rM);
+      if (points.length === 0) return;
+
+      const { leftInner: liB, rightInner: riB } = getInnerEdgesAtY(pBottom, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM);
+      const leftMm = (liB + w / 2) * 1000;
+      const rightMm = (riB + w / 2) * 1000;
+      const spanMm = rightMm - leftMm;
+      if (spanMm <= 0) return;
+
+      const count = Math.max(2, Math.round(spanMm / reedSpacingMm));
+      const step = spanMm / count;
+      const clipId = `reed-clip-${secIdx}-${isBack ? "back" : "front"}`;
+
+      const lines: JSX.Element[] = [];
+      for (let i = 0; i <= count; i++) {
+        const xMm = leftMm + step * i;
+        lines.push(
+          <line
+            key={`reed-${secIdx}-${i}`}
+            x1={toX(xMm)} y1={toY((pBottom + h / 2) * 1000)}
+            x2={toX(xMm)} y2={toY((pTop + h / 2) * 1000 + 100)}
+            stroke={reedStroke}
+            strokeWidth={reedStrokeWidth}
+            opacity={0.6}
+          />
+        );
+      }
+
+      result.push(
+        <g key={`reed-group-${secIdx}`}>
+          <defs>
+            <clipPath id={clipId}>
+              <polygon points={points.join(" ")} />
+            </clipPath>
+          </defs>
+          <g clipPath={`url(#${clipId})`}>
+            {lines}
+          </g>
+        </g>
+      );
+    });
+
+    return result;
   };
 
   const renderHinges = () => {
     if (!hingeDrilling || hinges.length === 0) return null;
-
     const cupRadiusMm = HINGE_CUP_DIAMETER_MM / 2;
     const cupRadiusSvg = cupRadiusMm * scale;
 
     return hinges.map((hinge) => {
       const hingeSide = hinge.side;
-      const xCenter = hingeSide === "LEFT"
-        ? HINGE_CENTER_OFFSET_MM
-        : width - HINGE_CENTER_OFFSET_MM;
+      const xCenter = hingeSide === "LEFT" ? HINGE_CENTER_OFFSET_MM : width - HINGE_CENTER_OFFSET_MM;
       const yCenter = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
 
       return (
         <g key={`hinge-${hinge.id}`}>
-          <circle
-            cx={toX(xCenter)}
-            cy={toY(yCenter)}
-            r={cupRadiusSvg}
-            fill="none"
-            stroke={hingeStrokeColor}
-            strokeWidth={1.5}
-            strokeDasharray="4 2"
-          />
-          <line
-            x1={toX(xCenter) - 4} y1={toY(yCenter)}
-            x2={toX(xCenter) + 4} y2={toY(yCenter)}
-            stroke={hingeStrokeColor} strokeWidth={1}
-          />
-          <line
-            x1={toX(xCenter)} y1={toY(yCenter) - 4}
-            x2={toX(xCenter)} y2={toY(yCenter) + 4}
-            stroke={hingeStrokeColor} strokeWidth={1}
-          />
+          <circle cx={toX(xCenter)} cy={toY(yCenter)} r={cupRadiusSvg} fill="none" stroke={hingeStrokeColor} strokeWidth={1.5} strokeDasharray="4 2" />
+          <line x1={toX(xCenter) - 4} y1={toY(yCenter)} x2={toX(xCenter) + 4} y2={toY(yCenter)} stroke={hingeStrokeColor} strokeWidth={1} />
+          <line x1={toX(xCenter)} y1={toY(yCenter) - 4} x2={toX(xCenter)} y2={toY(yCenter) + 4} stroke={hingeStrokeColor} strokeWidth={1} />
           <text
             x={hingeSide === "LEFT" ? toX(xCenter) + cupRadiusSvg + 6 : toX(xCenter) - cupRadiusSvg - 6}
             y={toY(yCenter) + 4}
             textAnchor={hingeSide === "LEFT" ? "start" : "end"}
-            fill={hingeStrokeColor}
-            fontSize="9"
-            fontFamily="Arial, sans-serif"
-            fontWeight="600"
+            fill={hingeStrokeColor} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="600"
           >
             {hinge.reference === "BOTTOM" ? `B — ${hinge.positionMm}` : `T — ${hinge.positionMm}`}
           </text>
@@ -409,25 +463,14 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
 
   const renderHingeSideIndicator = () => {
     if (!hingeDrilling || hinges.length === 0) return null;
-
-    const side = hinges[0].side;
-    const isLeft = side === "LEFT";
-    const edgeX = isLeft ? 0 : width;
+    const isLeft = hinges[0].side === "LEFT";
+    const arrowX = isLeft ? toX(0) - 14 : toX(width) + 14;
     const midY = height / 2;
-    const arrowX = isLeft ? toX(edgeX) - 14 : toX(edgeX) + 14;
-
     return (
       <g>
         <text
-          x={arrowX}
-          y={toY(midY)}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill={hingeStrokeColor}
-          fontSize="9"
-          fontFamily="Arial, sans-serif"
-          fontWeight="700"
-          letterSpacing="1"
+          x={arrowX} y={toY(midY)} textAnchor="middle" dominantBaseline="middle"
+          fill={hingeStrokeColor} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="700" letterSpacing="1"
           transform={`rotate(-90, ${arrowX}, ${toY(midY)})`}
         >
           HINGE SIDE
@@ -438,146 +481,76 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
 
   const renderDimensions = () => {
     if (!showDimensions) return null;
-
     const dimOffset = 25;
     const elements: JSX.Element[] = [];
 
-    // Width dimension (bottom)
     elements.push(
       <g key="dim-width">
-        <line x1={toX(0)} y1={toY(0) + dimOffset} x2={toX(width)} y2={toY(0) + dimOffset}
-          stroke={dimensionColor} strokeWidth={1} />
-        <line x1={toX(0)} y1={toY(0) + dimOffset - 5} x2={toX(0)} y2={toY(0) + dimOffset + 5}
-          stroke={dimensionColor} strokeWidth={1} />
-        <line x1={toX(width)} y1={toY(0) + dimOffset - 5} x2={toX(width)} y2={toY(0) + dimOffset + 5}
-          stroke={dimensionColor} strokeWidth={1} />
-        <text x={toX(width / 2)} y={toY(0) + dimOffset + 15}
-          textAnchor="middle" fill={dimensionColor} fontSize="12" fontFamily="Arial, sans-serif" fontWeight="600">
-          {width}mm
-        </text>
+        <line x1={toX(0)} y1={toY(0) + dimOffset} x2={toX(width)} y2={toY(0) + dimOffset} stroke={dimensionColor} strokeWidth={1} />
+        <line x1={toX(0)} y1={toY(0) + dimOffset - 5} x2={toX(0)} y2={toY(0) + dimOffset + 5} stroke={dimensionColor} strokeWidth={1} />
+        <line x1={toX(width)} y1={toY(0) + dimOffset - 5} x2={toX(width)} y2={toY(0) + dimOffset + 5} stroke={dimensionColor} strokeWidth={1} />
+        <text x={toX(width / 2)} y={toY(0) + dimOffset + 15} textAnchor="middle" fill={dimensionColor} fontSize="12" fontFamily="Arial, sans-serif" fontWeight="600">{width}mm</text>
       </g>
     );
 
-    // Height dimension (right side - full height)
     elements.push(
       <g key="dim-height">
-        <line x1={toX(width) + dimOffset} y1={toY(0)} x2={toX(width) + dimOffset} y2={toY(height)}
-          stroke={dimensionColor} strokeWidth={1} />
-        <line x1={toX(width) + dimOffset - 5} y1={toY(0)} x2={toX(width) + dimOffset + 5} y2={toY(0)}
-          stroke={dimensionColor} strokeWidth={1} />
-        <line x1={toX(width) + dimOffset - 5} y1={toY(height)} x2={toX(width) + dimOffset + 5} y2={toY(height)}
-          stroke={dimensionColor} strokeWidth={1} />
-        <text x={toX(width) + dimOffset + 8} y={toY(height / 2)}
-          textAnchor="start" dominantBaseline="middle" fill={dimensionColor}
-          fontSize="12" fontFamily="Arial, sans-serif" fontWeight="600">
-          {height}mm
-        </text>
+        <line x1={toX(width) + dimOffset} y1={toY(0)} x2={toX(width) + dimOffset} y2={toY(height)} stroke={dimensionColor} strokeWidth={1} />
+        <line x1={toX(width) + dimOffset - 5} y1={toY(0)} x2={toX(width) + dimOffset + 5} y2={toY(0)} stroke={dimensionColor} strokeWidth={1} />
+        <line x1={toX(width) + dimOffset - 5} y1={toY(height)} x2={toX(width) + dimOffset + 5} y2={toY(height)} stroke={dimensionColor} strokeWidth={1} />
+        <text x={toX(width) + dimOffset + 8} y={toY(height / 2)} textAnchor="start" dominantBaseline="middle" fill={dimensionColor} fontSize="12" fontFamily="Arial, sans-serif" fontWeight="600">{height}mm</text>
       </g>
     );
 
-    // Border dimensions (inside the door, blue color for clarity)
     if (panelType !== "NONE") {
-      // Left stile dimension
       const borderDimY = height / 2;
       elements.push(
         <g key="dim-left-stile">
-          <line x1={toX(0)} y1={toY(borderDimY)} x2={toX(effectiveLeftStile)} y2={toY(borderDimY)}
-            stroke={borderDimColor} strokeWidth={0.7} />
-          <text x={toX(effectiveLeftStile / 2)} y={toY(borderDimY) - 4}
-            textAnchor="middle" fill={borderDimColor} fontSize="9" fontFamily="Arial, sans-serif">
-            {effectiveLeftStile}
-          </text>
+          <line x1={toX(0)} y1={toY(borderDimY)} x2={toX(effectiveLeftStile)} y2={toY(borderDimY)} stroke={borderDimColor} strokeWidth={0.7} />
+          <text x={toX(effectiveLeftStile / 2)} y={toY(borderDimY) - 4} textAnchor="middle" fill={borderDimColor} fontSize="9" fontFamily="Arial, sans-serif">{effectiveLeftStile}</text>
         </g>
       );
-
-      // Right stile dimension
       elements.push(
         <g key="dim-right-stile">
-          <line x1={toX(width - effectiveRightStile)} y1={toY(borderDimY)} x2={toX(width)} y2={toY(borderDimY)}
-            stroke={borderDimColor} strokeWidth={0.7} />
-          <text x={toX(width - effectiveRightStile / 2)} y={toY(borderDimY) - 4}
-            textAnchor="middle" fill={borderDimColor} fontSize="9" fontFamily="Arial, sans-serif">
-            {effectiveRightStile}
-          </text>
+          <line x1={toX(width - effectiveRightStile)} y1={toY(borderDimY)} x2={toX(width)} y2={toY(borderDimY)} stroke={borderDimColor} strokeWidth={0.7} />
+          <text x={toX(width - effectiveRightStile / 2)} y={toY(borderDimY) - 4} textAnchor="middle" fill={borderDimColor} fontSize="9" fontFamily="Arial, sans-serif">{effectiveRightStile}</text>
         </g>
       );
-
-      // Bottom rail dimension
       const borderDimX = width / 2;
       elements.push(
         <g key="dim-bottom-rail">
-          <line x1={toX(borderDimX)} y1={toY(0)} x2={toX(borderDimX)} y2={toY(effectiveBottomRail)}
-            stroke={borderDimColor} strokeWidth={0.7} />
-          <text x={toX(borderDimX) + 4} y={toY(effectiveBottomRail / 2)}
-            textAnchor="start" dominantBaseline="middle" fill={borderDimColor}
-            fontSize="9" fontFamily="Arial, sans-serif">
-            {effectiveBottomRail}
-          </text>
+          <line x1={toX(borderDimX)} y1={toY(0)} x2={toX(borderDimX)} y2={toY(effectiveBottomRail)} stroke={borderDimColor} strokeWidth={0.7} />
+          <text x={toX(borderDimX) + 4} y={toY(effectiveBottomRail / 2)} textAnchor="start" dominantBaseline="middle" fill={borderDimColor} fontSize="9" fontFamily="Arial, sans-serif">{effectiveBottomRail}</text>
         </g>
       );
-
-      // Top rail dimension (only if not angled at this point)
       if (!angledLeft && !angledRight) {
         elements.push(
           <g key="dim-top-rail">
-            <line x1={toX(borderDimX)} y1={toY(height - effectiveTopRail)} x2={toX(borderDimX)} y2={toY(height)}
-              stroke={borderDimColor} strokeWidth={0.7} />
-            <text x={toX(borderDimX) + 4} y={toY(height - effectiveTopRail / 2)}
-              textAnchor="start" dominantBaseline="middle" fill={borderDimColor}
-              fontSize="9" fontFamily="Arial, sans-serif">
-              {effectiveTopRail}
-            </text>
+            <line x1={toX(borderDimX)} y1={toY(height - effectiveTopRail)} x2={toX(borderDimX)} y2={toY(height)} stroke={borderDimColor} strokeWidth={0.7} />
+            <text x={toX(borderDimX) + 4} y={toY(height - effectiveTopRail / 2)} textAnchor="start" dominantBaseline="middle" fill={borderDimColor} fontSize="9" fontFamily="Arial, sans-serif">{effectiveTopRail}</text>
           </g>
         );
       }
     }
 
-    // Angled dimensions
     if (angledLeft && leftTriangleCutoutHeight > 0) {
       const shortSideHeight = height - leftTriangleCutoutHeight;
-      // Short side height from bottom (left side)
       elements.push(
         <g key="dim-angle-left-short">
-          <line x1={toX(0) - dimOffset} y1={toY(0)} x2={toX(0) - dimOffset} y2={toY(shortSideHeight)}
-            stroke="#ea580c" strokeWidth={1} />
-          <line x1={toX(0) - dimOffset - 4} y1={toY(height)} x2={toX(0) - dimOffset + 4} y2={toY(height)}
-            stroke="#ea580c" strokeWidth={1} />
-          <line x1={toX(0) - dimOffset - 4} y1={toY(shortSideHeight)} x2={toX(0) - dimOffset + 4} y2={toY(shortSideHeight)}
-            stroke="#ea580c" strokeWidth={1} />
-          <text x={toX(0) - dimOffset - 6} y={toY(shortSideHeight + leftTriangleCutoutHeight / 2)}
-            textAnchor="end" dominantBaseline="middle" fill="#ea580c"
-            fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
-            {leftTriangleCutoutHeight}mm
-          </text>
+          <line x1={toX(0) - dimOffset} y1={toY(0)} x2={toX(0) - dimOffset} y2={toY(shortSideHeight)} stroke="#ea580c" strokeWidth={1} />
+          <text x={toX(0) - dimOffset - 6} y={toY(shortSideHeight + leftTriangleCutoutHeight / 2)} textAnchor="end" dominantBaseline="middle" fill="#ea580c" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">{leftTriangleCutoutHeight}mm</text>
         </g>
       );
-
-      // Cut Width Top
       if (leftTriangleCutoutWidth > 0) {
         elements.push(
           <g key="dim-angle-left-width">
-            <line x1={toX(0)} y1={toY(height) - dimOffset} x2={toX(leftTriangleCutoutWidth)} y2={toY(height) - dimOffset}
-              stroke="#ea580c" strokeWidth={1} />
-            <line x1={toX(0)} y1={toY(height) - dimOffset - 4} x2={toX(0)} y2={toY(height) - dimOffset + 4}
-              stroke="#ea580c" strokeWidth={1} />
-            <line x1={toX(leftTriangleCutoutWidth)} y1={toY(height) - dimOffset - 4} x2={toX(leftTriangleCutoutWidth)} y2={toY(height) - dimOffset + 4}
-              stroke="#ea580c" strokeWidth={1} />
-            <text x={toX(leftTriangleCutoutWidth / 2)} y={toY(height) - dimOffset - 6}
-              textAnchor="middle" fill="#ea580c"
-              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
-              {leftTriangleCutoutWidth}mm
-            </text>
+            <line x1={toX(0)} y1={toY(height) - dimOffset} x2={toX(leftTriangleCutoutWidth)} y2={toY(height) - dimOffset} stroke="#ea580c" strokeWidth={1} />
+            <text x={toX(leftTriangleCutoutWidth / 2)} y={toY(height) - dimOffset - 6} textAnchor="middle" fill="#ea580c" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">{leftTriangleCutoutWidth}mm</text>
           </g>
         );
-
-        // Explicit explicit Angle Measurement
         elements.push(
           <g key="dim-angle-left-degrees">
-            <text x={toX(leftTriangleCutoutWidth / 3)} y={toY(height - leftTriangleCutoutHeight) - 15}
-              textAnchor="middle" fill="#ea580c"
-              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">
-              {leftAngleDegrees}°
-            </text>
+            <text x={toX(leftTriangleCutoutWidth / 3)} y={toY(height - leftTriangleCutoutHeight) - 15} textAnchor="middle" fill="#ea580c" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">{leftAngleDegrees}°</text>
           </g>
         );
       }
@@ -585,94 +558,109 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
 
     if (angledRight && rightTriangleCutoutHeight > 0) {
       const shortSideHeight = height - rightTriangleCutoutHeight;
-      // Short side height from bottom (right side)
       elements.push(
         <g key="dim-angle-right-short">
-          <line x1={toX(width) + dimOffset + 25} y1={toY(0)} x2={toX(width) + dimOffset + 25} y2={toY(shortSideHeight)}
-            stroke="#9333ea" strokeWidth={1} />
-          <line x1={toX(width) + dimOffset + 21} y1={toY(height)} x2={toX(width) + dimOffset + 29} y2={toY(height)}
-            stroke="#9333ea" strokeWidth={1} />
-          <line x1={toX(width) + dimOffset + 21} y1={toY(shortSideHeight)} x2={toX(width) + dimOffset + 29} y2={toY(shortSideHeight)}
-            stroke="#9333ea" strokeWidth={1} />
-          <text x={toX(width) + dimOffset + 33} y={toY(shortSideHeight + rightTriangleCutoutHeight / 2)}
-            textAnchor="start" dominantBaseline="middle" fill="#9333ea"
-            fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
-            {rightTriangleCutoutHeight}mm
-          </text>
+          <line x1={toX(width) + dimOffset + 25} y1={toY(0)} x2={toX(width) + dimOffset + 25} y2={toY(shortSideHeight)} stroke="#9333ea" strokeWidth={1} />
+          <text x={toX(width) + dimOffset + 33} y={toY(shortSideHeight + rightTriangleCutoutHeight / 2)} textAnchor="start" dominantBaseline="middle" fill="#9333ea" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">{rightTriangleCutoutHeight}mm</text>
         </g>
       );
-
-      // Cut Width Top
       if (rightTriangleCutoutWidth > 0) {
         elements.push(
           <g key="dim-angle-right-width">
-            <line x1={toX(width - rightTriangleCutoutWidth)} y1={toY(height) - dimOffset} x2={toX(width)} y2={toY(height) - dimOffset}
-              stroke="#9333ea" strokeWidth={1} />
-            <line x1={toX(width - rightTriangleCutoutWidth)} y1={toY(height) - dimOffset - 4} x2={toX(width - rightTriangleCutoutWidth)} y2={toY(height) - dimOffset + 4}
-              stroke="#9333ea" strokeWidth={1} />
-            <line x1={toX(width)} y1={toY(height) - dimOffset - 4} x2={toX(width)} y2={toY(height) - dimOffset + 4}
-              stroke="#9333ea" strokeWidth={1} />
-            <text x={toX(width - rightTriangleCutoutWidth / 2)} y={toY(height) - dimOffset - 6}
-              textAnchor="middle" fill="#9333ea"
-              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
-              {rightTriangleCutoutWidth}mm
-            </text>
+            <line x1={toX(width - rightTriangleCutoutWidth)} y1={toY(height) - dimOffset} x2={toX(width)} y2={toY(height) - dimOffset} stroke="#9333ea" strokeWidth={1} />
+            <text x={toX(width - rightTriangleCutoutWidth / 2)} y={toY(height) - dimOffset - 6} textAnchor="middle" fill="#9333ea" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">{rightTriangleCutoutWidth}mm</text>
           </g>
         );
-
-        // Explicit explicit Angle Measurement
         elements.push(
           <g key="dim-angle-right-degrees">
-            <text x={toX(width - rightTriangleCutoutWidth / 3)} y={toY(height - rightTriangleCutoutHeight) - 15}
-              textAnchor="middle" fill="#9333ea"
-              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">
-              {rightAngleDegrees}°
-            </text>
+            <text x={toX(width - rightTriangleCutoutWidth / 3)} y={toY(height - rightTriangleCutoutHeight) - 15} textAnchor="middle" fill="#9333ea" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">{rightAngleDegrees}°</text>
           </g>
         );
       }
     }
 
-    // Angled Rail Width Labels
     if (panelType !== "NONE") {
       if (angledLeft && leftTriangleCutoutWidth > 0 && leftTriangleCutoutHeight > 0) {
-        // Label for the left angled rail
-        const midAngleX = -width / 2 + leftTriangleCutoutWidth / 2;
-        const midAngleY = height - leftTriangleCutoutHeight / 2;
-        // Position it slightly shifted inward from the angled edge
+        // Find midpoint of angled edge
+        const x1 = 0;
+        const y1 = height - leftTriangleCutoutHeight;
+        const x2 = leftTriangleCutoutWidth;
+        const y2 = height;
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+
+        // Normal vector for offset (perpendicular to angle)
+        const angleRad = (leftAngleDegrees * Math.PI) / 180;
+        const nx = Math.cos(angleRad + Math.PI / 2);
+        const ny = Math.sin(angleRad + Math.PI / 2); // Y is up for geometry
+
+        const dimDist = 20; // Offset for dimension line
+        const ax = mx + nx * dimDist;
+        const ay = my + ny * dimDist;
+
         elements.push(
           <g key="dim-angled-rail-left">
+            {/* Dimension line connecting the ticks */}
+            <line
+              x1={toX(ax - nx * 10)} y1={toY(ay - ny * 10)}
+              x2={toX(ax + nx * 10)} y2={toY(ay + ny * 10)}
+              stroke={borderDimColor} strokeWidth={0.7} strokeOpacity={0.5}
+            />
+            {/* Ticks/Brackets */}
+            <line
+              x1={toX(mx + nx * (dimDist - 5))} y1={toY(my + ny * (dimDist - 5))}
+              x2={toX(mx + nx * (dimDist + 5))} y2={toY(my + ny * (dimDist + 5))}
+              stroke={borderDimColor} strokeWidth={1.5}
+            />
+            {/* Inner Tick for the actual rail edge */}
+            <circle cx={toX(mx)} cy={toY(my)} r="1.5" fill={borderDimColor} />
+
+            {/* Value (rotated) */}
             <text
-              x={toX(midAngleX + width / 2 + 10)}
-              y={toY(midAngleY - 10)}
-              textAnchor="middle"
-              fill={borderDimColor}
-              fontSize="9"
-              fontFamily="Arial, sans-serif"
-              transform={`rotate(${-leftAngleDegrees}, ${toX(midAngleX + width / 2 + 10)}, ${toY(midAngleY - 10)})`}
+              x={toX(ax)} y={toY(ay)} textAnchor="middle" fill={borderDimColor} fontSize="10" fontFamily="Arial, sans-serif" fontWeight="900"
+              transform={`rotate(${-leftAngleDegrees}, ${toX(ax)}, ${toY(ay)})`}
+              dy="-4"
             >
-              {leftAngledRailWidth}
+              {leftAngledRailWidth}mm
             </text>
           </g>
         );
       }
-
       if (angledRight && rightTriangleCutoutWidth > 0 && rightTriangleCutoutHeight > 0) {
-        // Label for the right angled rail
-        const midAngleX = width / 2 - rightTriangleCutoutWidth / 2;
-        const midAngleY = height - rightTriangleCutoutHeight / 2;
+        const x1 = width - rightTriangleCutoutWidth;
+        const y1 = height;
+        const x2 = width;
+        const y2 = height - rightTriangleCutoutHeight;
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+
+        const angleRad = (rightAngleDegrees * Math.PI) / 180;
+        const nx = -Math.cos(angleRad - Math.PI / 2); // Mirror for right side
+        const ny = Math.sin(angleRad - Math.PI / 2);
+
+        const dimDist = 20;
+        const ax = mx + nx * dimDist;
+        const ay = my + ny * dimDist;
+
         elements.push(
           <g key="dim-angled-rail-right">
+            <line
+              x1={toX(ax - nx * 10)} y1={toY(ay - ny * 10)}
+              x2={toX(ax + nx * 10)} y2={toY(ay + ny * 10)}
+              stroke={borderDimColor} strokeWidth={0.7} strokeOpacity={0.5}
+            />
+            <line
+              x1={toX(mx + nx * (dimDist - 5))} y1={toY(my + ny * (dimDist - 5))}
+              x2={toX(mx + nx * (dimDist + 5))} y2={toY(my + ny * (dimDist + 5))}
+              stroke={borderDimColor} strokeWidth={1.5}
+            />
+            <circle cx={toX(mx)} cy={toY(my)} r="1.5" fill={borderDimColor} />
             <text
-              x={toX(midAngleX + width / 2 - 10)}
-              y={toY(midAngleY - 10)}
-              textAnchor="middle"
-              fill={borderDimColor}
-              fontSize="9"
-              fontFamily="Arial, sans-serif"
-              transform={`rotate(${rightAngleDegrees}, ${toX(midAngleX + width / 2 - 10)}, ${toY(midAngleY - 10)})`}
+              x={toX(ax)} y={toY(ay)} textAnchor="middle" fill={borderDimColor} fontSize="10" fontFamily="Arial, sans-serif" fontWeight="900"
+              transform={`rotate(${rightAngleDegrees}, ${toX(ax)}, ${toY(ay)})`}
+              dy="-4"
             >
-              {rightAngledRailWidth}
+              {rightAngledRailWidth}mm
             </text>
           </g>
         );
@@ -715,6 +703,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
           />
 
           {renderPanels()}
+          {renderReededLines()}
           {renderFrameLines()}
           {renderMidRails()}
           {renderHinges()}

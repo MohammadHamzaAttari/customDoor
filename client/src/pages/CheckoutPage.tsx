@@ -21,6 +21,7 @@ import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PANEL_LABELS: Record<string, string> = {
   STANDARD_12MM: "Standard 12mm MDF",
+  STANDARD_9MM: "Standard 9mm MDF",
   REEDED_19MM: "Reeded 19mm MDF",
   MELAMINE_18MM: "Melamine 18mm",
   NONE: "Slab (No Panel)",
@@ -32,6 +33,7 @@ const FINISH_LABELS: Record<string, { label: string; color: string }> = {
   RAW_UNASSEMBLED: { label: "Raw Unassembled", color: "bg-stone-100 text-stone-700" },
   ASSEMBLED_PREP: { label: "Assembled & Prepped", color: "bg-stone-200 text-stone-800" },
   PRIMED: { label: "Primed", color: "bg-emerald-100 text-emerald-700" },
+  PAINTED: { label: "Painted", color: "bg-blue-100 text-blue-700" },
 };
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
@@ -181,7 +183,7 @@ function CartItemCard({
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-stone-500 mt-2 text-center">Area: {areaM2.toFixed(3)} m²</p>
+
             </div>
 
             <Separator />
@@ -197,7 +199,7 @@ function CartItemCard({
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-stone-600">Finish</span>
                   <div className="flex gap-1">
-                    {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED"] as const).map((f) => (
+                    {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED", "PAINTED"] as const).map((f) => (
                       <button
                         key={f}
                         onClick={() => onFinishChange(item.id, f)}
@@ -252,12 +254,20 @@ function CartItemCard({
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-stone-600">Borders</span>
-                  <span className="text-sm font-medium text-stone-900">
-                    {item.customBorders
-                      ? `L:${item.leftStile} R:${item.rightStile} T:${item.topRail} B:${item.bottomRail}mm`
-                      : `${item.borderWidth}mm (uniform)`}
+                  <span className="text-sm text-stone-600">Finish Level</span>
+                  <span className="text-sm font-medium text-stone-900 italic">
+                    {currentFinish.label}
                   </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="py-2 px-3 bg-gray-50 rounded-lg">
+                    <p className="text-[10px] text-stone-500 uppercase">Rebate</p>
+                    <p className="text-sm font-medium text-stone-900">{item.rebateWidthMm}w × {item.rebateDepthMm}d mm</p>
+                  </div>
+                  <div className="py-2 px-3 bg-gray-50 rounded-lg">
+                    <p className="text-[10px] text-stone-500 uppercase">Corner Rad.</p>
+                    <p className="text-sm font-medium text-stone-900">F:R{item.cornerRadiusMm} / B:R{item.rearCornerRadiusMm}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -719,10 +729,12 @@ export default function CheckoutPage() {
                             {catInfo.icon} {item.label}
                           </h3>
                           <p className="text-xs text-stone-500 mt-0.5">
-                            {item.width}×{item.height}×{item.thickness}mm
+                            {item.width}×{item.height}mm · {item.thickness}mm · {item.finish.replace(/_/g, " ")}
+                            {item.angledLeft && " · Angled L"}
+                            {item.angledRight && " · Angled R"}
                           </p>
-                          <p className="text-xs text-stone-400">
-                            {PANEL_LABELS[item.panelType] || item.panelType}
+                          <p className="text-xs text-stone-400 font-medium">
+                            {PANEL_LABELS[item.panelType] || item.panelType} (Rebate: {item.rebateWidthMm}mm)
                           </p>
                         </div>
                         <div className="text-right shrink-0">
