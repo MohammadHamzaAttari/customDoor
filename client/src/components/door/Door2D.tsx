@@ -1,4 +1,4 @@
-import { useDoorConfig, HINGE_CUP_DIAMETER_MM, HINGE_CENTER_OFFSET_MM } from "@/lib/stores/useDoorConfig";
+import { useDoorConfig, HINGE_CUP_DIAMETER_MM, HINGE_CENTER_OFFSET_MM, DoorConfig } from "@/lib/stores/useDoorConfig";
 import {
   getOuterEdgesAtY,
   getInnerEdgesAtY,
@@ -10,10 +10,12 @@ import {
 
 interface Door2DProps {
   face?: "front" | "back";
+  configOverride?: Partial<DoorConfig>;
 }
 
-export function Door2D({ face = "front" }: Door2DProps) {
-  const config = useDoorConfig();
+export function Door2D({ face = "front", configOverride }: Door2DProps) {
+  const storeConfig = useDoorConfig();
+  const config = configOverride ? { ...storeConfig, ...configOverride } : storeConfig;
 
   const {
     width,
@@ -36,11 +38,13 @@ export function Door2D({ face = "front" }: Door2DProps) {
     showDimensions,
     hingeDrilling,
     hinges,
-    angledRailWidth,
     customBorders,
     borderWidth,
     leftAngleDegrees,
     rightAngleDegrees,
+    rebateWidthMm,
+    leftAngledRailWidth,
+    rightAngledRailWidth,
   } = config;
 
   const isBack = face === "back";
@@ -112,7 +116,10 @@ export function Door2D({ face = "front" }: Door2DProps) {
   const rs = effectiveRightStile / 1000;
   const ts = effectiveTopRail / 1000;
   const bs = effectiveBottomRail / 1000;
-  const arw = (config.angledRailWidth ?? 90) / 1000;
+  const arwL = (leftAngledRailWidth ?? 90) / 1000;
+  const arwR = (rightAngledRailWidth ?? 90) / 1000;
+  // Fallback for uniform use if needed, but we'll adapt our inner/outer tools below.
+  const arw = arwL;
   const lcw = leftTriangleCutoutWidth / 1000;
   const lch = leftTriangleCutoutHeight / 1000;
   const rcw = rightTriangleCutoutWidth / 1000;
@@ -129,40 +136,118 @@ export function Door2D({ face = "front" }: Door2DProps) {
     const frameStrokeWidth = 0.5;
     const frameDash = "4 2";
 
-    // Left stile line
+    // "Outer" = The visible frame edge from front
+    // "Inner" = The panel boundary inside the rebate
+
+    // On the FRONT:
+    // Solid line represents the visible frame edge (effectiveStile).
+    // Dotted line represents the panel extent inside the frame (effectiveStile - rebateWidthMm).
+
+    // On the BACK:
+    // The panel fills up to the rebate edge (effectiveStile - rebateWidthMm).
+    // Solid line is where the panel meets the frame.
+    // Dotted line represents the inner front frame edge (effectiveStile).
+
+    // Therefore, visible frame edge is always:
+    const visibleFrameStyle = isBack ? { strokeDasharray: frameDash } : {};
+
+    // Left stile visible line
     lines.push(
-      <line key="left-stile"
+      <line key="left-stile-vis"
         x1={toX(effectiveLeftStile)} y1={toY(effectiveBottomRail)}
         x2={toX(effectiveLeftStile)} y2={toY(height - effectiveTopRail)}
-        stroke={frameStroke} strokeWidth={frameStrokeWidth} strokeDasharray={frameDash}
+        stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
       />
     );
 
-    // Right stile line
+    // Right stile visible line
     lines.push(
-      <line key="right-stile"
+      <line key="right-stile-vis"
         x1={toX(width - effectiveRightStile)} y1={toY(effectiveBottomRail)}
         x2={toX(width - effectiveRightStile)} y2={toY(height - effectiveTopRail)}
-        stroke={frameStroke} strokeWidth={frameStrokeWidth} strokeDasharray={frameDash}
+        stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
       />
     );
 
-    // Bottom rail line
+    // Bottom rail visible line
     lines.push(
-      <line key="bottom-rail"
+      <line key="bottom-rail-vis"
         x1={toX(effectiveLeftStile)} y1={toY(effectiveBottomRail)}
         x2={toX(width - effectiveRightStile)} y2={toY(effectiveBottomRail)}
-        stroke={frameStroke} strokeWidth={frameStrokeWidth} strokeDasharray={frameDash}
+        stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
       />
     );
 
-    // Top rail line (handle angled)
+    // Top rail visible line (handle angled)
     if (!angledLeft && !angledRight) {
       lines.push(
-        <line key="top-rail"
+        <line key="top-rail-vis"
           x1={toX(effectiveLeftStile)} y1={toY(height - effectiveTopRail)}
           x2={toX(width - effectiveRightStile)} y2={toY(height - effectiveTopRail)}
-          stroke={frameStroke} strokeWidth={frameStrokeWidth} strokeDasharray={frameDash}
+          stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
+        />
+      );
+    } else {
+      const visibleRoof = createRoofPoints(
+        w / 2 - rs, -w / 2 + ls, ts, arw, w, h,
+        angledLeft, angledRight, lcw, lch, rcw, rch
+      );
+      const vPoints = visibleRoof.map(p => `${toX((p.x + w / 2) * 1000)},${toY((p.y + h / 2) * 1000)}`).join(" ");
+      lines.push(
+        <polyline key="top-rail-vis-angled"
+          points={vPoints}
+          fill="none" stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
+        />
+      );
+    }
+
+    // "Rebate" or panel extent line:
+    const rebateStyle = isBack ? {} : { strokeDasharray: frameDash };
+    const rL = effectiveLeftStile - rebateWidthMm;
+    const rR = width - (effectiveRightStile - rebateWidthMm);
+    const rB = effectiveBottomRail - rebateWidthMm;
+    const rT = height - (effectiveTopRail - rebateWidthMm);
+    const rStroke = "#a8a29e";
+
+    lines.push(
+      <line key="left-stile-rebate"
+        x1={toX(rL)} y1={toY(rB)} x2={toX(rL)} y2={toY(rT)}
+        stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+      />
+    );
+
+    lines.push(
+      <line key="right-stile-rebate"
+        x1={toX(rR)} y1={toY(rB)} x2={toX(rR)} y2={toY(rT)}
+        stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+      />
+    );
+
+    lines.push(
+      <line key="bottom-rail-rebate"
+        x1={toX(rL)} y1={toY(rB)} x2={toX(rR)} y2={toY(rB)}
+        stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+      />
+    );
+
+    if (!angledLeft && !angledRight) {
+      lines.push(
+        <line key="top-rail-rebate"
+          x1={toX(rL)} y1={toY(rT)} x2={toX(rR)} y2={toY(rT)}
+          stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+        />
+      );
+    } else {
+      const rM = rebateWidthMm / 1000;
+      const rebateRoof = createRoofPoints(
+        w / 2 - (rs - rM), -w / 2 + (ls - rM), ts - rM, arw - rM, w, h,
+        angledLeft, angledRight, lcw, lch, rcw, rch
+      );
+      const rPoints = rebateRoof.map(p => `${toX((p.x + w / 2) * 1000)},${toY((p.y + h / 2) * 1000)}`).join(" ");
+      lines.push(
+        <polyline key="top-rail-rebate-angled"
+          points={rPoints}
+          fill="none" stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
         />
       );
     }
@@ -214,18 +299,26 @@ export function Door2D({ face = "front" }: Door2DProps) {
     if (panelType === "NONE" || holeSections.length === 0) return null;
 
     const panels: JSX.Element[] = [];
-    const panelPadding = 15; // mm
+
+    // Ensure panels visually drop into the rebate extent.
+    // If not isBack, visually panel lives exactly up to effective stile? 
+    // Or into the rebate if viewing from back?
+    // Client requested: Back view panel draws TO the rebate lines (panel is larger).
+    // Let's compute panel start boundaries:
+    const panelPadding = 15; // fixed mm padding to draw panel inside the lines visually
     const pPadM = panelPadding / 1000;
+    const rM = (isBack ? -rebateWidthMm : 0) / 1000; // if back, panel extends outwards into the frame by rebateWidthMm
 
     holeSections.forEach((sec, idx) => {
-      const secBottom = sec.bottom;
-      const secTop = sec.top;
+      const secBottom = sec.bottom - rM;
+      const secTop = sec.top + rM;
 
-      // Get inner boundaries at top and bottom of this section
-      const { leftInner: liB, rightInner: riB } = getInnerEdgesAtY(secBottom, w, h, ls, rs, ts, bs, arw, angledLeft, angledRight, lcw, lch, rcw, rch);
-      const { leftInner: liT, rightInner: riT } = getInnerEdgesAtY(secTop, w, h, ls, rs, ts, bs, arw, angledLeft, angledRight, lcw, lch, rcw, rch);
+      // Note: we're using arbitrary 'arw' approximation here for midrails 
+      // since the utility function signature only takes one arw. We use Left Angled as a proxy, 
+      // but in real world mid-rails under angles are rare.
+      const { leftInner: liB, rightInner: riB } = getInnerEdgesAtY(secBottom, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arw, angledLeft, angledRight, lcw, lch, rcw, rch);
+      const { leftInner: liT, rightInner: riT } = getInnerEdgesAtY(secTop, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arw, angledLeft, angledRight, lcw, lch, rcw, rch);
 
-      // Apply internal padding
       const pBottom = secBottom + pPadM;
       const pTop = secTop - pPadM;
       if (pTop <= pBottom) return;
@@ -239,9 +332,7 @@ export function Door2D({ face = "front" }: Door2DProps) {
       points.push(`${toX((pLeftB + w / 2) * 1000)},${toY((pBottom + h / 2) * 1000)}`);
 
       if (sec.isTop && (angledLeft || angledRight)) {
-        // Use createRoofPoints for the top panel's angled edge
-        const roof = createRoofPoints(pRightB, pLeftB, ts + pPadM, arw + pPadM, w, h, angledLeft, angledRight, lcw, lch, rcw, rch);
-        // Roof points are in door-centered coordinates
+        const roof = createRoofPoints(pRightB, pLeftB, ts + rM + pPadM, arw + pPadM, w, h, angledLeft, angledRight, lcw, lch, rcw, rch);
         roof.reverse().forEach(pt => {
           points.push(`${toX((pt.x + w / 2) * 1000)},${toY((pt.y + h / 2) * 1000)}`);
         });
@@ -277,7 +368,7 @@ export function Door2D({ face = "front" }: Door2DProps) {
       const xCenter = hingeSide === "LEFT"
         ? HINGE_CENTER_OFFSET_MM
         : width - HINGE_CENTER_OFFSET_MM;
-      const yCenter = hinge.positionFromBottomMm;
+      const yCenter = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
 
       return (
         <g key={`hinge-${hinge.id}`}>
@@ -309,7 +400,7 @@ export function Door2D({ face = "front" }: Door2DProps) {
             fontFamily="Arial, sans-serif"
             fontWeight="600"
           >
-            {yCenter}mm
+            {hinge.reference === "BOTTOM" ? `B — ${hinge.positionMm}` : `T — ${hinge.positionMm}`}
           </text>
         </g>
       );
@@ -449,17 +540,47 @@ export function Door2D({ face = "front" }: Door2DProps) {
         <g key="dim-angle-left-short">
           <line x1={toX(0) - dimOffset} y1={toY(0)} x2={toX(0) - dimOffset} y2={toY(shortSideHeight)}
             stroke="#ea580c" strokeWidth={1} />
-          <line x1={toX(0) - dimOffset - 4} y1={toY(0)} x2={toX(0) - dimOffset + 4} y2={toY(0)}
+          <line x1={toX(0) - dimOffset - 4} y1={toY(height)} x2={toX(0) - dimOffset + 4} y2={toY(height)}
             stroke="#ea580c" strokeWidth={1} />
           <line x1={toX(0) - dimOffset - 4} y1={toY(shortSideHeight)} x2={toX(0) - dimOffset + 4} y2={toY(shortSideHeight)}
             stroke="#ea580c" strokeWidth={1} />
-          <text x={toX(0) - dimOffset - 6} y={toY(shortSideHeight / 2)}
+          <text x={toX(0) - dimOffset - 6} y={toY(shortSideHeight + leftTriangleCutoutHeight / 2)}
             textAnchor="end" dominantBaseline="middle" fill="#ea580c"
             fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
-            {shortSideHeight}mm
+            {leftTriangleCutoutHeight}mm
           </text>
         </g>
       );
+
+      // Cut Width Top
+      if (leftTriangleCutoutWidth > 0) {
+        elements.push(
+          <g key="dim-angle-left-width">
+            <line x1={toX(0)} y1={toY(height) - dimOffset} x2={toX(leftTriangleCutoutWidth)} y2={toY(height) - dimOffset}
+              stroke="#ea580c" strokeWidth={1} />
+            <line x1={toX(0)} y1={toY(height) - dimOffset - 4} x2={toX(0)} y2={toY(height) - dimOffset + 4}
+              stroke="#ea580c" strokeWidth={1} />
+            <line x1={toX(leftTriangleCutoutWidth)} y1={toY(height) - dimOffset - 4} x2={toX(leftTriangleCutoutWidth)} y2={toY(height) - dimOffset + 4}
+              stroke="#ea580c" strokeWidth={1} />
+            <text x={toX(leftTriangleCutoutWidth / 2)} y={toY(height) - dimOffset - 6}
+              textAnchor="middle" fill="#ea580c"
+              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
+              {leftTriangleCutoutWidth}mm
+            </text>
+          </g>
+        );
+
+        // Explicit explicit Angle Measurement
+        elements.push(
+          <g key="dim-angle-left-degrees">
+            <text x={toX(leftTriangleCutoutWidth / 3)} y={toY(height - leftTriangleCutoutHeight) - 15}
+              textAnchor="middle" fill="#ea580c"
+              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">
+              {leftAngleDegrees}°
+            </text>
+          </g>
+        );
+      }
     }
 
     if (angledRight && rightTriangleCutoutHeight > 0) {
@@ -469,17 +590,47 @@ export function Door2D({ face = "front" }: Door2DProps) {
         <g key="dim-angle-right-short">
           <line x1={toX(width) + dimOffset + 25} y1={toY(0)} x2={toX(width) + dimOffset + 25} y2={toY(shortSideHeight)}
             stroke="#9333ea" strokeWidth={1} />
-          <line x1={toX(width) + dimOffset + 21} y1={toY(0)} x2={toX(width) + dimOffset + 29} y2={toY(0)}
+          <line x1={toX(width) + dimOffset + 21} y1={toY(height)} x2={toX(width) + dimOffset + 29} y2={toY(height)}
             stroke="#9333ea" strokeWidth={1} />
           <line x1={toX(width) + dimOffset + 21} y1={toY(shortSideHeight)} x2={toX(width) + dimOffset + 29} y2={toY(shortSideHeight)}
             stroke="#9333ea" strokeWidth={1} />
-          <text x={toX(width) + dimOffset + 33} y={toY(shortSideHeight / 2)}
+          <text x={toX(width) + dimOffset + 33} y={toY(shortSideHeight + rightTriangleCutoutHeight / 2)}
             textAnchor="start" dominantBaseline="middle" fill="#9333ea"
             fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
-            {shortSideHeight}mm
+            {rightTriangleCutoutHeight}mm
           </text>
         </g>
       );
+
+      // Cut Width Top
+      if (rightTriangleCutoutWidth > 0) {
+        elements.push(
+          <g key="dim-angle-right-width">
+            <line x1={toX(width - rightTriangleCutoutWidth)} y1={toY(height) - dimOffset} x2={toX(width)} y2={toY(height) - dimOffset}
+              stroke="#9333ea" strokeWidth={1} />
+            <line x1={toX(width - rightTriangleCutoutWidth)} y1={toY(height) - dimOffset - 4} x2={toX(width - rightTriangleCutoutWidth)} y2={toY(height) - dimOffset + 4}
+              stroke="#9333ea" strokeWidth={1} />
+            <line x1={toX(width)} y1={toY(height) - dimOffset - 4} x2={toX(width)} y2={toY(height) - dimOffset + 4}
+              stroke="#9333ea" strokeWidth={1} />
+            <text x={toX(width - rightTriangleCutoutWidth / 2)} y={toY(height) - dimOffset - 6}
+              textAnchor="middle" fill="#9333ea"
+              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="600">
+              {rightTriangleCutoutWidth}mm
+            </text>
+          </g>
+        );
+
+        // Explicit explicit Angle Measurement
+        elements.push(
+          <g key="dim-angle-right-degrees">
+            <text x={toX(width - rightTriangleCutoutWidth / 3)} y={toY(height - rightTriangleCutoutHeight) - 15}
+              textAnchor="middle" fill="#9333ea"
+              fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">
+              {rightAngleDegrees}°
+            </text>
+          </g>
+        );
+      }
     }
 
     // Angled Rail Width Labels
@@ -500,7 +651,7 @@ export function Door2D({ face = "front" }: Door2DProps) {
               fontFamily="Arial, sans-serif"
               transform={`rotate(${-leftAngleDegrees}, ${toX(midAngleX + width / 2 + 10)}, ${toY(midAngleY - 10)})`}
             >
-              {angledRailWidth}
+              {leftAngledRailWidth}
             </text>
           </g>
         );
@@ -521,7 +672,7 @@ export function Door2D({ face = "front" }: Door2DProps) {
               fontFamily="Arial, sans-serif"
               transform={`rotate(${rightAngleDegrees}, ${toX(midAngleX + width / 2 - 10)}, ${toY(midAngleY - 10)})`}
             >
-              {angledRailWidth}
+              {rightAngledRailWidth}
             </text>
           </g>
         );
@@ -563,9 +714,9 @@ export function Door2D({ face = "front" }: Door2DProps) {
             strokeWidth={2}
           />
 
+          {renderPanels()}
           {renderFrameLines()}
           {renderMidRails()}
-          {renderPanels()}
           {renderHinges()}
         </g>
 

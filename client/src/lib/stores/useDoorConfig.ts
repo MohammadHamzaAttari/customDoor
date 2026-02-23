@@ -5,12 +5,12 @@ import { calculateAngleFromCutout } from "../anglePresets";
 import { calculateDoorPrice, DEFAULT_PRICING } from "@shared/doorSchema";
 
 export type DoorPreset = "single" | "double" | "shaker_2" | "shaker_4" | "shaker_6" | "panel_3" | "panel_4" | "panel_6";
-export type PanelType = "STANDARD_12MM" | "REEDED_19MM" | "MELAMINE_18MM" | "FRETWORK" | "GLASS" | "NONE";
+export type PanelType = "STANDARD_12MM" | "STANDARD_9MM" | "REEDED_19MM" | "MELAMINE_18MM" | "FRETWORK" | "GLASS" | "NONE";
 export type PanelOrientation = "vertical" | "horizontal";
 export type BorderStyle = "none" | "simple" | "detailed";
 export type DoorShape = "rectangular" | "angled";
 export type MaterialType = "MDF";
-export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED";
+export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED" | "PAINTED";
 export type HingeType = "SCREW_POINTS" | "INSERTA";
 
 // Hinge center offset: 5mm gap to edge + 17.5mm (half of 35mm cup) = 22.5mm
@@ -24,7 +24,8 @@ export const MIN_BORDER_WITHOUT_HINGES = 35;
 
 export interface Hinge {
   id: string;
-  positionFromBottomMm: number;
+  positionMm: number;
+  reference: "TOP" | "BOTTOM";
   side: "LEFT" | "RIGHT";
   type: HingeType;
 }
@@ -53,7 +54,8 @@ export interface DoorConfig {
   rightTriangleCutoutHeight: number;
   leftAngleDegrees: number;
   rightAngleDegrees: number;
-  angledRailWidth: number;
+  leftAngledRailWidth: number;
+  rightAngledRailWidth: number;
 
   borderWidth: number;
   customBorders: boolean;
@@ -79,6 +81,7 @@ export interface DoorConfig {
   showDimensions: boolean;
   price: number;
   selectedSection: string;
+  editingCartItemId: string | null;
   isNewSession: boolean;
   _hasInteracted: boolean;
 }
@@ -99,7 +102,8 @@ interface DoorConfigStore extends DoorConfig {
   setLeftTriangleCutoutHeight: (height: number) => void;
   setRightTriangleCutoutWidth: (width: number) => void;
   setRightTriangleCutoutHeight: (height: number) => void;
-  setAngledRailWidth: (width: number) => void;
+  setLeftAngledRailWidth: (width: number) => void;
+  setRightAngledRailWidth: (width: number) => void;
 
   setBorderWidth: (width: number) => void;
   setCustomBorders: (enabled: boolean) => void;
@@ -131,6 +135,8 @@ interface DoorConfigStore extends DoorConfig {
   calculatePrice: () => void;
   resetConfig: () => void;
   setSelectedSection: (section: string) => void;
+  setEditingCartItemId: (id: string | null) => void;
+  loadFromCartItem: (item: any) => void;
   clearNewSession: () => void;
 
   // Computed helpers
@@ -155,7 +161,8 @@ const initialState: DoorConfig = {
   rightTriangleCutoutHeight: 400,
   leftAngleDegrees: 42,
   rightAngleDegrees: 42,
-  angledRailWidth: 90,
+  leftAngledRailWidth: 90,
+  rightAngledRailWidth: 90,
 
   borderWidth: 90,
   customBorders: false,
@@ -181,6 +188,7 @@ const initialState: DoorConfig = {
   showDimensions: true,
   price: 0,
   selectedSection: "dimensions",
+  editingCartItemId: null,
   isNewSession: true,
   _hasInteracted: false,
 };
@@ -255,6 +263,22 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (get().isNewSession) {
           set({ isNewSession: false, _hasInteracted: true });
         }
+      },
+
+      setEditingCartItemId: (id: string | null) => {
+        set({ editingCartItemId: id });
+      },
+
+      loadFromCartItem: (item: any) => {
+        // Hydrate configurator state from a cart item.
+        // We override the current state with the cart item's values.
+        set({
+          ...item,
+          editingCartItemId: item.id,
+          isNewSession: false,
+          _hasInteracted: true,
+        });
+        get().calculatePrice();
       },
 
       setWidth: (width: number) => {
@@ -481,8 +505,8 @@ export const useDoorConfig = create<DoorConfigStore>()(
         set({ hingeDrilling });
         if (hingeDrilling && get().hinges.length === 0) {
           const state = get();
-          const h1: Hinge = { id: `hinge_${Date.now()}_${++hingeIdCounter}`, positionFromBottomMm: 100, side: "LEFT", type: "SCREW_POINTS" };
-          const h2: Hinge = { id: `hinge_${Date.now()}_${++hingeIdCounter}`, positionFromBottomMm: state.height - 100, side: "LEFT", type: "SCREW_POINTS" };
+          const h1: Hinge = { id: `hinge_${Date.now()}_${++hingeIdCounter}`, positionMm: 100, reference: "TOP", side: "LEFT", type: "SCREW_POINTS" };
+          const h2: Hinge = { id: `hinge_${Date.now()}_${++hingeIdCounter}`, positionMm: 100, reference: "BOTTOM", side: "LEFT", type: "SCREW_POINTS" };
           set({ hinges: [h1, h2] });
 
           // Enforce 65mm minimum on hinge side
@@ -502,7 +526,8 @@ export const useDoorConfig = create<DoorConfigStore>()(
         const existingType = state.hinges.length > 0 ? state.hinges[0].type : "SCREW_POINTS";
         const newHinge: Hinge = {
           id: `hinge_${Date.now()}_${++hingeIdCounter}`,
-          positionFromBottomMm: Math.round(state.height / 2),
+          positionMm: 100,
+          reference: state.hinges.length > 0 && state.hinges[state.hinges.length - 1].reference === "TOP" ? "BOTTOM" : "TOP",
           side: existingSide,
           type: existingType,
         };
@@ -524,7 +549,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       updateHinge: (id: string, field: keyof Hinge, value: any) => {
-        if (field === 'positionFromBottomMm' && (isNaN(value) || value <= 0)) return;
+        if (field === 'positionMm' && (isNaN(value) || value <= 0)) return;
         set((state) => ({
           hinges: state.hinges.map(h => h.id === id ? { ...h, [field]: value } : h)
         }));
@@ -556,25 +581,44 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (state.rightStile < minRight) set({ rightStile: minRight });
       },
 
-      setAngledRailWidth: (angledRailWidth: number) => {
-        if (isNaN(angledRailWidth)) return;
-        set({ angledRailWidth: Math.max(35, Math.min(200, angledRailWidth)) });
+      setLeftAngledRailWidth: (leftAngledRailWidth: number) => {
+        if (isNaN(leftAngledRailWidth)) return;
+        set({ leftAngledRailWidth: Math.max(35, Math.min(200, leftAngledRailWidth)) });
+      },
+
+      setRightAngledRailWidth: (rightAngledRailWidth: number) => {
+        if (isNaN(rightAngledRailWidth)) return;
+        set({ rightAngledRailWidth: Math.max(35, Math.min(200, rightAngledRailWidth)) });
       },
 
       equaliseHinges: () => {
         const state = get();
         if (state.hinges.length < 2) return;
 
-        const topOffset = 80;
-        const bottomOffset = 80;
+        // Equalise hinges logically. If there are 2 hinges, put them 100mm from top and bottom.
+        // If more, distribute them.
+        const topOffset = 100;
+        const bottomOffset = 100;
         const count = state.hinges.length;
+
+        if (count === 2) {
+          const updatedHinges = [
+            { ...state.hinges[0], positionMm: topOffset, reference: "TOP" as const },
+            { ...state.hinges[1], positionMm: bottomOffset, reference: "BOTTOM" as const }
+          ];
+          set({ hinges: updatedHinges });
+          return;
+        }
+
         const useableHeight = state.height - topOffset - bottomOffset;
         const spacing = useableHeight / (count - 1);
 
-        const updatedHinges = state.hinges.map((h, i) => ({
-          ...h,
-          positionFromBottomMm: Math.round(bottomOffset + spacing * i),
-        }));
+        const updatedHinges = state.hinges.map((h, i) => {
+          if (i === 0) return { ...h, positionMm: topOffset, reference: "TOP" as const };
+          if (i === count - 1) return { ...h, positionMm: bottomOffset, reference: "BOTTOM" as const };
+          // For middle hinges, reference from top
+          return { ...h, positionMm: Math.round(topOffset + spacing * i), reference: "TOP" as const };
+        });
 
         set({ hinges: updatedHinges });
       },
@@ -620,7 +664,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
     {
       name: "door-config-storage",
       storage: createJSONStorage(() => createResilientStorage()),
-      version: 5,
+      version: 6,
       migrate: (persistedState: any, version: number) => {
         const migrated = persistedState || {};
 
@@ -639,8 +683,16 @@ export const useDoorConfig = create<DoorConfigStore>()(
           if (!Array.isArray(migrated.hinges)) {
             migrated.hinges = [];
           }
-          if (typeof migrated.angledRailWidth !== 'number' || isNaN(migrated.angledRailWidth)) {
-            migrated.angledRailWidth = initialState.angledRailWidth;
+          if (typeof migrated.leftAngledRailWidth !== 'number' || isNaN(migrated.leftAngledRailWidth)) {
+            migrated.leftAngledRailWidth = initialState.leftAngledRailWidth;
+          }
+          if (typeof migrated.rightAngledRailWidth !== 'number' || isNaN(migrated.rightAngledRailWidth)) {
+            migrated.rightAngledRailWidth = initialState.rightAngledRailWidth;
+          }
+          if (migrated.angledRailWidth !== undefined) {
+            migrated.leftAngledRailWidth = migrated.angledRailWidth;
+            migrated.rightAngledRailWidth = migrated.angledRailWidth;
+            delete migrated.angledRailWidth;
           }
           if (typeof migrated.rebateWidthMm !== 'number' || isNaN(migrated.rebateWidthMm)) {
             migrated.rebateWidthMm = initialState.rebateWidthMm;
@@ -666,6 +718,23 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (version < 5) {
           // If they had data from v4, they are a returning user
           migrated._hasInteracted = true;
+        }
+
+        // Migration v5 -> v6: Update Hinge interface to T/B notation
+        if (version < 6) {
+          if (Array.isArray(migrated.hinges)) {
+            migrated.hinges = migrated.hinges.map((h: any) => {
+              if (h.positionFromBottomMm !== undefined) {
+                h.positionMm = h.positionFromBottomMm;
+                h.reference = h.positionFromBottomMm > (migrated.height || 720) / 2 ? "TOP" : "BOTTOM";
+                if (h.reference === "TOP") {
+                  h.positionMm = (migrated.height || 720) - h.positionFromBottomMm;
+                }
+                delete h.positionFromBottomMm;
+              }
+              return h;
+            });
+          }
         }
 
         return migrated as DoorConfigStore;

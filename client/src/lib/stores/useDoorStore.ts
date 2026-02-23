@@ -42,7 +42,8 @@ export interface DoorOrderItem {
   rightTriangleCutoutHeight: number;
   leftAngleDegrees: number;
   rightAngleDegrees: number;
-  angledRailWidth: number;
+  leftAngledRailWidth: number;
+  rightAngledRailWidth: number;
 
   // Borders
   borderWidth: number;
@@ -126,7 +127,8 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   rightTriangleCutoutHeight: 0,
   leftAngleDegrees: 0,
   rightAngleDegrees: 0,
-  angledRailWidth: 90,
+  leftAngledRailWidth: 90,
+  rightAngledRailWidth: 90,
 
   borderWidth: 90,
   customBorders: false,
@@ -196,7 +198,8 @@ function computePrice(door: DoorOrderItem): { unitPrice: number; lineTotal: numb
     rightTriangleCutoutHeight: door.rightTriangleCutoutHeight,
     leftAngleDegrees: door.leftAngleDegrees,
     rightAngleDegrees: door.rightAngleDegrees,
-    angledRailWidth: door.angledRailWidth ?? 90,
+    leftAngledRailWidth: door.leftAngledRailWidth ?? 90,
+    rightAngledRailWidth: door.rightAngledRailWidth ?? 90,
     midRailsEnabled: door.midRailsEnabled,
     midRails: door.midRails,
     hingeDrilling: door.hingeDrilling,
@@ -487,11 +490,12 @@ export const useDoorStore = create<DoorStore>()(
           migrated.doors = [];
         }
 
-        // Migration v2 -> v3: Add angledRailWidth
+        // Migration v2 -> v3: Add left/rightAngledRailWidth
         if (version < 3) {
           migrated.doors = migrated.doors.map((d: any) => ({
             ...d,
-            angledRailWidth: d.angledRailWidth ?? 90,
+            leftAngledRailWidth: d.leftAngledRailWidth ?? d.angledRailWidth ?? 90,
+            rightAngledRailWidth: d.rightAngledRailWidth ?? d.angledRailWidth ?? 90,
           }));
         }
 
@@ -519,8 +523,11 @@ export const useDoorStore = create<DoorStore>()(
             if (typeof d.cornerRadiusMm !== 'number' || isNaN(d.cornerRadiusMm)) {
               d.cornerRadiusMm = DEFAULT_DOOR.cornerRadiusMm;
             }
-            if (typeof d.angledRailWidth !== 'number' || isNaN(d.angledRailWidth)) {
-              d.angledRailWidth = DEFAULT_DOOR.angledRailWidth;
+            if (typeof d.leftAngledRailWidth !== 'number' || isNaN(d.leftAngledRailWidth)) {
+              d.leftAngledRailWidth = DEFAULT_DOOR.leftAngledRailWidth;
+            }
+            if (typeof d.rightAngledRailWidth !== 'number' || isNaN(d.rightAngledRailWidth)) {
+              d.rightAngledRailWidth = DEFAULT_DOOR.rightAngledRailWidth;
             }
 
             return d;

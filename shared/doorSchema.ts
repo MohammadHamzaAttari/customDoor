@@ -7,6 +7,7 @@ import { z } from "zod";
 
 export const panelTypeValues = [
   "STANDARD_12MM",
+  "STANDARD_9MM",
   "REEDED_19MM",
   "MELAMINE_18MM",
   "FRETWORK",
@@ -14,11 +15,11 @@ export const panelTypeValues = [
   "NONE",
 ] as const;
 
-// FIXED: Removed PRIMED per client feedback
 export const finishTypeValues = [
   "RAW_UNASSEMBLED",
   "ASSEMBLED_PREP",
   "PRIMED",
+  "PAINTED",
 ] as const;
 
 export const hingeTypeValues = [
@@ -43,7 +44,8 @@ export const presetValues = [
 
 export const hingeSchema = z.object({
   id: z.string(),
-  positionFromBottomMm: z.number().min(50).max(2400),
+  positionMm: z.number().min(50).max(2400),
+  reference: z.enum(["TOP", "BOTTOM"]),
   side: z.enum(["LEFT", "RIGHT"]),
   type: z.enum(hingeTypeValues),
 });
@@ -103,7 +105,8 @@ export const doorConfigSchema = z.object({
   rightTriangleCutoutHeight: z.number().min(0).default(0),
   leftAngleDegrees: z.number().min(0).max(90).default(0),
   rightAngleDegrees: z.number().min(0).max(90).default(0),
-  angledRailWidth: z.number().min(35).max(200).default(90),
+  leftAngledRailWidth: z.number().min(35).max(200).default(90),
+  rightAngledRailWidth: z.number().min(35).max(200).default(90),
 
   // Mid rails
   midRailsEnabled: z.boolean().default(false),
@@ -259,11 +262,11 @@ export function calculateDoorPrice(
     panelUpgrade = pricing.MELAMINE_PANEL_FIXED + (panelAreaM2 * pricing.MELAMINE_PANEL_SQM);
   }
 
-  // FIXED: Removed PRIMED multiplier
   const finishMultipliers: Record<typeof config.finish, number> = {
     RAW_UNASSEMBLED: 1.0,
     ASSEMBLED_PREP: 1.15,
     PRIMED: 1.5,
+    PAINTED: 1.8,
   };
   const finishMultiplier = finishMultipliers[config.finish] || 1.0;
 

@@ -286,14 +286,7 @@ export function AngledCornersSection() {
         </div>
       </div>
 
-      {/* Visual Preview Hint */}
-      {(angledLeft || angledRight) && (
-        <div className="text-center p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
-          <p className="text-xs text-gray-600">
-            👆 Rotate the 3D model to see the angled cuts from all sides
-          </p>
-        </div>
-      )}
+      {/* 3D Visual Preview Hint Removed */}
     </div>
   );
 }

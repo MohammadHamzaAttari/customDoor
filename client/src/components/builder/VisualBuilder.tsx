@@ -1,19 +1,16 @@
 import React, { useState } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, ContactShadows } from "@react-three/drei";
 import { useDoorStore } from "@/lib/stores/useDoorStore";
-import { Door3D } from "@/components/door/Door3D";
+import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 import { Door2D } from "@/components/door/Door2D";
 import DoorConfigurationPanel from "@/components/builder/DoorConfigurationPanel";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronUp, ChevronDown, Settings2, RotateCcw, Eye } from "lucide-react";
+import { ChevronUp, ChevronDown, Settings2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type ViewMode = "front" | "back" | "3d";
+type ViewMode = "front" | "back";
 
 export default function VisualBuilder() {
     const { doors, activeDoorId, setActiveDoor, addDoor } = useDoorStore();
-    const door = doors.find(d => d.id === activeDoorId);
     const [isMobileConfigOpen, setIsMobileConfigOpen] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("front");
 
@@ -26,9 +23,31 @@ export default function VisualBuilder() {
         }
     }, [doors.length, activeDoorId, addDoor, setActiveDoor]);
 
-    const handlePartClick = (section: string) => {
-        console.log("Clicked part:", section);
+    const handlePartClick = (part: any) => {
+        console.log("Clicked part:", part);
     };
+
+    const config = useDoorConfig();
+
+    if (!config) {
+        return (
+            <div className="flex h-screen items-center justify-center flex-col gap-4 bg-neutral-100">
+                <div className="w-8 h-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+                <p className="text-sm font-medium text-neutral-500 animate-pulse">Initializing builder...</p>
+            </div>
+        );
+    }
+
+    if (!doors || doors.length === 0) {
+        return (
+            <div className="w-full h-[300px] flex items-center justify-center text-gray-400 font-medium">
+                No doors configured
+            </div>
+        );
+    }
+
+    // This is the 'door' variable that should be used for rendering the active door.
+    const door = activeDoorId ? doors.find((d) => d.id === activeDoorId) : doors[0];
 
     if (!door) {
         return (
@@ -42,7 +61,6 @@ export default function VisualBuilder() {
         <div className="door-builder-container">
             {/* Viewport Area */}
             <div className="door-builder-canvas">
-                {/* View Mode Toggle */}
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex gap-1 bg-white/90 backdrop-blur-sm rounded-full p-1 shadow-lg border border-gray-200">
                     {(["front", "back"] as const).map((mode) => (
                         <button
@@ -51,64 +69,23 @@ export default function VisualBuilder() {
                             className={`
                                 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200
                                 ${viewMode === mode
-                                    ? mode === "3d"
-                                        ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md"
-                                        : mode === "back"
-                                            ? "bg-purple-500 text-white shadow-md"
-                                            : "bg-blue-500 text-white shadow-md"
+                                    ? mode === "back"
+                                        ? "bg-purple-500 text-white shadow-md"
+                                        : "bg-blue-500 text-white shadow-md"
                                     : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
                                 }
                             `}
                         >
-                            {mode === "3d" ? (
-                                <span className="flex items-center gap-1.5">
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                    3D
-                                </span>
-                            ) : (
-                                <span className="flex items-center gap-1.5">
-                                    <Eye className="w-3.5 h-3.5" />
-                                    {mode}
-                                </span>
-                            )}
+                            <span className="flex items-center gap-1.5">
+                                <Eye className="w-3.5 h-3.5" />
+                                {mode}
+                            </span>
                         </button>
                     ))}
                 </div>
 
-                {/* 3D View */}
-                {viewMode === "3d" && (
-                    <Canvas shadows camera={{ position: [0, 0, 4], fov: 50 }} dpr={[1, 2]}>
-                        <color attach="background" args={["#f8f8f8"]} />
-                        <ambientLight intensity={0.8} />
-                        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1.5} castShadow />
-                        <pointLight position={[-10, 5, 10]} intensity={1} />
-                        <directionalLight position={[0, 5, 5]} intensity={0.5} />
-
-                        <group position={[0, 0, 0]}>
-                            <Door3D config={door} onPartClick={handlePartClick} />
-                        </group>
-
-                        <ContactShadows
-                            position={[0, -1.2, 0]}
-                            opacity={0.4}
-                            scale={10}
-                            blur={2.5}
-                            far={4}
-                        />
-
-                        <OrbitControls
-                            makeDefault
-                            minPolarAngle={0}
-                            maxPolarAngle={Math.PI / 1.5}
-                            enablePan={false}
-                        />
-                    </Canvas>
-                )}
-
                 {/* 2D Front/Back View */}
-                {(viewMode === "front" || viewMode === "back") && (
-                    <Door2D face={viewMode} />
-                )}
+                <Door2D face={viewMode} />
 
                 {/* Mobile Toggle Button */}
                 <div className="md:hidden absolute bottom-4 left-1/2 -translate-x-1/2 z-20">

@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { useDoorStore, type DoorOrderItem } from "@/lib/stores/useDoorStore";
 import { DEFAULT_PRICING, cartItemSchema } from "@shared/doorSchema";
 import { z } from "zod";
+import { Door2D } from "@/components/door/Door2D";
+import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PANEL_LABELS: Record<string, string> = {
@@ -49,6 +51,7 @@ function CartItemCard({
   onRemove,
   onSwapHinge,
   onFinishChange,
+  onEdit,
 }: {
   item: DoorOrderItem;
   index: number;
@@ -56,6 +59,7 @@ function CartItemCard({
   onRemove: (id: string) => void;
   onSwapHinge: (id: string) => void;
   onFinishChange: (id: string, finish: DoorOrderItem["finish"]) => void;
+  onEdit: (item: DoorOrderItem) => void;
 }) {
   const currentFinish = FINISH_LABELS[item.finish] || FINISH_LABELS.RAW_UNASSEMBLED;
   const areaM2 = (item.width * item.height) / 1_000_000;
@@ -80,209 +84,232 @@ function CartItemCard({
             Item {index + 1} — {categoryInfo.label}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-stone-400 hover:text-red-600 hover:bg-red-50 h-8 px-2"
-          onClick={() => onRemove(item.id)}
-        >
-          <Trash2 className="w-4 h-4 mr-1" />
-          <span className="text-xs">Remove</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-stone-500 hover:text-orange-600 hover:bg-orange-50 h-8 px-2"
+            onClick={() => onEdit(item)}
+          >
+            <Settings2 className="w-4 h-4 mr-1" />
+            <span className="text-xs">Edit</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-stone-400 hover:text-red-600 hover:bg-red-50 h-8 px-2"
+            onClick={() => onRemove(item.id)}
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            <span className="text-xs">Remove</span>
+          </Button>
+        </div>
       </div>
 
-      <CardHeader className="pb-3 pt-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Package className="w-5 h-5 text-orange-600" />
-              {item.label}
-            </CardTitle>
-            <CardDescription className="mt-1">Made-to-order MDF door</CardDescription>
-          </div>
-          <Badge className={cn("text-xs font-medium", currentFinish.color)}>
-            {currentFinish.label}
-          </Badge>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-5 pb-5">
-        {/* Quantity + Line Price */}
-        <div className="flex items-center justify-between p-3 bg-orange-50/60 rounded-xl border border-orange-100">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-stone-700">Qty</span>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full border-stone-300"
-                onClick={() => onQuantityChange(item.id, Math.max(1, item.qty - 1))}
-                disabled={item.qty <= 1}
-              >
-                <Minus className="w-3.5 h-3.5" />
-              </Button>
-              <span className="text-lg font-bold w-8 text-center tabular-nums">{item.qty}</span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                onClick={() => onQuantityChange(item.id, item.qty + 1)}
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-stone-500">£{item.unitPrice.toFixed(2)} each</p>
-            <p className="text-lg font-bold text-stone-900">£{item.lineTotal.toFixed(2)}</p>
+      <div className="flex flex-col md:flex-row">
+        {/* Render the 2D map side-by-side on desktop */}
+        <div className="w-full md:w-48 shrink-0 bg-stone-50 p-4 border-r flex flex-col items-center justify-center">
+          <div className="w-32 h-40 relative">
+            {/* We will refactor Door2D to accept configOverride */}
+            <Door2D face="front" configOverride={item as any} />
           </div>
         </div>
 
-        {/* Dimensions */}
-        <div>
-          <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-            <Ruler className="w-4 h-4 text-stone-400" />
-            Dimensions
-          </h3>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: "Height", value: `${item.height}mm` },
-              { label: "Width", value: `${item.width}mm` },
-              { label: "Thickness", value: `${item.thickness}mm` },
-            ].map((d) => (
-              <div key={d.label} className="bg-stone-50 rounded-lg p-3 text-center">
-                <p className="text-xs text-stone-500 uppercase tracking-wider">{d.label}</p>
-                <p className="text-lg font-bold text-stone-900">{d.value}</p>
+        <div className="flex-1">
+          <CardHeader className="pb-3 pt-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Package className="w-5 h-5 text-orange-600" />
+                  {item.label}
+                </CardTitle>
+                <CardDescription className="mt-1">Made-to-order MDF door</CardDescription>
               </div>
-            ))}
-          </div>
-          <p className="text-xs text-stone-500 mt-2 text-center">Area: {areaM2.toFixed(3)} m²</p>
-        </div>
+              <Badge className={cn("text-xs font-medium", currentFinish.color)}>
+                {currentFinish.label}
+              </Badge>
+            </div>
+          </CardHeader>
 
-        <Separator />
-
-        {/* Quick Actions — Catalogue Mode (per spec requirements) */}
-        <div>
-          <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-            <Settings2 className="w-4 h-4 text-stone-400" />
-            Quick Edit
-          </h3>
-          <div className="space-y-3">
-            {/* Finish Quick Change */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-stone-600">Finish</span>
-              <div className="flex gap-1">
-                {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => onFinishChange(item.id, f)}
-                    className={cn(
-                      "px-2 py-1 text-xs rounded-md border transition-all",
-                      item.finish === f
-                        ? "border-orange-500 bg-orange-50 text-orange-700 font-semibold"
-                        : "border-stone-200 text-stone-500 hover:border-orange-300"
-                    )}
+          <CardContent className="space-y-4 pb-4">
+            {/* Quantity + Line Price */}
+            <div className="flex items-center justify-between p-3 bg-orange-50/60 rounded-xl border border-orange-100">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-stone-700">Qty</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-full border-stone-300"
+                    onClick={() => onQuantityChange(item.id, Math.max(1, item.qty - 1))}
+                    disabled={item.qty <= 1}
                   >
-                    {FINISH_LABELS[f].label.split(" ")[0]}
-                  </button>
+                    <Minus className="w-3.5 h-3.5" />
+                  </Button>
+                  <span className="text-lg font-bold w-8 text-center tabular-nums">{item.qty}</span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8 rounded-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                    onClick={() => onQuantityChange(item.id, item.qty + 1)}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-stone-500">£{item.unitPrice.toFixed(2)} each</p>
+                <p className="text-lg font-bold text-stone-900">£{item.lineTotal.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Dimensions */}
+            <div>
+              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
+                <Ruler className="w-4 h-4 text-stone-400" />
+                Dimensions
+              </h3>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Height", value: `${item.height}mm` },
+                  { label: "Width", value: `${item.width}mm` },
+                  { label: "Thickness", value: `${item.thickness}mm` },
+                ].map((d) => (
+                  <div key={d.label} className="bg-stone-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-stone-500 uppercase tracking-wider">{d.label}</p>
+                    <p className="text-lg font-bold text-stone-900">{d.value}</p>
+                  </div>
                 ))}
               </div>
+              <p className="text-xs text-stone-500 mt-2 text-center">Area: {areaM2.toFixed(3)} m²</p>
             </div>
 
-            {/* Hinge Side Quick Swap */}
-            {item.hingeDrilling && item.hinges.length > 0 && (
-              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
-                <div>
-                  <p className="text-sm font-medium text-blue-900">
-                    Hinges: {hingeSide}
-                  </p>
+            <Separator />
+
+            {/* Quick Actions — Catalogue Mode (per spec requirements) */}
+            <div>
+              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-stone-400" />
+                Quick Edit
+              </h3>
+              <div className="space-y-3">
+                {/* Finish Quick Change */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-stone-600">Finish</span>
+                  <div className="flex gap-1">
+                    {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => onFinishChange(item.id, f)}
+                        className={cn(
+                          "px-2 py-1 text-xs rounded-md border transition-all",
+                          item.finish === f
+                            ? "border-orange-500 bg-orange-50 text-orange-700 font-semibold"
+                            : "border-stone-200 text-stone-500 hover:border-orange-300"
+                        )}
+                      >
+                        {FINISH_LABELS[f].label.split(" ")[0]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSwapHinge(item.id)}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100 h-7 text-xs"
-                >
-                  <ArrowLeftRight className="w-3 h-3 mr-1" />
-                  Swap Side
-                </Button>
+
+                {/* Hinge Side Quick Swap */}
+                {item.hingeDrilling && item.hinges.length > 0 && (
+                  <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">
+                        Hinges: {hingeSide}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onSwapHinge(item.id)}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-100 h-7 text-xs"
+                    >
+                      <ArrowLeftRight className="w-3 h-3 mr-1" />
+                      Swap Side
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Specifications */}
-        <div>
-          <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-stone-400" />
-            Specifications
-          </h3>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-stone-600">Panel Type</span>
-              <span className="text-sm font-medium text-stone-900">
-                {PANEL_LABELS[item.panelType] || item.panelType}
-              </span>
             </div>
-            <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-stone-600">Borders</span>
-              <span className="text-sm font-medium text-stone-900">
-                {item.customBorders
-                  ? `L:${item.leftStile} R:${item.rightStile} T:${item.topRail} B:${item.bottomRail}mm`
-                  : `${item.borderWidth}mm (uniform)`}
-              </span>
-            </div>
-          </div>
-        </div>
 
-        {/* Custom Options */}
-        {hasCustomOptions && (
-          <div className="space-y-2">
-            {item.angledLeft && (
-              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                <span className="text-sm text-orange-700 flex items-center gap-2">
-                  <Check className="w-4 h-4" /> Left Angle
-                </span>
-                <span className="text-sm font-medium text-orange-900">
-                  {item.leftAngleDegrees}°
-                </span>
+            <Separator />
+
+            {/* Specifications */}
+            <div>
+              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-stone-400" />
+                Specifications
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-stone-600">Panel Type</span>
+                  <span className="text-sm font-medium text-stone-900">
+                    {PANEL_LABELS[item.panelType] || item.panelType}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-stone-600">Borders</span>
+                  <span className="text-sm font-medium text-stone-900">
+                    {item.customBorders
+                      ? `L:${item.leftStile} R:${item.rightStile} T:${item.topRail} B:${item.bottomRail}mm`
+                      : `${item.borderWidth}mm (uniform)`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom Options */}
+            {hasCustomOptions && (
+              <div className="space-y-2">
+                {item.angledLeft && (
+                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                    <span className="text-sm text-orange-700 flex items-center gap-2">
+                      <Check className="w-4 h-4" /> Left Angle
+                    </span>
+                    <span className="text-sm font-medium text-orange-900">
+                      {item.leftAngleDegrees}°
+                    </span>
+                  </div>
+                )}
+                {item.angledRight && (
+                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                    <span className="text-sm text-orange-700 flex items-center gap-2">
+                      <Check className="w-4 h-4" /> Right Angle
+                    </span>
+                    <span className="text-sm font-medium text-orange-900">
+                      {item.rightAngleDegrees}°
+                    </span>
+                  </div>
+                )}
+                {item.midRailsEnabled && item.midRails?.length > 0 && (
+                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                    <span className="text-sm text-orange-700 flex items-center gap-2">
+                      <Check className="w-4 h-4" /> Mid Rails
+                    </span>
+                    <span className="text-sm font-medium text-orange-900">
+                      {item.midRails.length} rail{item.midRails.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
+                {item.hingeDrilling && item.hinges?.length > 0 && (
+                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
+                    <span className="text-sm text-orange-700 flex items-center gap-2">
+                      <Check className="w-4 h-4" /> Hinge Drilling
+                    </span>
+                    <span className="text-sm font-medium text-orange-900">
+                      {item.hinges.length} hole{item.hinges.length > 1 ? "s" : ""} ({item.hinges[0]?.type === "INSERTA" ? "Inserta" : "Screw"})
+                    </span>
+                  </div>
+                )}
               </div>
             )}
-            {item.angledRight && (
-              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                <span className="text-sm text-orange-700 flex items-center gap-2">
-                  <Check className="w-4 h-4" /> Right Angle
-                </span>
-                <span className="text-sm font-medium text-orange-900">
-                  {item.rightAngleDegrees}°
-                </span>
-              </div>
-            )}
-            {item.midRailsEnabled && item.midRails?.length > 0 && (
-              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                <span className="text-sm text-orange-700 flex items-center gap-2">
-                  <Check className="w-4 h-4" /> Mid Rails
-                </span>
-                <span className="text-sm font-medium text-orange-900">
-                  {item.midRails.length} rail{item.midRails.length > 1 ? "s" : ""}
-                </span>
-              </div>
-            )}
-            {item.hingeDrilling && item.hinges?.length > 0 && (
-              <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                <span className="text-sm text-orange-700 flex items-center gap-2">
-                  <Check className="w-4 h-4" /> Hinge Drilling
-                </span>
-                <span className="text-sm font-medium text-orange-900">
-                  {item.hinges.length} hole{item.hinges.length > 1 ? "s" : ""} ({item.hinges[0]?.type === "INSERTA" ? "Inserta" : "Screw"})
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-      </CardContent>
+          </CardContent>
+        </div>
+      </div>
     </Card>
   );
 }
@@ -303,6 +330,8 @@ export default function CheckoutPage() {
     getVat,
     getGrandTotal,
   } = useDoorStore();
+
+  const loadFromCartItem = useDoorConfig(state => state.loadFromCartItem);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -384,6 +413,11 @@ export default function CheckoutPage() {
   const handleFinishChange = useCallback((id: string, finish: DoorOrderItem["finish"]) => {
     updateFinish(id, finish);
   }, [updateFinish]);
+
+  const handleEditItem = useCallback((item: DoorOrderItem) => {
+    loadFromCartItem(item);
+    setLocation("/");
+  }, [loadFromCartItem, setLocation]);
 
   // ─── Totals ─────────────────────────────────────────────────────────────
   const totalItems = getTotalItems();
@@ -645,6 +679,7 @@ export default function CheckoutPage() {
                 onRemove={handleRemoveItem}
                 onSwapHinge={handleSwapHinge}
                 onFinishChange={handleFinishChange}
+                onEdit={handleEditItem}
               />
             ))}
 

@@ -118,7 +118,7 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
           <AccordionItem value="door-style">
             <AccordionTrigger className="text-sm font-medium">
               <span className="flex items-center gap-2">
-                Door Style & Thickness
+                Door Thickness and Panel
                 <Badge variant="outline" className="text-[10px]">
                   {config.thickness}mm {config.panelType === "NONE" ? "Slab" : "Shaker"}
                 </Badge>
@@ -191,7 +191,7 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
 
           <AccordionItem value="rebates">
             <AccordionTrigger className="text-sm font-medium">
-              Rebate Specifications
+              Detailed Specifications
             </AccordionTrigger>
             <AccordionContent>
               <RebateSection />
@@ -205,7 +205,7 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
 }
 
 // ============================================
-// DOOR STYLE & THICKNESS
+// DOOR THICKNESS & PANEL
 // ============================================
 
 function DoorStyleSection() {
@@ -217,7 +217,8 @@ function DoorStyleSection() {
   ];
 
   const panelTypes = [
-    { value: "STANDARD_12MM" as const, label: "Standard 12mm", description: "Classic MDF panel — robust feel, minimal rear recess", only22: false },
+    { value: "STANDARD_12MM" as const, label: "Standard 12mm", description: "Robust feel, minimal rear recess", only22: false },
+    { value: "STANDARD_9MM" as const, label: "Standard 9mm", description: "More of a rear recess for a more traditional look", only22: false },
     { value: "REEDED_19MM" as const, label: "Reeded 19mm", description: "Finsa Tex Flute — textured vertical lines, 22mm doors only", only22: true },
     { value: "MELAMINE_18MM" as const, label: "Melamine 18mm", description: "Fabric-effect board (e.g. Canvas Greige), 22mm doors only", only22: true },
     { value: "FRETWORK" as const, label: "Fretwork Pattern", description: "Decorative fretwork panel with intricate patterns", only22: false },
@@ -403,8 +404,8 @@ function MidRailsSection() {
             <Switch checked={midRailsEqualise} onCheckedChange={setMidRailsEqualise} />
           </div>
 
-          <div className="space-y-4">
-            {midRails.map((rail, index) => (
+          <div className="space-y-4 flex flex-col-reverse">
+            {[...midRails].sort((a, b) => a.positionFromBottom - b.positionFromBottom).map((rail, index) => (
               <div key={rail.id} className="p-3 bg-gray-50 rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">Mid Rail {index + 1}</span>
@@ -459,11 +460,23 @@ function HingePositionsSection() {
     rightTriangleCutoutWidth, rightTriangleCutoutHeight,
     hingeDrilling, setHingeDrilling,
     hinges, addHinge, removeHinge, updateHinge,
-    swapHingeSide, equaliseHinges,
+    swapHingeSide, equaliseHinges, setHinges,
   } = useDoorConfig();
 
+  // Helper to add a hinge relative to an existing one
+  const handleAddRelative = (referenceHinge: any, offset: number) => {
+    const newId = crypto.randomUUID();
+    const newPos = Math.min(Math.max(50, referenceHinge.positionMm + offset), height - 50);
+    const newHinges = [...hinges, {
+      ...referenceHinge,
+      id: newId,
+      positionMm: newPos,
+    }];
+    setHinges(newHinges);
+  };
+
   const isHingeInvalid = (hinge: any) => {
-    const hY = hinge.positionFromBottomMm;
+    const hY = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
     const hX = hinge.side === "LEFT" ? 22.5 : width - 22.5;
     if (hinge.side === "LEFT" && angledLeft) {
       const heightFromTop = height - hY;
@@ -525,37 +538,70 @@ function HingePositionsSection() {
           </div>
 
           <div className="space-y-3 pt-2">
-            {hinges.map((hinge, index) => (
-              <div key={hinge.id} className="p-3 bg-gray-50 rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Hinge {index + 1}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeHinge(hinge.id)} className="h-6 w-6 p-0 text-red-500" disabled={hinges.length <= 2}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                {isHingeInvalid(hinge) && (
-                  <div className="flex items-center gap-2 text-[10px] text-red-500 bg-red-50 p-1.5 rounded border border-red-100">
-                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                    <span>Hinge is in the angled cutout area</span>
-                  </div>
-                )}
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Position from bottom (mm)</Label>
-                  <NumberInput
-                    value={hinge.positionFromBottomMm}
-                    onChange={(val) => updateHinge(hinge.id, "positionFromBottomMm", val)}
-                    min={50}
-                    max={height - 50}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-            ))}
+            {hinges.map((hinge, index) => {
+              const symbol = hinge.reference === "TOP" ? "T" : "B";
+              const typeHinges = hinges.filter(h => h.reference === hinge.reference)
+                .sort((a, b) => a.positionMm - b.positionMm);
+              const indexOfType = typeHinges.findIndex(h => h.id === hinge.id);
+              const label = `${symbol}${indexOfType + 1}`;
+              const isLastOfType = indexOfType === typeHinges.length - 1;
 
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" onClick={addHinge} className="h-8 text-xs">
-                <Plus className="w-3 h-3 mr-2" /> Add Hinge
-              </Button>
+              return (
+                <div key={hinge.id} className="p-3 bg-gray-50 rounded-lg space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Hinge {label}</span>
+                    <Button variant="ghost" size="sm" onClick={() => removeHinge(hinge.id)} className="h-6 w-6 p-0 text-red-500" disabled={hinges.length <= 2}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {isHingeInvalid(hinge) && (
+                    <div className="flex items-center gap-2 text-[10px] text-red-500 bg-red-50 p-1.5 rounded border border-red-100">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      <span>Hinge is in the angled cutout area</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-500">Reference</Label>
+                      <select
+                        value={hinge.reference}
+                        onChange={(e) => updateHinge(hinge.id, "reference", e.target.value)}
+                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="TOP">Top</option>
+                        <option value="BOTTOM">Bottom</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-gray-500">Position (mm)</Label>
+                      <NumberInput
+                        value={hinge.positionMm}
+                        onChange={(val) => updateHinge(hinge.id, "positionMm", val)}
+                        min={50}
+                        max={height - 50}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {isLastOfType && (
+                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 translate-y-1/2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleAddRelative(hinge, 250)}
+                        className="h-6 w-6 rounded-full p-0 shadow-md border border-gray-200"
+                        title={`Add hinge below ${label}`}
+                      >
+                        <Plus className="w-3 h-3 text-blue-600" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <div className="grid grid-cols-1 gap-2 pt-4">
               <Button variant="default" size="sm" onClick={equaliseHinges} disabled={hinges.length < 2}
                 className="h-8 text-xs bg-blue-600 hover:bg-blue-700" title="Evenly space all hinges">
                 <Equal className="w-3 h-3 mr-2" /> Equal Spacing
@@ -586,6 +632,16 @@ function FinishOptionSection() {
       label: "Assembled & Prepped",
       description: "2mm arris roundovers, edges sanded to 180 grit, panels glued in, gaps caulked. 2.5mm internal corner radii left as machined.",
     },
+    {
+      value: "PRIMED" as const,
+      label: "Primed",
+      description: "Professionally sprayed with high-build primer, ready for topcoat.",
+    },
+    {
+      value: "PAINTED" as const,
+      label: "Painted",
+      description: "Finished painted in your chosen color. Contact us for color matching details.",
+    },
   ];
 
   return (
@@ -607,67 +663,73 @@ function FinishOptionSection() {
 }
 
 // ============================================
-// REBATE - Corner radius locked, thickness validation
+// DETAILED SPECIFICATIONS (Read-only rebate/corner details)
 // ============================================
 
 function RebateSection() {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const {
-    thickness,
-    rebateWidthMm, setRebateWidth,
-    rebateDepthMm, setRebateDepth,
-    frontFaceThicknessMm, setFrontFaceThickness,
-  } = useDoorConfig();
+  const { thickness, rebateWidthMm, rebateDepthMm, frontFaceThicknessMm, cornerRadiusMm } = useDoorConfig();
 
-  // Validation: front face + rebate depth must not exceed thickness
+  // Validate the current configuration for display purposes
   const totalUsed = frontFaceThicknessMm + rebateDepthMm;
-  const thicknessError = totalUsed > thickness;
+  const isInvalid = totalUsed > thickness;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <InfoTip>
-          <p>Standard rebate: 10mm wide × 14mm deep, 8mm front face. Internal corners fixed at 2.5mm radius.</p>
-          <p className="mt-1">Advanced settings — only change for specific manufacturing requirements.</p>
-        </InfoTip>
-        <span className="text-xs text-gray-500">Advanced — rarely needs changing</span>
-        <Switch checked={showAdvanced} onCheckedChange={setShowAdvanced} />
-      </div>
-
-      {showAdvanced && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-600">Rebate Width (mm)</Label>
-              <NumberInput value={rebateWidthMm} onChange={setRebateWidth} min={5} max={20} className="h-9" />
+      <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg border border-stone-200">
+        <div className="flex-1 space-y-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wider">Rebate Width</p>
+              <p className="text-sm font-semibold text-stone-900">{rebateWidthMm}mm</p>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-600">Rebate Depth (mm)</Label>
-              <NumberInput value={rebateDepthMm} onChange={setRebateDepth} min={8} max={thickness - frontFaceThicknessMm} className="h-9" />
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wider">Rebate Depth</p>
+              <p className="text-sm font-semibold text-stone-900">{rebateDepthMm}mm</p>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-600">Front Face (mm)</Label>
-              <NumberInput value={frontFaceThicknessMm} onChange={setFrontFaceThickness} min={4} max={thickness - rebateDepthMm} className="h-9" />
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wider">Front Face</p>
+              <p className="text-sm font-semibold text-stone-900">{frontFaceThicknessMm}mm</p>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-600">Corner Radius</Label>
-              <div className="h-9 flex items-center px-3 bg-gray-100 rounded-md border text-sm text-gray-500">
-                2.5mm (fixed)
-              </div>
-              <span className="text-[10px] text-gray-400">Set by 5mm finishing cutter</span>
+            <div>
+              <p className="text-xs text-stone-500 uppercase tracking-wider">Corner Radii</p>
+              <p className="text-sm font-semibold text-stone-900">
+                Front: {cornerRadiusMm}mm <br />
+                Rear: 2.5mm
+              </p>
             </div>
           </div>
+        </div>
 
-          {thicknessError && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
-              <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-red-700">
-                Front face ({frontFaceThicknessMm}mm) + rebate depth ({rebateDepthMm}mm) = {totalUsed}mm exceeds door thickness ({thickness}mm). Reduce one or both values.
-              </div>
-            </div>
-          )}
+        {/* Simple Corner Diagram */}
+        <div className="w-20 h-20 shrink-0 bg-white border border-stone-200 rounded-md flex items-center justify-center p-2 relative" title="Rebate Cross-section">
+          <svg viewBox="0 0 100 100" className="w-full h-full text-stone-400">
+            {/* Outer box representing door thickness */}
+            <rect x="10" y="10" width="80" height="80" fill="#f5f5f4" stroke="currentColor" strokeWidth="2" />
+
+            {/* Rebate cut-out */}
+            <path d="M10 90 L50 90 A2 2 0 0 0 52 88 L52 30 L10 30 Z" fill="white" />
+            <path d="M52 88 L52 30" stroke="#f97316" strokeWidth="2" strokeDasharray="4 2" />
+            <path d="M10 30 L52 30" stroke="#f97316" strokeWidth="2" strokeDasharray="4 2" />
+
+            {/* Labels */}
+            <text x="60" y="60" fontSize="10" fill="#78716c" transform="rotate(-90 60 60)">Depth</text>
+            <text x="30" y="24" fontSize="10" fill="#78716c">Width</text>
+          </svg>
+        </div>
+      </div>
+
+      {isInvalid && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+          <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <div className="text-xs text-red-700">
+            Warning: The current rebate depth ({rebateDepthMm}mm) and front face ({frontFaceThicknessMm}mm) exceed the door thickness ({thickness}mm).
+          </div>
         </div>
       )}
+
+      <p className="text-xs text-stone-500 px-1">
+        These are standard manufacturing specifications. To request custom rebate dimensions, please contact support.
+      </p>
     </div>
   );
 }

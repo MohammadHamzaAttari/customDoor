@@ -1,4 +1,3 @@
-// client/src/components/door/ProductDetailsSidebar.tsx
 import { useState } from "react";
 import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 import { useDoorStore } from "@/lib/stores/useDoorStore";
@@ -58,14 +57,14 @@ export function ProductDetailsSidebar() {
     material,
     showDimensions,
     isNewSession,
+    editingCartItemId,
+    leftAngledRailWidth,
+    rightAngledRailWidth,
   } = config;
 
-  // Cart count derived from the single source of truth: useDoorStore
+  // ✅ Single source of truth
   const cartCount = doors.reduce((sum, d) => sum + d.qty, 0);
   const [justAdded, setJustAdded] = useState(false);
-
-  // Calculate area
-  const areaM2 = (width * height) / 1000000;
 
   // Panel type labels
   const panelLabels: Record<string, string> = {
@@ -93,12 +92,12 @@ export function ProductDetailsSidebar() {
     },
   };
 
-  const currentFinish = finishLabels[finish] || finishLabels.RAW_UNASSEMBLED;
+  const currentFinish =
+    finishLabels[finish] || finishLabels.RAW_UNASSEMBLED;
 
   // Build features list
   const features: { label: string; value: string; highlight?: boolean }[] = [
     { label: "Dimensions", value: `${width} × ${height} × ${thickness}mm` },
-    { label: "Area", value: `${areaM2.toFixed(3)} m²` },
     { label: "Panel Type", value: panelLabels[panelType] || panelType },
   ];
 
@@ -109,6 +108,7 @@ export function ProductDetailsSidebar() {
       highlight: true,
     });
   }
+
   if (angledRight) {
     features.push({
       label: "Right Angle",
@@ -116,6 +116,15 @@ export function ProductDetailsSidebar() {
       highlight: true,
     });
   }
+
+  if (angledLeft || angledRight) {
+    features.push({
+      label: "Angled Rails",
+      value: `L: ${leftAngledRailWidth}mm | R: ${rightAngledRailWidth}mm`,
+      highlight: true,
+    });
+  }
+
   if (midRailsEnabled && midRails.length > 0) {
     features.push({
       label: "Mid Rails",
@@ -123,6 +132,7 @@ export function ProductDetailsSidebar() {
       highlight: true,
     });
   }
+
   if (hingeDrilling && hinges.length > 0) {
     features.push({
       label: "Hinge Holes",
@@ -131,120 +141,99 @@ export function ProductDetailsSidebar() {
     });
   }
 
-  /**
-   * Add current door config to the unified door store (catalogue).
-   * This is the SINGLE cart system — no more localStorage cartUtils.
-   */
+  const buildDoorData = () => ({
+    id: editingCartItemId || undefined,
+    width,
+    height,
+    thickness,
+    preset,
+    panelType,
+    panelCount,
+    panelOrientation: panelOrientation || "vertical",
+    shape: shape || "rectangular",
+    angledLeft,
+    angledRight,
+    leftTriangleCutoutWidth,
+    leftTriangleCutoutHeight,
+    rightTriangleCutoutWidth,
+    rightTriangleCutoutHeight,
+    leftAngleDegrees,
+    rightAngleDegrees,
+    leftAngledRailWidth,
+    rightAngledRailWidth,
+    borderWidth,
+    customBorders,
+    leftStile: customBorders ? leftStile : borderWidth,
+    rightStile: customBorders ? rightStile : borderWidth,
+    bottomRail: customBorders ? bottomRail : borderWidth,
+    topRail: customBorders ? topRail : borderWidth,
+    rebateWidthMm,
+    rebateDepthMm,
+    frontFaceThicknessMm,
+    cornerRadiusMm,
+    midRailsEnabled,
+    midRailsEqualise: midRailsEqualise || false,
+    midRails: midRailsEnabled ? midRails : [],
+    hingeDrilling,
+    hinges: hingeDrilling ? hinges : [],
+    material,
+    finish,
+    showDimensions,
+  });
+
   const handleAddToCart = () => {
-    addDoor({
-      width,
-      height,
-      thickness,
-      preset,
-      panelType,
-      panelCount,
-      panelOrientation: panelOrientation || "vertical",
-      shape: shape || "rectangular",
-      angledLeft,
-      angledRight,
-      leftTriangleCutoutWidth,
-      leftTriangleCutoutHeight,
-      rightTriangleCutoutWidth,
-      rightTriangleCutoutHeight,
-      leftAngleDegrees,
-      rightAngleDegrees,
-      borderWidth,
-      customBorders,
-      leftStile: customBorders ? leftStile : borderWidth,
-      rightStile: customBorders ? rightStile : borderWidth,
-      bottomRail: customBorders ? bottomRail : borderWidth,
-      topRail: customBorders ? topRail : borderWidth,
-      rebateWidthMm,
-      rebateDepthMm,
-      frontFaceThicknessMm,
-      cornerRadiusMm,
-      midRailsEnabled,
-      midRailsEqualise: midRailsEqualise || false,
-      midRails: midRailsEnabled ? midRails : [],
-      hingeDrilling,
-      hinges: hingeDrilling ? hinges : [],
-      material,
-      finish,
-      showDimensions,
-    });
+    const doorData = buildDoorData();
+
+    if (editingCartItemId) {
+      useDoorStore.getState().updateDoor(editingCartItemId, doorData);
+    } else {
+      addDoor(doorData);
+    }
 
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 2000);
 
-    // Calculate new total (current doors + the one we just added)
-    const newTotal = cartCount + 1;
+    const newTotal = editingCartItemId ? cartCount : cartCount + 1;
 
-    toast.success("Added to cart!", {
-      description: `${width}×${height}mm door — £${price.toFixed(2)}. ${newTotal} item${newTotal > 1 ? "s" : ""} in cart.`,
-      action: {
-        label: "View Cart",
-        onClick: () => setLocation("/checkout"),
-      },
-    });
+    toast.success(
+      editingCartItemId ? "Updated cart!" : "Added to cart!",
+      {
+        description: `${width}×${height}mm door — £${price.toFixed(
+          2
+        )}. ${newTotal} item${newTotal > 1 ? "s" : ""} in cart.`,
+        action: {
+          label: "View Cart",
+          onClick: () => setLocation("/checkout"),
+        },
+      }
+    );
   };
 
-  /**
-   * Add to cart AND navigate straight to checkout
-   */
   const handleAddAndCheckout = () => {
-    addDoor({
-      width,
-      height,
-      thickness,
-      preset,
-      panelType,
-      panelCount,
-      panelOrientation: panelOrientation || "vertical",
-      shape: shape || "rectangular",
-      angledLeft,
-      angledRight,
-      leftTriangleCutoutWidth,
-      leftTriangleCutoutHeight,
-      rightTriangleCutoutWidth,
-      rightTriangleCutoutHeight,
-      leftAngleDegrees,
-      rightAngleDegrees,
-      borderWidth,
-      customBorders,
-      leftStile: customBorders ? leftStile : borderWidth,
-      rightStile: customBorders ? rightStile : borderWidth,
-      bottomRail: customBorders ? bottomRail : borderWidth,
-      topRail: customBorders ? topRail : borderWidth,
-      rebateWidthMm,
-      rebateDepthMm,
-      frontFaceThicknessMm,
-      cornerRadiusMm,
-      midRailsEnabled,
-      midRailsEqualise: midRailsEqualise || false,
-      midRails: midRailsEnabled ? midRails : [],
-      hingeDrilling,
-      hinges: hingeDrilling ? hinges : [],
-      material,
-      finish,
-      showDimensions,
-    });
+    const doorData = buildDoorData();
 
-    toast.success("Added to cart! Redirecting…", {
-      description: `${width}×${height}mm door — £${price.toFixed(2)}`,
-    });
+    if (editingCartItemId) {
+      useDoorStore.getState().updateDoor(editingCartItemId, doorData);
+    } else {
+      addDoor(doorData);
+    }
 
-    // Small delay to let the store persist before navigation
+    toast.success(
+      editingCartItemId
+        ? "Updated cart! Redirecting…"
+        : "Added to cart! Redirecting…",
+      {
+        description: `${width}×${height}mm door — £${price.toFixed(2)}`,
+      }
+    );
+
     setTimeout(() => setLocation("/checkout"), 150);
   };
 
-  /**
-   * Navigate to checkout without adding (for viewing existing cart)
-   */
   const handleViewCart = () => {
     setLocation("/checkout");
   };
 
-  // Order subtotal from all doors in the store
   const orderSubtotal = doors.reduce((sum, d) => sum + d.lineTotal, 0);
 
   return (
@@ -256,28 +245,27 @@ export function ProductDetailsSidebar() {
             <h2 className="text-lg font-bold text-gray-900">
               Trade Shaker Door
             </h2>
-            <p className="text-sm text-gray-500 mt-1">Custom MDF Door</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Custom MDF Door
+            </p>
           </div>
           <Badge className={cn("text-xs font-medium", currentFinish.color)}>
             {currentFinish.label}
           </Badge>
         </div>
 
-        {/* Price Display */}
         <div className="bg-gradient-to-r from-stone-800 to-stone-900 rounded-xl p-4 text-white shadow-lg border border-stone-700">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <p className="text-stone-300 text-xs uppercase tracking-wider font-medium">
-                Unit Price
-              </p>
-              <p className="text-3xl font-bold mt-1 text-white">
-                £{isNewSession ? '0.00' : price.toFixed(2)}
-              </p>
-              {isNewSession && (
-                <p className="text-xs text-stone-400 mt-1">Configure your door to see the price</p>
-              )}
-            </div>
-          </div>
+          <p className="text-stone-300 text-xs uppercase tracking-wider font-medium">
+            Unit Price
+          </p>
+          <p className="text-3xl font-bold mt-1">
+            £{isNewSession ? "0.00" : price.toFixed(2)}
+          </p>
+          {isNewSession && (
+            <p className="text-xs text-stone-400 mt-1">
+              Configure your door to see the price
+            </p>
+          )}
         </div>
       </div>
 
@@ -289,22 +277,22 @@ export function ProductDetailsSidebar() {
         </h3>
 
         <div className="space-y-3">
-          {features.map((feature, index) => (
+          {features.map((f, i) => (
             <div
-              key={index}
+              key={i}
               className={cn(
-                "flex items-center justify-between py-2 px-3 rounded-lg",
-                feature.highlight ? "bg-orange-50" : "bg-gray-50",
+                "flex justify-between py-2 px-3 rounded-lg",
+                f.highlight ? "bg-orange-50" : "bg-gray-50"
               )}
             >
-              <span className="text-sm text-gray-600">{feature.label}</span>
+              <span className="text-sm text-gray-600">{f.label}</span>
               <span
                 className={cn(
                   "text-sm font-medium",
-                  feature.highlight ? "text-orange-700" : "text-gray-900",
+                  f.highlight ? "text-orange-700" : "text-gray-900"
                 )}
               >
-                {feature.value}
+                {f.value}
               </span>
             </div>
           ))}
@@ -312,80 +300,52 @@ export function ProductDetailsSidebar() {
 
         <Separator className="my-6" />
 
-        {/* Cart status indicator — shows summary of all doors in the order */}
         {cartCount > 0 && (
           <button
             onClick={handleViewCart}
-            className="w-full flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-xl mb-4 hover:bg-orange-100 transition-colors group cursor-pointer"
+            className="w-full flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-xl hover:bg-orange-100 transition"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs font-bold">
-                {cartCount}
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold text-stone-900">
-                  {cartCount} item{cartCount > 1 ? "s" : ""} in cart
-                </p>
-                <p className="text-xs text-stone-500">
-                  Subtotal: £{orderSubtotal.toFixed(2)}
-                </p>
-              </div>
+            <div>
+              <p className="text-sm font-semibold">
+                {cartCount} item{cartCount > 1 ? "s" : ""} in cart
+              </p>
+              <p className="text-xs text-gray-500">
+                Subtotal: £{orderSubtotal.toFixed(2)}
+              </p>
             </div>
-            <ExternalLink className="w-4 h-4 text-orange-400 group-hover:text-orange-600 transition-colors" />
+            <ExternalLink className="w-4 h-4 text-orange-500" />
           </button>
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <div className="p-4 border-t bg-gray-50 space-y-3">
-        {/* Primary: Add to Cart (stay on page to configure more doors) */}
         <Button
           className={cn(
-            "w-full h-12 font-bold tracking-wide shadow-lg transition-all hover:scale-[1.02]",
+            "w-full h-12 font-bold",
             justAdded
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-              : "bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white",
+              ? "bg-emerald-600"
+              : "bg-gradient-to-r from-orange-600 to-red-600"
           )}
-          size="lg"
           onClick={handleAddToCart}
         >
           {justAdded ? (
             <>
               <Check className="w-5 h-5 mr-2" />
-              Added to Cart!
+              {editingCartItemId ? "Saved!" : "Added!"}
             </>
           ) : (
             <>
               <Plus className="w-5 h-5 mr-2" />
-              Add to Cart
+              {editingCartItemId ? "Save Changes" : "Add to Cart"}
             </>
           )}
         </Button>
 
-        {/* Secondary: Add & Go to Checkout */}
-        <Button
-          variant="outline"
-          className="w-full h-10 border-stone-300 text-stone-700 hover:bg-stone-100 hover:border-orange-300 hover:text-orange-700 font-semibold transition-all"
-          onClick={handleAddAndCheckout}
-        >
+        <Button variant="outline" onClick={handleAddAndCheckout}>
           <ShoppingCart className="w-4 h-4 mr-2" />
-          Add & Checkout
+          {editingCartItemId ? "Save & Checkout" : "Add & Checkout"}
         </Button>
-
-        {/* Tertiary: View Cart (only if items exist) */}
-        {cartCount > 0 && (
-          <Button
-            variant="ghost"
-            className="w-full h-9 text-orange-600 hover:text-orange-700 hover:bg-orange-50 text-sm font-medium"
-            onClick={handleViewCart}
-          >
-            View Cart ({cartCount} item{cartCount > 1 ? "s" : ""})
-          </Button>
-        )}
-
-        <p className="text-[10px] text-center text-gray-400 pt-2">
-          Prices subject to final confirmation. Trade accounts only.
-        </p>
       </div>
     </div>
   );
