@@ -590,14 +590,50 @@ function HingePositionsSection() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-[10px] font-bold text-gray-400 uppercase">Position (mm)</Label>
-                        <NumberInput
-                          value={hinge.positionMm}
-                          onChange={(val) => updateHinge(hinge.id, "positionMm", val)}
-                          min={50}
-                          max={height - 50}
-                          className="h-8 text-xs font-medium"
-                        />
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px] font-bold text-gray-400 uppercase">Position</Label>
+                          {![100, 200, 300, 400, 500, 600, 700].includes(hinge.positionMm) && (
+                            <button
+                              type="button"
+                              onClick={() => updateHinge(hinge.id, "positionMm", 100)}
+                              className="text-[9px] text-blue-500 hover:text-blue-700 font-medium"
+                            >
+                              Presets
+                            </button>
+                          )}
+                        </div>
+                        {[100, 200, 300, 400, 500, 600, 700].includes(hinge.positionMm) ? (
+                          <select
+                            value={hinge.positionMm}
+                            onChange={(e) => {
+                              if (e.target.value === "custom") {
+                                updateHinge(hinge.id, "positionMm", hinge.positionMm + 1);
+                              } else {
+                                updateHinge(hinge.id, "positionMm", parseInt(e.target.value, 10));
+                              }
+                            }}
+                            className="flex h-8 w-full rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm focus:ring-1 focus:ring-orange-500 transition-all font-medium"
+                          >
+                            {[100, 200, 300, 400, 500, 600, 700].map((pos) => {
+                              const symbol = hinge.reference === "TOP" ? "T" : "B";
+                              const prefix = `${symbol}${pos / 100}`;
+                              return (
+                                <option key={pos} value={pos}>
+                                  {prefix} ({pos}mm)
+                                </option>
+                              );
+                            })}
+                            <option value="custom">Custom...</option>
+                          </select>
+                        ) : (
+                          <NumberInput
+                            value={hinge.positionMm}
+                            onChange={(val) => updateHinge(hinge.id, "positionMm", val)}
+                            min={50}
+                            max={height - 50}
+                            className="h-8 text-xs font-medium"
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -696,55 +732,33 @@ function RebateSection() {
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <div className="space-y-1.5">
             <Label className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Rebate Width (mm)</Label>
-            <NumberInput
-              value={rebateWidthMm}
-              onChange={setRebateWidth}
-              min={2}
-              max={25}
-              className="h-8 text-sm border-stone-200 focus:border-stone-400 bg-white"
-            />
+            <div className="flex h-8 w-full rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm shadow-sm items-center text-stone-700 font-medium cursor-not-allowed">
+              {rebateWidthMm}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Rebate Depth (mm)</Label>
-            <NumberInput
-              value={rebateDepthMm}
-              onChange={setRebateDepth}
-              min={2}
-              max={15}
-              className="h-8 text-sm border-stone-200 focus:border-stone-400 bg-white"
-            />
+            <div className="flex h-8 w-full rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm shadow-sm items-center text-stone-700 font-medium cursor-not-allowed">
+              {rebateDepthMm}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Front Face (mm)</Label>
-            <NumberInput
-              value={frontFaceThicknessMm}
-              onChange={setFrontFaceThickness}
-              min={5}
-              max={18}
-              className="h-8 text-sm border-stone-200 focus:border-stone-400 bg-white"
-            />
+            <div className="flex h-8 w-full rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm shadow-sm items-center text-stone-700 font-medium cursor-not-allowed">
+              {frontFaceThicknessMm}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Front Corner (mm)</Label>
-            <NumberInput
-              value={cornerRadiusMm}
-              onChange={setCornerRadius}
-              step={0.1}
-              min={0}
-              max={5}
-              className="h-8 text-sm border-stone-200 focus:border-stone-400 bg-white"
-            />
+            <div className="flex h-8 w-full rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm shadow-sm items-center text-stone-700 font-medium cursor-not-allowed">
+              {cornerRadiusMm}
+            </div>
           </div>
           <div className="space-y-1.5 col-span-2">
             <Label className="text-[10px] text-stone-500 uppercase tracking-wider font-semibold">Rear Corner Radius (mm)</Label>
-            <NumberInput
-              value={rearCornerRadiusMm}
-              onChange={setRearCornerRadius}
-              step={0.1}
-              min={0}
-              max={10}
-              className="h-8 text-sm border-stone-200 focus:border-stone-400 bg-white w-full"
-            />
+            <div className="flex h-8 w-full rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm shadow-sm items-center text-stone-700 font-medium cursor-not-allowed">
+              {rearCornerRadiusMm}
+            </div>
           </div>
         </div>
 
@@ -764,7 +778,7 @@ function RebateSection() {
             <rect width="100%" height="100%" fill="url(#grid)" />
 
             {/* Main Door Cross-Section Zoomed in on Top-Right Corner */}
-            <g transform="translate(140, 60) scale(1.4)">
+            <g transform="translate(140, 50) scale(1.3)">
               {/* Outer Shadow for Depth */}
               <path
                 d={`M 0,0 H 120 Q 130,0 130,10 V 90 Q 130,100 120,100 H 40 Q 30,100 30,90 V 45 Q 30,35 20,35 H 0 Z`}
@@ -799,7 +813,7 @@ function RebateSection() {
                 {/* Rebate Width (Cyan) */}
                 <line x1="30" y1="120" x2="130" y2="120" stroke="#0891b2" strokeWidth="2" />
                 <path d="M 30,117 V 123 M 130,117 V 123" stroke="#0891b2" strokeWidth="2" />
-                <text x="80" y="135" textAnchor="middle" fill="#0e7490" fontSize="7.5">REBATE WIDTH: {rebateWidthMm}mm</text>
+                <text x="80" y="132" textAnchor="middle" fill="#0e7490" fontSize="7.5">REBATE WIDTH: {rebateWidthMm}mm</text>
 
                 {/* Radii (Green & Purple) */}
                 {/* Front Corner */}
@@ -813,7 +827,7 @@ function RebateSection() {
                 <g transform="translate(35, 105)">
                   <circle r="4" fill="#a855f7" opacity="0.2" />
                   <path d="M -4,0 A 4,4 0 0,0 0,4" fill="none" stroke="#9333ea" strokeWidth="1.5" />
-                  <text x="-8" y="15" fill="#6b21a8" fontSize="7" textAnchor="end">Ext. R{rearCornerRadiusMm}</text>
+                  <text x="10" y="8" fill="#6b21a8" fontSize="7" textAnchor="start">Ext. R{rearCornerRadiusMm}</text>
                 </g>
               </g>
 

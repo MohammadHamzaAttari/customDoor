@@ -20,9 +20,9 @@ import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PANEL_LABELS: Record<string, string> = {
-  STANDARD_12MM: "Standard 12mm MDF",
-  STANDARD_9MM: "Standard 9mm MDF",
-  REEDED_19MM: "Reeded 19mm MDF",
+  STANDARD_12MM: "Standard 12mm",
+  STANDARD_9MM: "Standard 9mm",
+  REEDED_19MM: "Reeded 19mm",
   MELAMINE_18MM: "Melamine 18mm",
   NONE: "Slab (No Panel)",
   FRETWORK: "Fretwork Pattern",
@@ -125,7 +125,7 @@ function CartItemCard({
                   <Package className="w-5 h-5 text-orange-600" />
                   {item.label}
                 </CardTitle>
-                <CardDescription className="mt-1">Made-to-order MDF door</CardDescription>
+                <CardDescription className="mt-1">Made-to-order premium door</CardDescription>
               </div>
               <Badge className={cn("text-xs font-medium", currentFinish.color)}>
                 {currentFinish.label}

@@ -69,9 +69,9 @@ export function ProductDetailsSidebar() {
 
   // Panel type labels
   const panelLabels: Record<string, string> = {
-    STANDARD_12MM: "Standard 12mm MDF",
-    STANDARD_9MM: "Standard 9mm MDF",
-    REEDED_19MM: "Reeded 19mm MDF",
+    STANDARD_12MM: "Standard 12mm",
+    STANDARD_9MM: "Standard 9mm",
+    REEDED_19MM: "Reeded 19mm",
     MELAMINE_18MM: "Melamine 18mm",
     NONE: "Slab (No Panel)",
     FRETWORK: "Fretwork Pattern",

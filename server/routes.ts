@@ -264,7 +264,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/order-items/:id/hinges", async (req, res) => {
     try {
       const orderItemId = parseInt(req.params.id);
-      const hinge = await storage.createHinge({ ...req.body, orderItemId });
+      const body = req.body;
+
+      // Normalize hinge position from client format (positionMm + reference) to DB format (positionFromBottomMm)
+      let posFromBottom = body.positionFromBottomMm;
+      if (posFromBottom == null && body.positionMm != null && body.reference) {
+        const item = await storage.getOrderItem(orderItemId);
+        if (item && body.reference === "TOP") {
+          posFromBottom = item.heightMm - body.positionMm;
+        } else {
+          posFromBottom = body.positionMm;
+        }
+      }
+
+      const hinge = await storage.createHinge({
+        orderItemId,
+        positionFromBottomMm: posFromBottom ?? 100,
+        side: body.side || "LEFT",
+        hingeType: body.hingeType || body.type || "SCREW_POINTS",
+        cupDiameterMm: body.cupDiameterMm ?? 35,
+        cupDepthMm: body.cupDepthMm ?? 13,
+        gapToEdgeMm: body.gapToEdgeMm ?? 5,
+      });
       res.status(201).json(hinge);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -890,10 +911,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Save Hinges
         if (item.hinges && item.hinges.length > 0) {
           for (const h of item.hinges) {
+            // Convert client hinge position (positionMm + reference) to absolute position from bottom
+            let posFromBottom: number;
+            if (h.positionFromBottomMm != null) {
+              posFromBottom = h.positionFromBottomMm;
+            } else if (h.positionMm != null && h.reference) {
+              posFromBottom = h.reference === "TOP"
+                ? item.height - h.positionMm
+                : h.positionMm;
+            } else if (h.position != null) {
+              posFromBottom = h.position;
+            } else {
+              posFromBottom = 100; // Safe default
+            }
+
             await storage.createHinge({
               orderItemId: dbItem.id,
-              positionFromBottomMm: h.positionFromBottomMm ?? h.position,
+              positionFromBottomMm: posFromBottom,
               side: h.side || "LEFT",
+              hingeType: h.type || h.hingeType || "SCREW_POINTS",
               cupDiameterMm: 35,
               cupDepthMm: 13,
               gapToEdgeMm: 5,
@@ -1043,8 +1079,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: testRes.status === 401
             ? "Invalid access token - token rejected by Shopify"
             : testRes.status === 404
-            ? "Shop domain not found - check SHOPIFY_SHOP_DOMAIN"
-            : `Shopify returned ${testRes.status}`,
+              ? "Shop domain not found - check SHOPIFY_SHOP_DOMAIN"
+              : `Shopify returned ${testRes.status}`,
           detail: body.substring(0, 200)
         });
       }

@@ -104,6 +104,17 @@
     </div>
   {% endif %}
 
+  {% if block.settings.project_image != blank %}
+    <div class="door-designer-heading-container" style="margin-bottom: 16px;">
+      <img
+        src="{{ block.settings.project_image | image_url: width: 1400 }}"
+        alt="{{ block.settings.project_image_alt | default: 'Custom Door Designer' }}"
+        style="width: 100%; max-width: 1400px; height: auto; border-radius: 8px; display: block; margin: 0 auto;"
+        loading="lazy"
+      />
+    </div>
+  {% endif %}
+
   <div id="door-designer-container" class="door-designer-iframe-container">
     <iframe 
       id="door-designer-iframe"
@@ -288,6 +299,18 @@
         { "value": "right", "label": "Right" }
       ],
       "default": "center"
+    },
+    {
+      "type": "image_picker",
+      "id": "project_image",
+      "label": "Project / Branding Image",
+      "info": "Optional banner image displayed above the door designer. Recommended size: 1400×400px."
+    },
+    {
+      "type": "text",
+      "id": "project_image_alt",
+      "label": "Image Alt Text",
+      "default": "Custom Door Designer"
     },
     {
       "type": "product",
