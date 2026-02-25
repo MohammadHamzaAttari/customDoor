@@ -111,6 +111,7 @@ export interface CheckoutLineItem {
   midRails?: any[];
   hingeDrilling?: boolean;
   hinges?: any[];
+  _imageUrl?: string; // Public URL to door preview SVG for Shopify checkout
 }
 
 // ─── Create Draft Order ───────────────────────────────────────────────────────
@@ -162,7 +163,7 @@ export async function createDraftOrderFromLineItems(
         : []),
     ];
 
-    return {
+    const lineItem: any = {
       title,
       variant_title: variantParts.join(" | "),
       price: item.price.toFixed(2),
@@ -171,6 +172,13 @@ export async function createDraftOrderFromLineItems(
       taxable: true,
       properties,
     };
+
+    // Include door preview image if available
+    if (item._imageUrl) {
+      lineItem.image_url = item._imageUrl;
+    }
+
+    return lineItem;
   });
 
   // Build note summary

@@ -497,6 +497,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     exportCache.clear();
   }, 10 * 60 * 1000);
 
+  // ─── SVG Preview Cache (for Shopify checkout images) ───
+  const svgPreviewCache = new Map<string, { svg: string; createdAt: number }>();
+
+  // Clean up preview cache periodically (every hour)
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of svgPreviewCache.entries()) {
+      if (now - val.createdAt > 3600000) svgPreviewCache.delete(key);
+    }
+  }, 30 * 60 * 1000);
+
+  // Public endpoint to serve SVG previews (used by Shopify for checkout images)
+  app.get("/api/preview/:token.svg", (req, res) => {
+    const cached = svgPreviewCache.get(req.params.token);
+    if (!cached) {
+      return res.status(404).send("Preview expired or not found");
+    }
+    res.setHeader("Content-Type", "image/svg+xml");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    res.send(cached.svg);
+  });
+
   const dxfExportSchema = z.object({
     width: z.number(),
     height: z.number(),
@@ -962,6 +984,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const svgPath = path.join(storageDir, svgFilename);
           await fs.promises.writeFile(svgPath, svgContent);
 
+          // Store SVG in preview cache for Shopify checkout image
+          const previewToken = nanoid();
+          svgPreviewCache.set(previewToken, { svg: svgContent, createdAt: Date.now() });
+          const hostName = process.env.HOST_NAME || `http://localhost:${process.env.PORT || 5000}`;
+          const imageUrl = `${hostName}/api/preview/${previewToken}.svg`;
+          // Attach image URL to the line item so Shopify can display it
+          (item as any)._imageUrl = imageUrl;
           // Update Item with DXF Path
           await storage.updateOrderItem(dbItem.id, {
             dxfFilePath: dxfPath,
