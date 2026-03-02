@@ -1,4 +1,4 @@
-import { eq, and, gte, asc, desc } from "drizzle-orm";
+import { eq, and, gte, asc, desc, lt } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -17,6 +17,7 @@ import {
   deliveryOptions,
   systemSettings,
   shopifySyncLog,
+  previewCache,
   type User,
   type InsertUser,
   type Customer,
@@ -142,6 +143,11 @@ export interface IStorage {
   // Order Attachments
   createOrderAttachment(attachment: InsertOrderAttachment): Promise<OrderAttachment>;
   getOrderAttachments(orderId: number): Promise<OrderAttachment[]>;
+
+  // Preview Cache (Persistent SVG storage for Shopify images)
+  savePreview(token: string, svg: string): Promise<void>;
+  getPreview(token: string): Promise<string | undefined>;
+  cleanupOldPreviews(maxAgeMs: number): Promise<void>;
 }
 
 // =====================================================
@@ -616,6 +622,37 @@ export class DatabaseStorage implements IStorage {
 
   async getOrderAttachments(orderId: number): Promise<OrderAttachment[]> {
     return db.select().from(orderAttachments).where(eq(orderAttachments.orderId, orderId));
+  }
+
+  // =====================================================
+  // PREVIEW CACHE
+  // =====================================================
+
+  async savePreview(token: string, svg: string): Promise<void> {
+    await db
+      .insert(previewCache)
+      .values({
+        token,
+        svg,
+        createdAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: previewCache.token,
+        set: { svg, createdAt: new Date() },
+      });
+  }
+
+  async getPreview(token: string): Promise<string | undefined> {
+    const [preview] = await db
+      .select()
+      .from(previewCache)
+      .where(eq(previewCache.token, token));
+    return preview?.svg;
+  }
+
+  async cleanupOldPreviews(maxAgeMs: number): Promise<void> {
+    const cutoff = new Date(Date.now() - maxAgeMs);
+    await db.delete(previewCache).where(lt(previewCache.createdAt, cutoff));
   }
 }
 

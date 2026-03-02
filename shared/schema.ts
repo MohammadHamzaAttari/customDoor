@@ -502,6 +502,16 @@ export const shopifySyncLog = pgTable(
 );
 
 // =====================================================
+// PREVIEW CACHE TABLE
+// =====================================================
+
+export const previewCache = pgTable("preview_cache", {
+  token: varchar("token", { length: 50 }).primaryKey(),
+  svg: text("svg").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =====================================================
 // RELATIONS
 // =====================================================
 

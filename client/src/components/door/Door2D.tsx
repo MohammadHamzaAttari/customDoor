@@ -59,9 +59,11 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
   const maxWidth = 500;
   const maxHeight = 650;
 
-  const scaleX = (maxWidth - padding * 2) / width;
-  const scaleY = (maxHeight - padding * 2) / height;
-  const scale = Math.min(scaleX, scaleY);
+  const scaleX = (maxWidth - padding * 2) / (width || 600);
+  const scaleY = (maxHeight - padding * 2) / (height || 720);
+  const scale = (isNaN(scaleX) || isNaN(scaleY) || !isFinite(scaleX) || !isFinite(scaleY))
+    ? 0.5
+    : Math.min(scaleX, scaleY);
 
   const scaledWidth = width * scale;
   const scaledHeight = height * scale;

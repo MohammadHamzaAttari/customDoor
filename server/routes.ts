@@ -1,10 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import fs from "fs";
+import { nanoid } from "nanoid";
+import { sql } from "drizzle-orm";
+import { db } from "./db";
 import { storage } from "./storage";
 import { doorConfigSchema, cartItemSchema } from "../shared/doorSchema";
 import { generateDoorDxf, type DxfDoorConfig } from "./dxfGenerator";
 import { generateDoorSvg, type SvgDoorConfig } from "./svgGenerator";
 import { z } from "zod";
+import sharp from "sharp";
 import {
   insertCustomerSchema,
   insertOrderSchema,
@@ -15,6 +21,24 @@ import { createShopifyDraftOrder, createQuickCheckout } from "./shopify";
 import { registerOAuthRoutes } from "./oauth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Database Initial Migration (Ensures preview_cache exists in Production without VPC access)
+  // We do NOT await this here to avoid blocking route registration in Lambda cold starts
+  (async () => {
+    try {
+      console.log("[DB] Verifying preview_cache table...");
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "preview_cache" (
+          "token" varchar(50) PRIMARY KEY,
+          "svg" text NOT NULL,
+          "created_at" timestamp DEFAULT now() NOT NULL
+        );
+      `);
+      console.log("[DB] Table verified.");
+    } catch (err) {
+      console.error("[DB] Migration error during background check:", err);
+    }
+  })();
+
   // Register OAuth Handlers
   registerOAuthRoutes(app);
   // =====================================================
@@ -439,7 +463,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/cart", async (req, res) => {
     try {
       const itemData = {
-        timestamp: new Date().toISOString(),
+        label: `Custom Door ${req.body.config.width}x${req.body.config.height}`,
+        category: "door",
         config: doorConfigSchema.parse(req.body.config),
         quantity: req.body.quantity || 1,
       };
@@ -517,6 +542,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.setHeader("Content-Type", "image/svg+xml");
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.send(cached.svg);
+  });
+
+  // Public endpoint to serve PNG previews (converted from SVG on the fly)
+  app.get("/api/preview/:token.png", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const svgContent = await storage.getPreview(token);
+
+      if (!svgContent) {
+        console.error(`[Preview] 404: SVG not found for token ${token}`);
+        return res.status(404).send("Preview not found");
+      }
+
+      // Convert SVG to PNG using sharp
+      const pngBuffer = await sharp(Buffer.from(svgContent))
+        .flatten({ background: '#ffffff' }) // Ensure white background
+        .resize(800) // Increase resolution for better detail
+        .png()
+        .toBuffer();
+
+      res.set("Content-Type", "image/png");
+      res.set("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+      return res.send(pngBuffer);
+    } catch (err) {
+      console.error("[Preview] Sharp conversion failed:", err);
+      return res.status(500).send("Image conversion failed");
+    }
   });
 
   const dxfExportSchema = z.object({
@@ -825,8 +877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // ─── 2. Create Local Order (DRAFT) ───
-      const { nanoid: nanoid_local } = await import("nanoid"); // Renamed to avoid conflict with top-level nanoid
-      const orderRef = `ORD-${nanoid_local(8).toUpperCase()}`;
+      const orderRef = `ORD-${nanoid(8).toUpperCase()}`;
 
       const newOrder = await storage.createOrder({
         customerId: customer.id,
@@ -986,11 +1037,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Store SVG in preview cache for Shopify checkout image
           const previewToken = nanoid();
-          svgPreviewCache.set(previewToken, { svg: svgContent, createdAt: Date.now() });
+          await storage.savePreview(previewToken, svgContent);
           const hostName = process.env.HOST_NAME || `http://localhost:${process.env.PORT || 5000}`;
-          const imageUrl = `${hostName}/api/preview/${previewToken}.svg`;
+
+          // Use PNG URL for Shopify (Svg is rejected)
+          const imageUrl = `${hostName}/api/preview/${previewToken}.png`;
+          console.log(`[Checkout] Token=${previewToken} hostName=${hostName}`);
+          console.log(`[Checkout] Setting _imageUrl for item ${i + 1}: ${imageUrl}`);
+
           // Attach image URL to the line item so Shopify can display it
           (item as any)._imageUrl = imageUrl;
+
           // Update Item with DXF Path
           await storage.updateOrderItem(dbItem.id, {
             dxfFilePath: dxfPath,
@@ -1037,6 +1094,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Missing Shopify credentials");
         throw new Error("Payment system not configured. Please visit /api/auth to connect your Shopify store.");
       }
+
+      console.log(`[Checkout] Passing ${lineItems.length} items to Draft Order creation.`);
+      lineItems.forEach((it, idx) => {
+        console.log(`[Checkout] Item ${idx + 1} has _imageUrl: ${(it as any)._imageUrl}`);
+      });
 
       const result = await createDraftOrderFromLineItems(lineItems, creds);
 

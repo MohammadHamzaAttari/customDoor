@@ -192,6 +192,7 @@ function computePrice(door: DoorOrderItem): { unitPrice: number; lineTotal: numb
     rebateDepthMm: door.rebateDepthMm,
     frontFaceThicknessMm: door.frontFaceThicknessMm,
     cornerRadiusMm: door.cornerRadiusMm,
+    rearCornerRadiusMm: door.rearCornerRadiusMm,
     angledLeft: door.angledLeft,
     angledRight: door.angledRight,
     leftTriangleCutoutWidth: door.leftTriangleCutoutWidth,
@@ -288,6 +289,41 @@ export function enforceDoorRules(door: DoorOrderItem): DoorOrderItem {
   return updated;
 }
 
+/**
+ * Resilient storage adapter for Zustand persist.
+ * Tries localStorage first; if blocked (e.g. cross-origin iframe), falls back to sessionStorage.
+ */
+function createResilientStorage(): Storage {
+  // Test if localStorage is available and writable
+  try {
+    const testKey = '__storage_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    return localStorage;
+  } catch {
+    // localStorage blocked (third-party iframe, private browsing, etc.)
+    try {
+      const testKey = '__storage_test__';
+      sessionStorage.setItem(testKey, '1');
+      sessionStorage.removeItem(testKey);
+      console.warn('[DoorStore] localStorage unavailable, using sessionStorage fallback');
+      return sessionStorage;
+    } catch {
+      // Both blocked — return a no-op in-memory storage
+      console.warn('[DoorStore] No web storage available, state will not persist');
+      const memoryStore: Record<string, string> = {};
+      return {
+        get length() { return Object.keys(memoryStore).length; },
+        clear() { Object.keys(memoryStore).forEach(k => delete memoryStore[k]); },
+        getItem(key: string) { return memoryStore[key] ?? null; },
+        key(index: number) { return Object.keys(memoryStore)[index] ?? null; },
+        removeItem(key: string) { delete memoryStore[key]; },
+        setItem(key: string, value: string) { memoryStore[key] = value; },
+      };
+    }
+  }
+}
+
 // =====================================================
 // STORE
 // =====================================================
@@ -353,6 +389,7 @@ export const useDoorStore = create<DoorStore>()(
       },
 
       removeDoor: (id: string) => {
+        console.log(`[DoorStore] Removing door: ${id}`);
         set((state) => {
           const nextDoors = state.doors.filter(d => d.id !== id);
           let nextActiveId = state.activeDoorId;
@@ -361,6 +398,7 @@ export const useDoorStore = create<DoorStore>()(
             nextActiveId = nextDoors.length > 0 ? nextDoors[0].id : null;
           }
 
+          console.log(`[DoorStore] Door removed. Remaining count: ${nextDoors.length}. Next active ID: ${nextActiveId}`);
           return {
             doors: nextDoors,
             activeDoorId: nextActiveId,
@@ -541,7 +579,7 @@ export const useDoorStore = create<DoorStore>()(
 
         return migrated;
       },
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createResilientStorage()),
       onRehydrateStorage: () => (state) => {
         if (!state) {
           console.warn("Door store hydration failed or state is empty");

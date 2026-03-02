@@ -110,10 +110,9 @@ function CartItemCard({
 
       <div className="flex flex-col md:flex-row">
         {/* Render the 2D map side-by-side on desktop */}
-        <div className="w-full md:w-48 shrink-0 bg-stone-50 p-4 border-r flex flex-col items-center justify-center">
-          <div className="w-32 h-40 relative">
-            {/* We will refactor Door2D to accept configOverride */}
-            <Door2D face="front" configOverride={item as any} />
+        <div className="w-full md:w-56 shrink-0 bg-stone-50 p-3 border-r flex items-center justify-center">
+          <div className="w-full aspect-[3/4]" data-door-id={item.id}>
+            <Door2D face="front" configOverride={{ ...item, showDimensions: false } as any} />
           </div>
         </div>
 
@@ -363,16 +362,8 @@ export default function CheckoutPage() {
 
         // Only restore if backup is less than 24 hours old
         if (Date.now() - data.timestamp < 86400000) {
-          // Validate structure using Zod
-          // We need to handle potential differences in schemas, so we use safeParse
-          // and map to internal DoorOrderItem structure if needed.
-          // Since cartItemSchema expects 'config' object but useDoorStore stores flattened DoorOrderItem,
-          // we might need to be flexible.
-
           if (data.doors && Array.isArray(data.doors)) {
-            // Basic array check passed, now filter valid items
             const validDoors = data.doors.filter((d: any) => {
-              // Minimal check: must have id, width, height
               return d && typeof d === 'object' && d.id && typeof d.width === 'number';
             });
 
@@ -381,27 +372,24 @@ export default function CheckoutPage() {
               toast.success("Cart restored", {
                 description: "Your previous session has been recovered."
               });
-            } else {
-              console.warn("Backup contained no valid doors");
+              // Clear backup after successful restore to prevent auto-restore loops
+              sessionStorage.removeItem('checkout-backup');
             }
           }
-        } else {
-          console.log("Backup expired");
         }
-        // Clears the backup to prevent double restore
-        sessionStorage.removeItem('checkout-backup');
       }
     } catch (e) {
       console.warn('Failed to restore cart from backup:', e);
     }
   }, []);
 
-  // Attempt restore on mount
+  // Attempt restore on mount ONLY
   useEffect(() => {
     if (doors.length === 0) {
       restoreCartFromBackup();
     }
-  }, [restoreCartFromBackup, doors.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const handleQuantityChange = useCallback((id: string, qty: number) => {
     updateQuantity(id, qty);
@@ -426,6 +414,8 @@ export default function CheckoutPage() {
 
   const handleEditItem = useCallback((item: DoorOrderItem) => {
     loadFromCartItem(item);
+    // Also set active door in store to ensure correct item is selected in builder
+    useDoorStore.getState().setActiveDoor(item.id);
     setLocation("/");
   }, [loadFromCartItem, setLocation]);
 
@@ -434,6 +424,7 @@ export default function CheckoutPage() {
   const subtotal = getSubtotal();
   const vat = getVat();
   const grandTotal = getGrandTotal();
+
 
   // ─── Proceed to Payment ─────────────────────────────────────────────────
   const handleProceedToPayment = async () => {
@@ -512,7 +503,7 @@ export default function CheckoutPage() {
 
         // ─── Native Shopify Integration Path ───
         // If embedded in a Shopify iframe, send message to parent to use AJAX Cart
-        const isEmbedded = window.parent !== window;
+        const isEmbedded = window.parent !== window || window.location.search.includes('shop=');
         if (isEmbedded) {
           console.log("[Checkout] Embedded detected, messaging parent for Shopify Cart add...");
           window.parent.postMessage({
@@ -521,7 +512,8 @@ export default function CheckoutPage() {
             invoiceUrl: data.invoiceUrl
           }, '*');
 
-          // The parent will handle the redirect to /cart
+          // Important: We do NOT resetStore() here because the user might navigate back 
+          // from the cart or checkout. The parent will handle the redirect.
           return;
         }
 

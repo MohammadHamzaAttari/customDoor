@@ -72,18 +72,16 @@ export function generateDoorSvg(config: SvgDoorConfig): string {
 
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${svgHeight}" width="${svgWidth}" height="${svgHeight}">
-  <defs>
-    <style>
-      .frame { fill: ${fillColor}; stroke: ${strokeColor}; stroke-width: ${strokeWidth}; }
-      .panel { fill: ${panelFillColor}; stroke: #a09080; stroke-width: 1; }
-      .rail { fill: ${railFillColor}; stroke: ${strokeColor}; stroke-width: ${strokeWidth * 0.5}; }
-      .dimension { font-family: Arial, sans-serif; font-size: 12px; fill: #666; }
-      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: #333; }
-    </style>
-  </defs>
+  <!-- Background -->
+  <rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="#ffffff" />
 `;
 
   const transformY = (y: number) => h - y + padding;
+
+  // Style attributes
+  const frameStyle = `fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}"`;
+  const dimensionStyle = `font-family="Arial, sans-serif" font-size="12px" fill="#666"`;
+  const titleStyle = `font-family="Arial, sans-serif" font-size="14px" font-weight="bold" fill="#333"`;
 
   if (isDoubleDoor) {
     const gap = 10;
@@ -168,8 +166,8 @@ export function generateDoorSvg(config: SvgDoorConfig): string {
     );
   }
 
-  svg += addDimensions(padding, w, h, isDoubleDoor, transformY);
-  svg += addTitleBlock(padding, svgHeight, config);
+  svg += addDimensions(padding, w, h, isDoubleDoor, transformY, dimensionStyle);
+  svg += addTitleBlock(padding, svgHeight, config, titleStyle);
   svg += `</svg>`;
 
   return svg;
@@ -233,9 +231,9 @@ function drawDoorLeaf(
     clipPathD += "Z";
 
     svg += `  <defs><clipPath id="${clipId}"><path d="${clipPathD}" /></clipPath></defs>\n`;
-    svg += `  <path class="frame" d="${clipPathD}" />\n`;
+    svg += `  <path d="${clipPathD}" fill="${config.finish === "RAW_UNASSEMBLED" ? "#f5f0e8" : "#fefefe"}" stroke="#333" stroke-width="2" />\n`;
   } else {
-    svg += `  <rect class="frame" x="${xOffset}" y="${transformY(height)}" width="${width}" height="${height}" />\n`;
+    svg += `  <rect x="${xOffset}" y="${transformY(height)}" width="${width}" height="${height}" fill="${config.finish === "RAW_UNASSEMBLED" ? "#f5f0e8" : "#fefefe"}" stroke="#333" stroke-width="2" />\n`;
   }
 
   const useClip = angledLeft || angledRight;
@@ -244,7 +242,7 @@ function drawDoorLeaf(
   if (midRailsEnabled && midRails.length > 0) {
     for (const rail of midRails) {
       const railY = transformY(rail.positionFromBottom + rail.dimension / 2);
-      svg += `  <rect class="rail" x="${xOffset + leftStile}" y="${railY}" width="${width - leftStile - rightStile}" height="${rail.dimension}"${clipAttr} />\n`;
+      svg += `  <rect x="${xOffset + leftStile}" y="${railY}" width="${width - leftStile - rightStile}" height="${rail.dimension}" fill="#d4cbbf" stroke="#333" stroke-width="1"${clipAttr} />\n`;
     }
   }
 
@@ -316,7 +314,7 @@ function drawDoorLeaf(
           );
 
           const pathD = `M ${panelPts.map(p => `${xOffset + p.x} ${transformY(p.y)}`).join(" L ")} Z`;
-          svg += `  <path class="panel" d="${pathD}"${panelType === "shaker" ? ' rx="2"' : ""}${panelClipAttr} />\n`;
+          svg += `  <path d="${pathD}" fill="#e8e0d0" stroke="#a09080" stroke-width="1"${panelClipAttr} />\n`;
 
           if (panelType === "raised") {
             const innerPad = 10;
@@ -328,7 +326,7 @@ function drawDoorLeaf(
               rightCutW, rightCutH
             );
             const innerPathD = `M ${innerPts.map(p => `${xOffset + p.x} ${transformY(p.y)}`).join(" L ")} Z`;
-            svg += `  <path class="panel" d="${innerPathD}"${panelClipAttr} />\n`;
+            svg += `  <path d="${innerPathD}" fill="#e8e0d0" stroke="#a09080" stroke-width="1"${panelClipAttr} />\n`;
           }
         }
       }
@@ -366,7 +364,8 @@ function addDimensions(
   width: number,
   height: number,
   isDoubleDoor: boolean,
-  transformY: (y: number) => number
+  transformY: (y: number) => number,
+  dimStyle: string
 ): string {
   let svg = "";
   const dimOffset = 40;
@@ -374,17 +373,17 @@ function addDimensions(
   svg += `  <line x1="${padding}" y1="${transformY(0) + dimOffset}" x2="${padding + width}" y2="${transformY(0) + dimOffset}" stroke="#999" stroke-width="1" />\n`;
   svg += `  <line x1="${padding}" y1="${transformY(0) + dimOffset - 5}" x2="${padding}" y2="${transformY(0) + dimOffset + 5}" stroke="#999" stroke-width="1" />\n`;
   svg += `  <line x1="${padding + width}" y1="${transformY(0) + dimOffset - 5}" x2="${padding + width}" y2="${transformY(0) + dimOffset + 5}" stroke="#999" stroke-width="1" />\n`;
-  svg += `  <text class="dimension" x="${padding + width / 2}" y="${transformY(0) + dimOffset + 20}" text-anchor="middle">${Math.round(width)}mm</text>\n`;
+  svg += `  <text ${dimStyle} x="${padding + width / 2}" y="${transformY(0) + dimOffset + 20}" text-anchor="middle">${Math.round(width)}mm</text>\n`;
 
   svg += `  <line x1="${padding - dimOffset}" y1="${transformY(0)}" x2="${padding - dimOffset}" y2="${transformY(height)}" stroke="#999" stroke-width="1" />\n`;
   svg += `  <line x1="${padding - dimOffset - 5}" y1="${transformY(0)}" x2="${padding - dimOffset + 5}" y2="${transformY(0)}" stroke="#999" stroke-width="1" />\n`;
   svg += `  <line x1="${padding - dimOffset - 5}" y1="${transformY(height)}" x2="${padding - dimOffset + 5}" y2="${transformY(height)}" stroke="#999" stroke-width="1" />\n`;
-  svg += `  <text class="dimension" x="${padding - dimOffset - 15}" y="${transformY(height / 2)}" text-anchor="end" dominant-baseline="middle">${Math.round(height)}mm</text>\n`;
+  svg += `  <text ${dimStyle} x="${padding - dimOffset - 15}" y="${transformY(height / 2)}" text-anchor="end" dominant-baseline="middle">${Math.round(height)}mm</text>\n`;
 
   return svg;
 }
 
-function addTitleBlock(padding: number, svgHeight: number, config: SvgDoorConfig): string {
+function addTitleBlock(padding: number, svgHeight: number, config: SvgDoorConfig, titleStyle: string): string {
   const y = svgHeight - 30;
-  return `  <text class="title" x="${padding}" y="${y}">Door: ${config.width}mm x ${config.height}mm | ${config.preset} | ${config.panelType} panel | ${config.material}</text>\n`;
+  return `  <text ${titleStyle} x="${padding}" y="${y}">Door: ${config.width}mm x ${config.height}mm | ${config.preset} | ${config.panelType} panel | ${config.material}</text>\n`;
 }

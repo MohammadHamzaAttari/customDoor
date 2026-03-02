@@ -9,9 +9,10 @@ export type PanelType = "STANDARD_12MM" | "STANDARD_9MM" | "REEDED_19MM" | "MELA
 export type PanelOrientation = "vertical" | "horizontal";
 export type BorderStyle = "none" | "simple" | "detailed";
 export type DoorShape = "rectangular" | "angled";
-export type MaterialType = "MDF";
+export type MaterialType = "MDF" | "OAK" | "WALNUT" | "PINE";
 export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED" | "PAINTED";
 export type HingeType = "SCREW_POINTS" | "INSERTA";
+export type ViewSide = "front" | "back";
 
 // Hinge center offset: 5mm gap to edge + 17.5mm (half of 35mm cup) = 22.5mm
 export const HINGE_CENTER_OFFSET_MM = 22.5;
@@ -132,6 +133,7 @@ interface DoorConfigStore extends DoorConfig {
   updateHinge: (id: string, field: keyof Hinge, value: any) => void;
   swapHingeSide: () => void;
   equaliseHinges: () => void;
+  setHinges: (hinges: Hinge[]) => void;
 
   setFinish: (finish: FinishType) => void;
   toggleDimensions: () => void;
@@ -284,6 +286,11 @@ export const useDoorConfig = create<DoorConfigStore>()(
           isNewSession: false,
           _hasInteracted: true,
         });
+        get().calculatePrice();
+      },
+
+      setHinges: (hinges: Hinge[]) => {
+        set({ hinges });
         get().calculatePrice();
       },
 
@@ -651,6 +658,10 @@ export const useDoorConfig = create<DoorConfigStore>()(
         get().clearNewSession();
         set({ finish });
         get().calculatePrice();
+      },
+
+      setViewSide: (viewSide: ViewSide) => {
+        set({ viewSide });
       },
 
       toggleDimensions: () => {

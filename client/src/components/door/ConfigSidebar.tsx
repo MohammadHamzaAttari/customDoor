@@ -311,6 +311,9 @@ function BorderWidthsSection() {
     setLeftStile, setRightStile, setBottomRail, setTopRail,
     setBorderWidth, setCustomBorders, customBorders, borderWidth,
     hingeDrilling, getMinBorderForSide,
+    angledLeft, angledRight,
+    leftAngledRailWidth, rightAngledRailWidth,
+    setLeftAngledRailWidth, setRightAngledRailWidth
   } = useDoorConfig();
 
   const minLeft = getMinBorderForSide("LEFT");
@@ -364,6 +367,18 @@ function BorderWidthsSection() {
               </Label>
               <NumberInput value={rightStile} onChange={setRightStile} min={minRight} max={300} className="h-9" />
             </div>
+            {angledLeft && (
+              <div className="space-y-2">
+                <Label className="text-xs text-gray-500 text-blue-600 font-medium">Angled Rail Left (min {minTop}mm)</Label>
+                <NumberInput value={leftAngledRailWidth} onChange={setLeftAngledRailWidth} min={minTop} max={300} className="h-9 border-blue-200 focus:ring-blue-500" />
+              </div>
+            )}
+            {angledRight && (
+              <div className="space-y-2">
+                <Label className="text-xs text-gray-500 text-purple-600 font-medium">Angled Rail Right (min {minTop}mm)</Label>
+                <NumberInput value={rightAngledRailWidth} onChange={setRightAngledRailWidth} min={minTop} max={300} className="h-9 border-purple-200 focus:ring-purple-500" />
+              </div>
+            )}
           </div>
         )}
       </div>

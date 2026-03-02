@@ -21,6 +21,7 @@ npx esbuild lambda-entry.ts \
     --format=cjs \
     --minify \
     --sourcemap \
+    --external:sharp \
     --external:pg-native \
     --external:better-sqlite3 \
     --external:@mapbox/node-pre-gyp \
@@ -34,7 +35,13 @@ cp package.json lambda-build/
 cd lambda-build
 
 # Install only what's needed
-npm install --omit=dev --ignore-scripts 2>/dev/null
+npm install --omit=dev 2>/dev/null
+
+# Step 2.5: Copy built client assets
+echo ""
+echo "📦 [2.5/3] Copying client assets..."
+mkdir -p dist/client
+cp -r ../dist/client .
 
 # Clean up unnecessary files
 find node_modules -type f \( \
@@ -62,7 +69,7 @@ echo ""
 echo "📦 [3/3] Creating zip..."
 
 cd lambda-build
-zip -r ../lambda-package.zip index.js index.js.map node_modules/ -q
+zip -r ../lambda-package.zip index.js index.js.map node_modules/ dist/ -q
 cd ..
 
 # Report

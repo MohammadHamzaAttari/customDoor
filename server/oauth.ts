@@ -10,10 +10,12 @@ const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || "";
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || "";
 const DEFAULT_SHOP = process.env.SHOPIFY_SHOP_DOMAIN || "dw0c1m-10.myshopify.com";
 const SCOPES = [
-  "write_customers",
-  "read_customers",
-  "write_draft_orders",
+  "read_products",
+  "write_products",
   "read_draft_orders",
+  "write_draft_orders",
+  "read_customers",
+  "write_customers",
   "read_orders",
   "write_orders",
 ].join(",");
@@ -184,7 +186,7 @@ function sanitizeShop(shop: string): string | null {
 }
 
 export function registerOAuthRoutes(app: Express) {
-  
+
   // ────────────────────────────────────────────────
   // STEP 1: Begin OAuth - Redirect to Shopify
   // ────────────────────────────────────────────────
@@ -375,8 +377,8 @@ export function registerOAuthRoutes(app: Express) {
         tokenSource: dbToken?.settingValue
           ? "database"
           : process.env.SHOPIFY_ACCESS_TOKEN
-          ? "env_var"
-          : "missing",
+            ? "env_var"
+            : "missing",
         tokenPrefix: token ? `${token.substring(0, 12)}...` : "MISSING",
         domain: domain || "MISSING",
         baseUrl: getBaseUrl(req),
