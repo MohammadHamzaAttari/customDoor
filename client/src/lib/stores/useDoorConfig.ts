@@ -23,6 +23,12 @@ export const HINGE_CUP_DEPTH_MM = 13;
 export const MIN_BORDER_WITH_HINGES = 65;
 export const MIN_BORDER_WITHOUT_HINGES = 35;
 
+// Dimension limits
+export const MIN_WIDTH_MM = 200;
+export const MAX_WIDTH_MM = 1200;
+export const MIN_HEIGHT_MM = 200;
+export const MAX_HEIGHT_MM = 2430;
+
 export interface Hinge {
   id: string;
   positionMm: number;
@@ -178,9 +184,9 @@ const initialState: DoorConfig = {
   topRail: 90,
 
   rebateWidthMm: 10,
-  rebateDepthMm: 10,
-  frontFaceThicknessMm: 12,
-  cornerRadiusMm: 1,
+  rebateDepthMm: 14,
+  frontFaceThicknessMm: 8,
+  cornerRadiusMm: 2.5,
   rearCornerRadiusMm: 2.5,
 
   midRailsEnabled: false,
@@ -295,17 +301,18 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setWidth: (width: number) => {
-        // Guard against invalid values that would reset the config
-        if (width <= 0 || isNaN(width)) return;
+        if (isNaN(width)) return;
         get().clearNewSession();
-        set({ width });
+        const clamped = Math.max(MIN_WIDTH_MM, Math.min(MAX_WIDTH_MM, Math.round(width)));
+        set({ width: clamped });
         get().calculatePrice();
       },
 
       setHeight: (height: number) => {
-        if (height <= 0 || isNaN(height)) return;
+        if (isNaN(height)) return;
         get().clearNewSession();
-        set({ height });
+        const clamped = Math.max(MIN_HEIGHT_MM, Math.min(MAX_HEIGHT_MM, Math.round(height)));
+        set({ height: clamped });
         get().calculatePrice();
       },
 

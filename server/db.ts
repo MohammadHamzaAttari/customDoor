@@ -9,10 +9,12 @@ if (!process.env.DATABASE_URL) {
     );
 }
 
-// Create the connection pool with SSL support for cloud databases
+const isLocal = process.env.DATABASE_URL?.includes("localhost") || process.env.DATABASE_URL?.includes("127.0.0.1");
+
+// Create the connection pool with conditional SSL support
 export const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
+    ssl: isLocal ? false : {
         rejectUnauthorized: false,
     },
 });

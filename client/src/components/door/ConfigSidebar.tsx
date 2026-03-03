@@ -4,6 +4,10 @@ import {
   useDoorConfig,
   MIN_BORDER_WITH_HINGES,
   MIN_BORDER_WITHOUT_HINGES,
+  MIN_WIDTH_MM,
+  MAX_WIDTH_MM,
+  MIN_HEIGHT_MM,
+  MAX_HEIGHT_MM,
 } from "@/lib/stores/useDoorConfig";
 import { AngledCornersSection } from "@/components/door/sections/AngledCornersSection";
 import { Button } from "@/components/ui/button";
@@ -11,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { NumberInput } from "@/components/ui/NumberInput";
+import { DynamicCornerDiagram } from "@/components/door/DynamicCornerDiagram";
 import {
   Accordion,
   AccordionContent,
@@ -284,18 +289,18 @@ function DoorDimensionsSection() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Label className="text-sm text-gray-600">Height (mm)</Label>
-          <InfoTip><p>Overall door height. Maximum 2430mm.</p></InfoTip>
+          <InfoTip><p>Overall door height. Range: {MIN_HEIGHT_MM}–{MAX_HEIGHT_MM}mm.</p></InfoTip>
         </div>
-        <NumberInput value={height} onChange={setHeight} min={200} max={2430} className="w-full" />
-        <span className="text-xs text-gray-400">Range: 200–2430mm</span>
+        <NumberInput value={height} onChange={setHeight} min={MIN_HEIGHT_MM} max={MAX_HEIGHT_MM} className="w-full" />
+        <span className="text-xs text-gray-400">Range: {MIN_HEIGHT_MM}–{MAX_HEIGHT_MM}mm</span>
       </div>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Label className="text-sm text-gray-600">Width (mm)</Label>
-          <InfoTip><p>Overall door width. Maximum 1200mm.</p></InfoTip>
+          <InfoTip><p>Overall door width. Range: {MIN_WIDTH_MM}–{MAX_WIDTH_MM}mm.</p></InfoTip>
         </div>
-        <NumberInput value={width} onChange={setWidth} min={200} max={1200} className="w-full" />
-        <span className="text-xs text-gray-400">Range: 200–1200mm</span>
+        <NumberInput value={width} onChange={setWidth} min={MIN_WIDTH_MM} max={MAX_WIDTH_MM} className="w-full" />
+        <span className="text-xs text-gray-400">Range: {MIN_WIDTH_MM}–{MAX_WIDTH_MM}mm</span>
       </div>
     </div>
   );
@@ -725,6 +730,7 @@ function FinishOptionSection() {
 function RebateSection() {
   const {
     thickness,
+    panelType,
     rebateWidthMm,
     rebateDepthMm,
     frontFaceThicknessMm,
@@ -777,105 +783,39 @@ function RebateSection() {
           </div>
         </div>
 
-        {/* Premium Corner Zoom Diagram */}
-        <div className="w-full aspect-[16/9] bg-stone-100 rounded-xl border border-stone-200 overflow-hidden relative shadow-inner">
-          <svg viewBox="0 0 400 225" className="w-full h-full">
-            {/* Background pattern */}
-            <defs>
-              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,0,0,0.03)" strokeWidth="0.5" />
-              </pattern>
-              <linearGradient id="doorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="100%" stopColor="#f5f5f4" />
-              </linearGradient>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
+        {/* Premium Dynamic Corner Diagram */}
+        <DynamicCornerDiagram
+          thickness={thickness}
+          rebateWidthMm={rebateWidthMm}
+          rebateDepthMm={rebateDepthMm}
+          frontFaceThicknessMm={frontFaceThicknessMm}
+          cornerRadiusMm={cornerRadiusMm}
+          rearCornerRadiusMm={rearCornerRadiusMm}
+          panelType={panelType}
+        />
+      </div>
 
-            {/* Main Door Cross-Section Zoomed in on Top-Right Corner */}
-            <g transform="translate(140, 50) scale(1.3)">
-              {/* Outer Shadow for Depth */}
-              <path
-                d={`M 0,0 H 120 Q 130,0 130,10 V 90 Q 130,100 120,100 H 40 Q 30,100 30,90 V 45 Q 30,35 20,35 H 0 Z`}
-                fill="url(#doorGrad)"
-                stroke="#57534e"
-                strokeWidth="2.5"
-                strokeLinejoin="round"
-                className="drop-shadow-sm"
-              />
+      <div className="pt-2 border-t border-stone-200">
+        <p className="text-[10px] text-stone-400 italic">
+          Adjusting these values updates the internal door construction.
+          Total depth (Front Face + Rebate Depth) must not exceed {thickness}mm.
+        </p>
+      </div>
 
-              {/* Panel Area (Indicated) */}
-              <rect x="-30" y="45" width="60" height="55" fill="#e7e5e4" opacity="0.4" stroke="#a8a29e" strokeWidth="1" strokeDasharray="3 2" />
-              <text x="-5" y="75" fill="#a8a29e" fontSize="7" fontWeight="700">PANEL SLOT</text>
-
-              {/* Dimension Annotations */}
-              <g className="text-[8px] font-bold" fill="#78716c">
-                {/* Total Thickness */}
-                <line x1="-15" y1="0" x2="-15" y2="100" stroke="#a8a29e" strokeWidth="1.5" strokeDasharray="3 3" />
-                <path d="M -18,0 H -12 M -18,100 H -12" stroke="#a8a29e" strokeWidth="1.5" />
-                <text x="-48" y="50" dominantBaseline="middle" fontSize="9">{thickness}mm</text>
-
-                {/* Front Face (Blue) */}
-                <line x1="160" y1="0" x2="160" y2="35" stroke="#3b82f6" strokeWidth="2" />
-                <path d="M 157,0 H 163 M 157,35 H 163" stroke="#3b82f6" strokeWidth="2" />
-                <text x="170" y="18" fill="#2563eb" fontSize="7.5" dominantBaseline="middle">FRONT: {frontFaceThicknessMm}mm</text>
-
-                {/* Rebate Depth (Orange) */}
-                <line x1="160" y1="35" x2="160" y2="100" stroke="#ea580c" strokeWidth="2" />
-                <path d="M 157,100 H 163" stroke="#ea580c" strokeWidth="2" />
-                <text x="170" y="68" fill="#c2410c" fontSize="7.5" dominantBaseline="middle">REBATE: {rebateDepthMm}mm</text>
-
-                {/* Rebate Width (Cyan) */}
-                <line x1="30" y1="120" x2="130" y2="120" stroke="#0891b2" strokeWidth="2" />
-                <path d="M 30,117 V 123 M 130,117 V 123" stroke="#0891b2" strokeWidth="2" />
-                <text x="80" y="132" textAnchor="middle" fill="#0e7490" fontSize="7.5">REBATE WIDTH: {rebateWidthMm}mm</text>
-
-                {/* Radii (Green & Purple) */}
-                {/* Front Corner */}
-                <g transform="translate(132, -5)">
-                  <circle r="4" fill="#22c55e" opacity="0.2" />
-                  <path d="M 0,-4 A 4,4 0 0,1 4,0" fill="none" stroke="#16a34a" strokeWidth="1.5" />
-                  <text x="8" y="2" fill="#166534" fontSize="7">Int. R{cornerRadiusMm}</text>
-                </g>
-
-                {/* Rear Corner */}
-                <g transform="translate(35, 105)">
-                  <circle r="4" fill="#a855f7" opacity="0.2" />
-                  <path d="M -4,0 A 4,4 0 0,0 0,4" fill="none" stroke="#9333ea" strokeWidth="1.5" />
-                  <text x="10" y="8" fill="#6b21a8" fontSize="7" textAnchor="start">Ext. R{rearCornerRadiusMm}</text>
-                </g>
-              </g>
-
-              {/* Interactive Indicators — glow when values change */}
-              <circle cx="130" cy="0" r="3" fill="#16a34a" className="animate-pulse" />
-              <circle cx="30" cy="100" r="3" fill="#9333ea" className="animate-pulse" />
-            </g>
-
-            {/* Title */}
-            <text x="12" y="18" className="text-[9px] font-bold text-stone-400">CORNER CROSS-SECTION</text>
-          </svg>
-        </div>
-
-        <div className="pt-2 border-t border-stone-200">
-          <p className="text-[10px] text-stone-400 italic">
-            Adjusting these values updates the internal door construction.
-            Total depth (Front Face + Rebate Depth) must not exceed {thickness}mm.
-          </p>
-        </div>
-
-        {isInvalid && (
+      {
+        isInvalid && (
           <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200 mt-2">
             <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-red-700">
               Warning: The current rebate depth ({rebateDepthMm}mm) and front face ({frontFaceThicknessMm}mm) exceed the door thickness ({thickness}mm).
             </div>
           </div>
-        )}
+        )
+      }
 
-        <p className="text-xs text-stone-500 px-1 mt-4">
-          Customise these values for specific architectural requirements. Standard defaults are pre-loaded.
-        </p>
-      </div>
+      <p className="text-xs text-stone-500 px-1 mt-4">
+        Customise these values for specific architectural requirements. Standard defaults are pre-loaded.
+      </p>
     </div>
   );
 }

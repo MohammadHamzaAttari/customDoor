@@ -46,10 +46,13 @@ export function NumberInput({
     setLocalValue(raw);
 
     // Parse and update store in real-time (for live preview)
-    // but don't force the input display
+    // Clamp to min/max to prevent invalid preview states
     const parsed = parseFloat(raw);
     if (!isNaN(parsed) && parsed > 0) {
-      onChange(parsed);
+      let clamped = parsed;
+      if (min !== undefined && clamped < min) clamped = min;
+      if (max !== undefined && clamped > max) clamped = max;
+      onChange(clamped);
     }
   };
 

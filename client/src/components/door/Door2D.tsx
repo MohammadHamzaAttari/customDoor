@@ -300,8 +300,11 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
   };
 
   const getPanelPoints = (sec: HoleSection, pPadM: number, rM: number) => {
-    const pBottom = sec.bottom - rM + pPadM;
-    const pTop = sec.top + rM - pPadM;
+    // rM is negative on BACK view to expand panel outward to rebate edge
+    // +rM on bottom: negative rM moves bottom down (expand)
+    // -rM on top: negative rM moves top up (expand)
+    const pBottom = sec.bottom + rM + pPadM;
+    const pTop = sec.top - rM - pPadM;
     if (pTop <= pBottom) return [];
 
     const steps = 6;
@@ -355,9 +358,9 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
 
   const renderPanels = () => {
     if (panelType === "NONE" || holeSections.length === 0) return null;
-    const paddingMm = 15;
-    const pPadM = paddingMm / 1000;
-    const rM = (isBack ? -rebateWidthMm : 0) / 1000;
+    const pPadM = 0;
+    // FRONT: panel fills to frame opening (stile). BACK: panel extends to rebate edge.
+    const rM = isBack ? -(rebateWidthMm / 1000) : 0;
 
     return holeSections.map((sec, idx) => {
       const points = getPanelPoints(sec, pPadM, rM);
@@ -367,8 +370,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
           key={`panel-sec-${idx}`}
           points={points.join(" ")}
           fill={panelFillColor}
-          stroke={strokeColor}
-          strokeWidth={1}
+          stroke="none"
         />
       );
     });
@@ -380,14 +382,14 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     const reedSpacingMm = 12;
     const reedStroke = "#a8a29e";
     const reedStrokeWidth = 0.4;
-    const pPadM = 15 / 1000;
-    const rM = (isBack ? -rebateWidthMm : 0) / 1000;
+    const pPadM = 0;
+    const rM = isBack ? -(rebateWidthMm / 1000) : 0;
 
     const result: JSX.Element[] = [];
 
     holeSections.forEach((sec, secIdx) => {
-      const pBottom = sec.bottom - rM + pPadM;
-      const pTop = sec.top + rM - pPadM;
+      const pBottom = sec.bottom + rM + pPadM;
+      const pTop = sec.top - rM - pPadM;
       if (pTop <= pBottom) return;
 
       const points = getPanelPoints(sec, pPadM, rM);
@@ -440,10 +442,26 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     const cupRadiusMm = HINGE_CUP_DIAMETER_MM / 2;
     const cupRadiusSvg = cupRadiusMm * scale;
 
+    // Sort hinges by position from top for labeling
+    const topHinges = hinges.filter(h => h.reference === "TOP").sort((a, b) => a.positionMm - b.positionMm);
+    const bottomHinges = hinges.filter(h => h.reference === "BOTTOM").sort((a, b) => a.positionMm - b.positionMm);
+    let topIdx = 0;
+    let bottomIdx = 0;
+
     return hinges.map((hinge) => {
       const hingeSide = hinge.side;
       const xCenter = hingeSide === "LEFT" ? HINGE_CENTER_OFFSET_MM : width - HINGE_CENTER_OFFSET_MM;
       const yCenter = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
+
+      // Label: T1, T2... from top; B1, B2... from bottom
+      let label: string;
+      if (hinge.reference === "TOP") {
+        const idx = topHinges.indexOf(hinge) + 1;
+        label = `T${idx}`;
+      } else {
+        const idx = bottomHinges.indexOf(hinge) + 1;
+        label = `B${idx}`;
+      }
 
       return (
         <g key={`hinge-${hinge.id}`}>
@@ -456,7 +474,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
             textAnchor={hingeSide === "LEFT" ? "start" : "end"}
             fill={hingeStrokeColor} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="600"
           >
-            {hinge.reference === "BOTTOM" ? `B — ${hinge.positionMm}` : `T — ${hinge.positionMm}`}
+            {label} — {hinge.positionMm}
           </text>
         </g>
       );

@@ -139,3 +139,55 @@ export function getInnerProfilePoints(
 
     return pts;
 }
+
+/**
+ * Calculates the inner (panel/hole/rail) edges at a given Y height (millimetres).
+ * Accounts for stile and rail widths, including angled ones.
+ * Reflects logic in client's doorUtils.ts
+ */
+export function getInnerEdgesAtY(
+    y: number,
+    w: number,
+    h: number,
+    ls: number,
+    rs: number,
+    ts: number,
+    bs: number,
+    arwL: number,
+    arwR: number,
+    angL: boolean,
+    angR: boolean,
+    lW: number,
+    lH: number,
+    rW: number,
+    rH: number,
+    inset: number = 0
+): { leftInner: number; rightInner: number } {
+    let leftInner = ls + inset;
+    let rightInner = w - rs - inset;
+
+    // Angled side constraints
+    if (angL && lH > 0.1 && lW > 0.1) {
+        const hyp = Math.sqrt(lW * lW + lH * lH);
+        const totalVertShift = (arwL + inset) * (hyp / lW);
+        const m = lH / lW;
+        // y = m*(x - 0) + (h - lH) - shift -> simplified for server coordinate system (0,0 is bottom-left)
+        // In client: y' = m*x' + c' where y' is height-relative.
+        // Let's use the line equation: y = m*x + (h - lH) - shift
+        // x = (y - (h - lH) + shift) / m
+        const xAtY = (y - (h - lH) + totalVertShift) / m;
+        leftInner = Math.max(leftInner, xAtY);
+    }
+
+    if (angR && rH > 0.1 && rW > 0.1) {
+        const hyp = Math.sqrt(rW * rW + rH * rH);
+        const totalVertShift = (arwR + inset) * (hyp / rW);
+        const m = -rH / rW;
+        // y = m*(x - (w - rW)) + h - shift
+        // x = (y - h + shift) / m + (w - rW)
+        const xAtY = (y - h + totalVertShift) / m + (w - rW);
+        rightInner = Math.min(rightInner, xAtY);
+    }
+
+    return { leftInner, rightInner };
+}

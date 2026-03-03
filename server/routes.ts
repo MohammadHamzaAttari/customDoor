@@ -319,7 +319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/order-items/:id/mid-rails", async (req, res) => {
     try {
       const itemId = parseInt(req.params.id);
-      const rail = await storage.createMidRail({ ...req.body, itemId });
+      const body = req.body;
+      const rail = await storage.createMidRail({
+        ...body,
+        itemId,
+        positionMm: typeof body.positionMm === 'string' ? parseInt(body.positionMm) : body.positionMm,
+        isAngled: typeof body.isAngled === 'string' ? body.isAngled === 'true' : body.isAngled,
+      });
       res.status(201).json(rail);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -556,9 +562,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Convert SVG to PNG using sharp
-      const pngBuffer = await sharp(Buffer.from(svgContent))
+      // We use a rectangular output (800x1200) matching the compact SVG's 2:3 aspect ratio
+      // This maximizes the door's visibility when Shopify shrinks to small thumbnails.
+      const pngBuffer = await sharp(Buffer.from(svgContent), { density: 300 })
         .flatten({ background: '#ffffff' }) // Ensure white background
-        .resize(800) // Increase resolution for better detail
+        .resize({
+          width: 800,
+          height: 1200,
+          fit: 'contain',
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
+        })
         .png()
         .toBuffer();
 
@@ -597,6 +610,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     bottomRail: z.number().optional(),
     midRailsEnabled: z.boolean().optional(),
     midRails: z.array(z.any()).optional(),
+    leftAngleDegrees: z.number().optional(),
+    rightAngleDegrees: z.number().optional(),
+    leftAngledRailWidth: z.number().optional(),
+    rightAngledRailWidth: z.number().optional(),
+    panelOrientation: z.string().optional(),
     hinges: z.array(z.any()),
   }).passthrough();
 
@@ -623,6 +641,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     topRail: z.number().optional(),
     midRailsEnabled: z.boolean().optional(),
     midRails: z.array(z.any()).optional(),
+    leftAngleDegrees: z.number().optional(),
+    rightAngleDegrees: z.number().optional(),
+    leftAngledRailWidth: z.number().optional(),
+    rightAngledRailWidth: z.number().optional(),
     rebateWidthMm: z.number().optional(),
     rebateDepthMm: z.number().optional(),
     frontFaceThicknessMm: z.number().optional(),
@@ -1014,12 +1036,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Construct full config for generators
         const fullConfig = {
           ...item,
-          preset: "single", // Default
-          panelCount: 1, // Default
-          borderWidth: 90, // Default
-          shape: (item.angledLeft || item.angledRight) ? "angled" : "rectangular",
-          material: "MR MDF", // Default material
-          // ... map other fields
+          width: Number(item.width),
+          height: Number(item.height),
+          thickness: Number(item.thickness),
+          preset: item.preset || "single",
+          panelType: item.panelType || "NONE",
+          panelCount: Number(item.panelCount || 1),
+          panelOrientation: item.panelOrientation || "vertical",
+          shape: (item.angledLeft === true || item.angledLeft === "true" || item.angledRight === true || item.angledRight === "true") ? "angled" : "rectangular",
+          angledLeft: item.angledLeft === true || item.angledLeft === "true",
+          angledRight: item.angledRight === true || item.angledRight === "true",
+          material: item.material || "MR MDF",
+          finish: item.finish || "PRIMED",
+          leftStile: Number(item.leftStile || 75),
+          rightStile: Number(item.rightStile || 75),
+          topRail: Number(item.topRail || 75),
+          bottomRail: Number(item.bottomRail || 75),
+          midRailsEnabled: item.midRailsEnabled === true || item.midRailsEnabled === "true",
+          midRails: typeof item.midRails === "string" ? JSON.parse(item.midRails) : (Array.isArray(item.midRails) ? item.midRails : []),
+          leftTriangleCutoutWidth: Number(item.leftTriangleCutoutWidth || 0),
+          leftTriangleCutoutHeight: Number(item.leftTriangleCutoutHeight || 0),
+          rightTriangleCutoutWidth: Number(item.rightTriangleCutoutWidth || 0),
+          rightTriangleCutoutHeight: Number(item.rightTriangleCutoutHeight || 0),
+          leftAngleDegrees: Number(item.leftAngleDegrees || 0),
+          rightAngleDegrees: Number(item.rightAngleDegrees || 0),
+          leftAngledRailWidth: Number(item.leftAngledRailWidth || 90),
+          rightAngledRailWidth: Number(item.rightAngledRailWidth || 90),
         };
 
         try {
@@ -1029,15 +1071,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const dxfPath = path.join(storageDir, dxfFilename);
           await fs.promises.writeFile(dxfPath, dxfContent);
 
-          // SVG
+          // SVG (normal — for order file)
           const svgContent = generateDoorSvg({ ...fullConfig, borderWidth: 90 } as any);
           const svgFilename = `${dbItem.id}_preview.svg`;
           const svgPath = path.join(storageDir, svgFilename);
           await fs.promises.writeFile(svgPath, svgContent);
 
-          // Store SVG in preview cache for Shopify checkout image
+          // SVG (compact — optimized for Shopify thumbnail: no labels, minimal padding, bolder strokes)
+          const compactSvg = generateDoorSvg({ ...fullConfig, borderWidth: 90, compact: true } as any);
+
+          // Store compact SVG in preview cache for Shopify checkout image
           const previewToken = nanoid();
-          await storage.savePreview(previewToken, svgContent);
+          await storage.savePreview(previewToken, compactSvg);
           const hostName = process.env.HOST_NAME || `http://localhost:${process.env.PORT || 5000}`;
 
           // Use PNG URL for Shopify (Svg is rejected)
