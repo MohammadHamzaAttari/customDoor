@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 650" width="500" height="650">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+      <feOffset dx="2" dy="2" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect x="0" y="0" width="500" height="650" fill="#ffffff" />
+  <!-- Face Label (Match Door2D) -->
+  <text x="250" y="30" text-anchor="middle" fill="#2563eb" font-family="Liberation Sans, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">FRONT VIEW</text>
+  <defs><clipPath id="clip-160.9090909090909-1772635324060"><path d="M 160.9090909090909 570 L 160.9090909090909 169.0909090909091 L 194.3181818181818 80 L 339.0909090909091 80 L 339.0909090909091 570 Z" /></clipPath></defs>
+  <path d="M 160.9090909090909 570 L 160.9090909090909 169.0909090909091 L 194.3181818181818 80 L 339.0909090909091 80 L 339.0909090909091 570 Z" fill="#fafaf9" stroke="#44403c" stroke-width="0.3340909090909091" filter="url(#shadow)" />
+  <path d="M NaN NaN L 319.0454545454545 NaN L 319.0454545454545 NaN L NaN NaN Z" fill="#fafaf9" stroke="#52525b" stroke-width="0.22272727272727272" clip-path="url(#clip-160.9090909090909-1772635324060)" />
+  <line x1="160.9090909090909" y1="575.5681818181819" x2="339.0909090909091" y2="575.5681818181819" stroke="#78716c" stroke-width="1" />
+  <line x1="160.9090909090909" y1="570.5681818181819" x2="160.9090909090909" y2="580.5681818181819" stroke="#78716c" stroke-width="1" />
+  <line x1="339.0909090909091" y1="570.5681818181819" x2="339.0909090909091" y2="580.5681818181819" stroke="#78716c" stroke-width="1" />
+  <text font-family="Liberation Sans, Arial, sans-serif" font-size="12px" fill="#78716c" font-weight="600" x="250" y="590.5681818181819" text-anchor="middle">800mm</text>
+  <line x1="344.65909090909093" y1="570" x2="344.65909090909093" y2="80" stroke="#78716c" stroke-width="1" />
+  <line x1="339.65909090909093" y1="570" x2="349.65909090909093" y2="570" stroke="#78716c" stroke-width="1" />
+  <line x1="339.65909090909093" y1="80" x2="349.65909090909093" y2="80" stroke="#78716c" stroke-width="1" />
+  <text font-family="Liberation Sans, Arial, sans-serif" font-size="12px" fill="#78716c" font-weight="600" x="352.65909090909093" y="325" text-anchor="start" dominant-baseline="middle" transform="rotate(0, 352.65909090909093, 325)">2200mm</text>
+  <text x="250" y="642" text-anchor="middle" fill="#999" font-family="Liberation Sans, Arial, sans-serif" font-size="10">800mm × 2200mm | STANDARD 12MM</text>
+</svg>

@@ -4,17 +4,18 @@ let serverlessExpressInstance: any;
 
 async function setup() {
   // Dynamically import to handle cold starts properly
-  const { app } = await import('./server/index');
+  const { setupApp } = await import('./server/index');
+  const { app } = await setupApp();
   serverlessExpressInstance = serverlessExpress({ app });
 }
 
 export async function handler(event: any, context: any) {
   // Keep the connection alive between invocations
   context.callbackWaitsForEmptyEventLoop = false;
-  
+
   if (!serverlessExpressInstance) {
     await setup();
   }
-  
+
   return serverlessExpressInstance(event, context);
 }

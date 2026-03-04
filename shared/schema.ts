@@ -96,6 +96,7 @@ export const settingTypeEnum = pgEnum("setting_type", [
 
 export const panelTypeEnum = pgEnum("panel_type", [
   "STANDARD_12MM",
+  "STANDARD_9MM",
   "REEDED_19MM",
   "MELAMINE_18MM",
   "FRETWORK",

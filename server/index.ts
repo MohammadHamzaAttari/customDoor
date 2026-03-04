@@ -1,18 +1,7 @@
 // server/index.ts — COMPLETE FIXED VERSION
-
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { registerRoutes } from "./routes";
-
-// Load dotenv for local development (safe for both ESM and CJS)
-try {
-  if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require("dotenv").config();
-  }
-} catch (e) {
-  // dotenv not available — that's fine in production
-}
 
 const app = express();
 
@@ -68,16 +57,34 @@ app.get("/api/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
     runtime: process.env.AWS_LAMBDA_FUNCTION_NAME ? "lambda" : "server",
-    node: process.version,
     uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
   });
 });
 
-(async () => {
-  /* ===============================
-     Routes
-  ================================ */
+/* ===============================
+   Initialization Function
+================================ */
+export async function setupApp() {
+  // Load dotenv for local development
+  if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    try {
+      const dotenv = await import("dotenv");
+      dotenv.config();
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // Manual migration for production (Ensures STANDARD_9MM exists)
+  try {
+    const { runMigrations } = await import("./migrate");
+    await runMigrations();
+  } catch (err) {
+    console.error("Migration import error:", err);
+  }
+
+  // Routes
   const httpServer = await registerRoutes(app);
 
   /* ===============================
@@ -95,33 +102,39 @@ app.get("/api/health", (_req, res) => {
     res.status(status).json({ message });
   });
 
-  /* ===============================
-     Standalone server only
-  ================================ */
-  const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+  return { app, httpServer };
+}
 
-  if (!isLambda) {
+/* ===============================
+   Standalone server only
+================================ */
+const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+if (!isLambda) {
+  // Using .then instead of top-level await to satisfy esbuild CJS limitation
+  setupApp().then(async ({ app: initializedApp, httpServer }) => {
     const PORT = Number(process.env.PORT || 5000);
 
     if (process.env.NODE_ENV === "production") {
       const clientPath = path.join(process.cwd(), "dist", "client");
-      app.use(express.static(clientPath));
+      initializedApp.use(express.static(clientPath));
 
-      // ✅ FIX: Use {*path} instead of * for Express 5 / path-to-regexp v8
-      app.get("/{*path}", (req, res, next) => {
+      initializedApp.get("/{*path}", (req, res, next) => {
         if (req.path.startsWith("/api")) return next();
         res.sendFile(path.join(clientPath, "index.html"));
       });
     } else {
       // In development, setup Vite middleware AFTER routes
       const { setupVite } = await import("./vite");
-      await setupVite(app, httpServer);
+      await setupVite(initializedApp, httpServer);
     }
 
     httpServer.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
-  }
-})();
+  }).catch(err => {
+    console.error("❌ Failed to initialize app:", err);
+  });
+}
 
 export { app };

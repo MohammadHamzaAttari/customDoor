@@ -722,16 +722,8 @@ export default function CheckoutPage() {
                       <div key={item.id} className="flex justify-between items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-stone-900 text-sm truncate">
-                            {catInfo.icon} {item.label}
+                            {catInfo.icon} {item.label.replace(/^Door \d+\s*[—\-]\s*/, '')}
                           </h3>
-                          <p className="text-xs text-stone-500 mt-0.5">
-                            {item.width}×{item.height}mm · {item.thickness}mm · {item.finish.replace(/_/g, " ")}
-                            {item.angledLeft && " · Angled L"}
-                            {item.angledRight && " · Angled R"}
-                          </p>
-                          <p className="text-xs text-stone-400 font-medium">
-                            {PANEL_LABELS[item.panelType] || item.panelType} (Rebate: {item.rebateWidthMm}mm)
-                          </p>
                         </div>
                         <div className="text-right shrink-0">
                           <span className="font-bold text-sm">£{item.lineTotal.toFixed(2)}</span>
