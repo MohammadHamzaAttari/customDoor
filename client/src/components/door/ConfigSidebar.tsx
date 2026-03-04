@@ -134,14 +134,16 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="borders">
-            <AccordionTrigger className="text-sm font-medium">
-              Frames & Borders
-            </AccordionTrigger>
-            <AccordionContent>
-              <BorderWidthsSection />
-            </AccordionContent>
-          </AccordionItem>
+          {config.panelType !== "NONE" && (
+            <AccordionItem value="borders">
+              <AccordionTrigger className="text-sm font-medium">
+                Frames & Borders
+              </AccordionTrigger>
+              <AccordionContent>
+                <BorderWidthsSection />
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           <AccordionItem value="angled">
             <AccordionTrigger className="text-sm font-medium">
@@ -157,19 +159,21 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="mid-rails">
-            <AccordionTrigger className="text-sm font-medium">
-              <span className="flex items-center gap-2">
-                Mid Rails
-                {config.midRailsEnabled && config.midRails.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">{config.midRails.length}</Badge>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <MidRailsSection />
-            </AccordionContent>
-          </AccordionItem>
+          {config.panelType !== "NONE" && (
+            <AccordionItem value="mid-rails">
+              <AccordionTrigger className="text-sm font-medium">
+                <span className="flex items-center gap-2">
+                  Mid Rails
+                  {config.midRailsEnabled && config.midRails.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">{config.midRails.length}</Badge>
+                  )}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <MidRailsSection />
+              </AccordionContent>
+            </AccordionItem>
+          )}
 
           <AccordionItem value="finish">
             <AccordionTrigger className="text-sm font-medium">
@@ -194,14 +198,16 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="rebates">
-            <AccordionTrigger className="text-sm font-medium">
-              Detailed Specifications
-            </AccordionTrigger>
-            <AccordionContent>
-              <RebateSection />
-            </AccordionContent>
-          </AccordionItem>
+          {config.panelType !== "NONE" && (
+            <AccordionItem value="rebates">
+              <AccordionTrigger className="text-sm font-medium">
+                Detailed Specifications
+              </AccordionTrigger>
+              <AccordionContent>
+                <RebateSection />
+              </AccordionContent>
+            </AccordionItem>
+          )}
         </Accordion>
         <div className="h-6" />
       </div>

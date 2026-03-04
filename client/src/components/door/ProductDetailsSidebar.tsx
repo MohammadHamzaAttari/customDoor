@@ -131,7 +131,7 @@ export function ProductDetailsSidebar() {
     });
   }
 
-  if (midRailsEnabled && midRails.length > 0) {
+  if (panelType !== "NONE" && midRailsEnabled && midRails.length > 0) {
     features.push({
       label: "Mid Rails",
       value: `${midRails.length} rail${midRails.length > 1 ? "s" : ""}`,

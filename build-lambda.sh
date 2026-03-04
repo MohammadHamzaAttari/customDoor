@@ -25,6 +25,8 @@ npx esbuild lambda-entry.ts \
     --external:pg-native \
     --external:better-sqlite3 \
     --external:@mapbox/node-pre-gyp \
+    --external:lightningcss \
+    --external:esbuild \
     --loader:.node=copy
 
 # Step 2: Copy only needed node_modules

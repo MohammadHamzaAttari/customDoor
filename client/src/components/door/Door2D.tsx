@@ -45,6 +45,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     rebateWidthMm,
     leftAngledRailWidth,
     rightAngledRailWidth,
+    rearCornerRadiusMm,
   } = config;
 
   const isBack = face === "back";
@@ -71,14 +72,16 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
   const offsetX = (maxWidth - scaledWidth) / 2;
   const offsetY = (maxHeight - scaledHeight) / 2;
 
-  const strokeColor = "#44403c";
-  const fillColor = "#fafaf9";
-  const panelFillColor = "#e7e5e4";
-  const railFillColor = "#fafaf9";
-  const dimensionColor = "#78716c";
-  const hingeFillColor = "#a1a1aa";
-  const hingeStrokeColor = "#52525b";
-  const borderDimColor = "#3b82f6"; // Blue for border dims
+  const isMDFModel = panelType === "MELAMINE_18MM";
+
+  const strokeColor = isMDFModel ? "#5d4037" : "#44403c"; // Dark brown MDF edge or neutral dark
+  const fillColor = isMDFModel ? "#d7ccc8" : "#fafaf9";   // Light tan MDF face or off-white
+  const panelFillColor = isMDFModel ? "#c19a6b" : "#e7e5e4"; // Raw brown MDF panel or light gray
+  const railFillColor = isMDFModel ? "#d7ccc8" : "#fafaf9";  // Light tan MDF rail or off-white
+  const dimensionColor = strokeColor;
+  const hingeFillColor = isMDFModel ? "#bcaaa4" : "#a1a1aa";
+  const hingeStrokeColor = strokeColor;
+  const borderDimColor = isMDFModel ? "#1e40af" : "#3b82f6"; // Darker blue for visibility on tan or standard blue
 
   const mirrorTransform = isBack
     ? `translate(${maxWidth}, 0) scale(-1, 1)`
@@ -149,44 +152,50 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
 
     // Therefore, visible frame edge is always:
     const visibleFrameStyle = isBack ? { strokeDasharray: frameDash } : {};
+    const scaledInnerRadius = rearCornerRadiusMm * scale;
 
-    // Left stile visible line
-    lines.push(
-      <line key="left-stile-vis"
-        x1={toX(effectiveLeftStile)} y1={toY(effectiveBottomRail)}
-        x2={toX(effectiveLeftStile)} y2={toY(height - effectiveTopRail)}
-        stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
-      />
-    );
-
-    // Right stile visible line
-    lines.push(
-      <line key="right-stile-vis"
-        x1={toX(width - effectiveRightStile)} y1={toY(effectiveBottomRail)}
-        x2={toX(width - effectiveRightStile)} y2={toY(height - effectiveTopRail)}
-        stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
-      />
-    );
-
-    // Bottom rail visible line
-    lines.push(
-      <line key="bottom-rail-vis"
-        x1={toX(effectiveLeftStile)} y1={toY(effectiveBottomRail)}
-        x2={toX(width - effectiveRightStile)} y2={toY(effectiveBottomRail)}
-        stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
-      />
-    );
-
-    // Top rail visible line (handle angled)
+    // For non-angled doors, use <rect> with rx/ry for inner corner radii
     if (!angledLeft && !angledRight) {
+      // Visible frame opening rectangle with inner corner radii
+      const vx = toX(effectiveLeftStile);
+      const vy = toY(height - effectiveTopRail);
+      const vw = toX(width - effectiveRightStile) - toX(effectiveLeftStile);
+      const vh = toY(effectiveBottomRail) - toY(height - effectiveTopRail);
       lines.push(
-        <line key="top-rail-vis"
-          x1={toX(effectiveLeftStile)} y1={toY(height - effectiveTopRail)}
+        <rect key="visible-frame-rect"
+          x={vx} y={vy} width={vw} height={vh}
+          rx={scaledInnerRadius} ry={scaledInnerRadius}
+          fill="none" stroke={frameStroke} strokeWidth={frameStrokeWidth}
+          {...visibleFrameStyle}
+        />
+      );
+    } else {
+      // Angled doors: use individual lines for the straight portions
+      // Left stile visible line
+      lines.push(
+        <line key="left-stile-vis"
+          x1={toX(effectiveLeftStile)} y1={toY(effectiveBottomRail)}
+          x2={toX(effectiveLeftStile)} y2={toY(height - effectiveTopRail)}
+          stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
+        />
+      );
+      // Right stile visible line
+      lines.push(
+        <line key="right-stile-vis"
+          x1={toX(width - effectiveRightStile)} y1={toY(effectiveBottomRail)}
           x2={toX(width - effectiveRightStile)} y2={toY(height - effectiveTopRail)}
           stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
         />
       );
-    } else {
+      // Bottom rail visible line
+      lines.push(
+        <line key="bottom-rail-vis"
+          x1={toX(effectiveLeftStile)} y1={toY(effectiveBottomRail)}
+          x2={toX(width - effectiveRightStile)} y2={toY(effectiveBottomRail)}
+          stroke={frameStroke} strokeWidth={frameStrokeWidth} {...visibleFrameStyle}
+        />
+      );
+      // Top rail visible line (angled)
       const visibleRoof = createRoofPoints(
         w / 2 - rs, -w / 2 + ls, ts, arwL, arwR, w, h,
         angledLeft, angledRight, lcw, lch, rcw, rch
@@ -206,37 +215,42 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     const rR = width - (effectiveRightStile - rebateWidthMm);
     const rB = effectiveBottomRail - rebateWidthMm;
     const rT = height - (effectiveTopRail - rebateWidthMm);
-    const rStroke = isBack ? "#78716c" : "#a8a29e"; // More prominent if it's the solid back edge
-
-    lines.push(
-      <line key="left-stile-rebate"
-        x1={toX(rL)} y1={toY(rB)} x2={toX(rL)} y2={toY(rT)}
-        stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
-      />
-    );
-
-    lines.push(
-      <line key="right-stile-rebate"
-        x1={toX(rR)} y1={toY(rB)} x2={toX(rR)} y2={toY(rT)}
-        stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
-      />
-    );
-
-    lines.push(
-      <line key="bottom-rail-rebate"
-        x1={toX(rL)} y1={toY(rB)} x2={toX(rR)} y2={toY(rB)}
-        stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
-      />
-    );
+    const rStroke = isBack ? "#78716c" : "#a8a29e";
 
     if (!angledLeft && !angledRight) {
+      // Rebate rectangle with inner corner radii
+      const rx = toX(rL);
+      const ry2 = toY(rT);
+      const rw = toX(rR) - toX(rL);
+      const rh = toY(rB) - toY(rT);
       lines.push(
-        <line key="top-rail-rebate"
-          x1={toX(rL)} y1={toY(rT)} x2={toX(rR)} y2={toY(rT)}
-          stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+        <rect key="rebate-frame-rect"
+          x={rx} y={ry2} width={rw} height={rh}
+          rx={scaledInnerRadius} ry={scaledInnerRadius}
+          fill="none" stroke={rStroke} strokeWidth={frameStrokeWidth}
+          {...rebateStyle}
         />
       );
     } else {
+      // Angled doors: individual lines for rebate
+      lines.push(
+        <line key="left-stile-rebate"
+          x1={toX(rL)} y1={toY(rB)} x2={toX(rL)} y2={toY(rT)}
+          stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+        />
+      );
+      lines.push(
+        <line key="right-stile-rebate"
+          x1={toX(rR)} y1={toY(rB)} x2={toX(rR)} y2={toY(rT)}
+          stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+        />
+      );
+      lines.push(
+        <line key="bottom-rail-rebate"
+          x1={toX(rL)} y1={toY(rB)} x2={toX(rR)} y2={toY(rB)}
+          stroke={rStroke} strokeWidth={frameStrokeWidth} {...rebateStyle}
+        />
+      );
       const rM = (rebateWidthMm) / 1000;
       const rebateRoof = createRoofPoints(
         w / 2 - (rs - rM), -w / 2 + (ls - rM), ts - rM, arwL - rM, arwR - rM, w, h,
@@ -380,7 +394,6 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     if (panelType !== "REEDED_19MM" || holeSections.length === 0) return null;
 
     const reedSpacingMm = 12;
-    const reedStroke = "#a8a29e";
     const reedStrokeWidth = 0.4;
     const pPadM = 0;
     const rM = isBack ? -(rebateWidthMm / 1000) : 0;
@@ -413,9 +426,9 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
             key={`reed-${secIdx}-${i}`}
             x1={toX(xMm)} y1={toY((pBottom + h / 2) * 1000)}
             x2={toX(xMm)} y2={toY((pTop + h / 2) * 1000 + 100)}
-            stroke={reedStroke}
+            stroke={strokeColor}
             strokeWidth={reedStrokeWidth}
-            opacity={0.6}
+            opacity={0.4}
           />
         );
       }
@@ -690,8 +703,6 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     return elements;
   };
 
-  const faceLabel = isBack ? "BACK" : "FRONT";
-
   return (
     <div className="w-full h-full flex items-center justify-center bg-white p-4">
       <svg
@@ -699,21 +710,8 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
         className="max-w-full max-h-full"
         style={{ width: "100%", height: "100%" }}
       >
-        {/* Face label */}
-        <text
-          x={maxWidth / 2}
-          y={16}
-          textAnchor="middle"
-          fill={isBack ? "#9333ea" : "#2563eb"}
-          fontSize="13"
-          fontFamily="Arial, sans-serif"
-          fontWeight="700"
-          letterSpacing="2"
-        >
-          {faceLabel} VIEW
-        </text>
 
-        {/* Main door group — mirrored for back view */}
+
         <g transform={mirrorTransform}>
           <polygon
             points={getDoorOutline()}
@@ -726,8 +724,10 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
           {renderReededLines()}
           {renderFrameLines()}
           {renderMidRails()}
-          {renderHinges()}
         </g>
+
+        {/* Hinges rendered outside mirror group so labels stay readable */}
+        {renderHinges()}
 
         {/* Dimensions and labels stay un-mirrored so text reads correctly */}
         {renderDimensions()}

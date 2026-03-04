@@ -74,48 +74,54 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
-/* ===============================
-   Routes
-================================ */
-registerRoutes(app);
+(async () => {
+  /* ===============================
+     Routes
+  ================================ */
+  const httpServer = await registerRoutes(app);
 
-/* ===============================
-   Error handler
-================================ */
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("🔥 Unhandled error:", err);
+  /* ===============================
+     Error handler
+  ================================ */
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("🔥 Unhandled error:", err);
 
-  const status = err.statusCode || err.status || 500;
-  const message =
-    process.env.NODE_ENV === "production"
-      ? "Internal Server Error"
-      : err.message || "Internal Server Error";
+    const status = err.statusCode || err.status || 500;
+    const message =
+      process.env.NODE_ENV === "production"
+        ? "Internal Server Error"
+        : err.message || "Internal Server Error";
 
-  res.status(status).json({ message });
-});
+    res.status(status).json({ message });
+  });
 
-/* ===============================
-   Standalone server only
-================================ */
-const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+  /* ===============================
+     Standalone server only
+  ================================ */
+  const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 
-if (!isLambda) {
-  const PORT = Number(process.env.PORT || 5000);
+  if (!isLambda) {
+    const PORT = Number(process.env.PORT || 5000);
 
-  if (process.env.NODE_ENV === "production") {
-    const clientPath = path.join(process.cwd(), "dist", "client");
-    app.use(express.static(clientPath));
+    if (process.env.NODE_ENV === "production") {
+      const clientPath = path.join(process.cwd(), "dist", "client");
+      app.use(express.static(clientPath));
 
-    // ✅ FIX: Use {*path} instead of * for Express 5 / path-to-regexp v8
-    app.get("/{*path}", (req, res, next) => {
-      if (req.path.startsWith("/api")) return next();
-      res.sendFile(path.join(clientPath, "index.html"));
+      // ✅ FIX: Use {*path} instead of * for Express 5 / path-to-regexp v8
+      app.get("/{*path}", (req, res, next) => {
+        if (req.path.startsWith("/api")) return next();
+        res.sendFile(path.join(clientPath, "index.html"));
+      });
+    } else {
+      // In development, setup Vite middleware AFTER routes
+      const { setupVite } = await import("./vite");
+      await setupVite(app, httpServer);
+    }
+
+    httpServer.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-  });
-}
+})();
 
 export { app };

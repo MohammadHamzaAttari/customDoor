@@ -29,6 +29,8 @@ export interface DxfDoorConfig {
   bottomRail?: number;
   midRailsEnabled?: boolean;
   midRails?: any[];
+  leftAngledRailWidth?: number;
+  rightAngledRailWidth?: number;
 }
 
 export function generateDoorDxf(config: DxfDoorConfig): string {
@@ -49,10 +51,10 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
   dxf.addLayer("DIMENSIONS", 7, "CONTINUOUS");
   dxf.addLayer("SECTION_Graphics", 7, "CONTINUOUS");
   dxf.addLayer("HINGES", 7, "CONTINUOUS"); // Visual hinge representation
-// Add after the existing addLayer calls in dxfGenerator.ts:
-dxf.addLayer("FRAME", 7, "CONTINUOUS");
-dxf.addLayer("BORDERS", 4, "CONTINUOUS");    // Cyan
-dxf.addLayer("PANELS", 2, "CONTINUOUS");     // Yellow
+  // Add after the existing addLayer calls in dxfGenerator.ts:
+  dxf.addLayer("FRAME", 7, "CONTINUOUS");
+  dxf.addLayer("BORDERS", 4, "CONTINUOUS");    // Cyan
+  dxf.addLayer("PANELS", 2, "CONTINUOUS");     // Yellow
   const {
     width,
     height,
@@ -101,12 +103,25 @@ dxf.addLayer("PANELS", 2, "CONTINUOUS");     // Yellow
   // B. Inner Profile (Hole)
   // Only if panelType is NOT Slab (NONE)
   if (panelType !== "NONE") {
+    const w = config.width;
+    const h = config.height;
+    const ls = lStile;
+    const rs = rStile;
+    const ts = tRail;
+    const bs = bRail;
+    const lcw = leftTriangleCutoutWidth || 0;
+    const lch = leftTriangleCutoutHeight || 0;
+    const rcw = rightTriangleCutoutWidth || 0;
+    const rch = rightTriangleCutoutHeight || 0;
+    const arwL = config.leftAngledRailWidth ?? 90;
+    const arwR = config.rightAngledRailWidth ?? 90;
+
     const innerPoints = getInnerProfilePoints(
-      config.width, config.height,
-      lStile, rStile, tRail, bRail,
+      w, h,
+      ls, rs, ts, bs,
       aL, aR,
-      leftTriangleCutoutWidth || 0, leftTriangleCutoutHeight || 0,
-      rightTriangleCutoutWidth || 0, rightTriangleCutoutHeight || 0
+      lcw, lch, rcw, rch,
+      arwL, arwR
     ).map(p => ({ point: point2d(p.x, p.y) }));
 
     // T6 Inner Onion (Bulk removal/Through cut with skin)
@@ -115,26 +130,25 @@ dxf.addLayer("PANELS", 2, "CONTINUOUS");     // Yellow
     dxf.addLWPolyline(innerPoints, { flags: LWPolylineFlags.Closed, layerName: "T3_INNER_BREAK" });
 
     // --- REBATE GEOMETRY ---
-    const rW = config.rebateWidthMm || 10;
+    const rM = config.rebateWidthMm || 10;
     const rebatePoints = getInnerProfilePoints(
-      config.width, config.height,
-      lStile - rW, rStile - rW,
-      tRail - rW, bRail - rW,
+      w, h,
+      ls - rM, rs - rM, ts - rM, bs - rM,
       aL, aR,
-      leftTriangleCutoutWidth || 0, leftTriangleCutoutHeight || 0,
-      rightTriangleCutoutWidth || 0, rightTriangleCutoutHeight || 0
+      lcw, lch, rcw, rch,
+      arwL - rM, arwR - rM
     ).map(p => ({ point: point2d(p.x, p.y) }));
     dxf.addLWPolyline(rebatePoints, { flags: LWPolylineFlags.Closed, layerName: "T6_REBATE_12MM" });
     dxf.addLWPolyline(rebatePoints, { flags: LWPolylineFlags.Closed, layerName: "T3_REBATE_FINISH" });
 
     // --- PANEL GEOMETRY (Visual reference) ---
+    const pInset = 10;
     const effectivePanelPoints = getInnerProfilePoints(
-      config.width, config.height,
-      lStile + 10, rStile + 10,
-      tRail + 10, bRail + 10,
+      w, h,
+      ls + pInset, rs + pInset, ts + pInset, bs + pInset,
       aL, aR,
-      leftTriangleCutoutWidth || 0, leftTriangleCutoutHeight || 0,
-      rightTriangleCutoutWidth || 0, rightTriangleCutoutHeight || 0
+      lcw, lch, rcw, rch,
+      arwL + pInset, arwR + pInset
     ).map(p => ({ point: point2d(p.x, p.y) }));
     dxf.addLWPolyline(effectivePanelPoints, { flags: LWPolylineFlags.Closed, layerName: "PANEL_GEOMETRY" });
   }

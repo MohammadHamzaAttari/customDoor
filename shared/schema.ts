@@ -288,11 +288,7 @@ export const orderItems = pgTable(
     borderRightStile: integer("border_right_stile"),
     borderMidRail: integer("border_mid_rail"),
 
-    // Rebate specifications
-    rebateWidthMm: integer("rebate_width_mm").default(10),
-    rebateDepthMm: integer("rebate_depth_mm").default(14),
-    frontFaceThicknessMm: integer("front_face_thickness_mm").default(8),
-    cornerRadiusMm: decimal("corner_radius_mm", { precision: 4, scale: 1 }).default("2.5"),
+    // Rebate specifications (Wait for migration or use item_reference for these)
 
     // Hinge drilling
     hingeQuantity: integer("hinge_quantity").default(0),

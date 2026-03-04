@@ -68,11 +68,11 @@ export function generateDoorSvg(config: SvgDoorConfig): string {
   const w = width;
   const isDoubleDoor = preset === "double";
 
-  // Compact mode: minimal padding, no labels — door fills the image for Shopify thumbnails
+  // Compact mode: Shopify squashes non-square images, so output a perfect 1:1 square
   // Normal mode: match Door2D scaling logic for consistency
-  const maxWidth = compact ? 400 : 500;
-  const maxHeight = compact ? 600 : 650;
-  const padding = compact ? 15 : 80;
+  const maxWidth = compact ? 1000 : 500;
+  const maxHeight = compact ? 1000 : 650;
+  const padding = compact ? 40 : 80;
 
   const scaleX = (maxWidth - padding * 2) / width;
   const scaleY = (maxHeight - padding * 2) / height;
@@ -84,7 +84,7 @@ export function generateDoorSvg(config: SvgDoorConfig): string {
   const offsetX = (maxWidth - scaledWidth) / 2;
   const offsetY = (maxHeight - scaledHeight) / 2;
 
-  const strokeWidth = compact ? 2.5 : 1.5;
+  const strokeWidth = compact ? 8 : 1.5;
   const strokeColor = compact ? "#292524" : "#44403c"; // stone-900 for compact, stone-800 normal
   const fillColor = compact ? "#f5f5f4" : "#fafaf9"; // stone-100 for compact, stone-50 normal
   const panelFillColor = compact ? "#d6d3d1" : "#e7e5e4"; // stone-300 for compact, stone-200 normal
@@ -335,11 +335,9 @@ function drawDoorLeaf(
   }
 
   if (panelType !== "NONE" && panelCount > 0) {
-    const panelAreaWidth = width - leftStile - rightStile;
-    const panelPadding = 15;
-    const panelClipAttr = clipAttr;
-
     const sections: Array<{ startY: number; endY: number; isTop: boolean }> = [];
+    const panelPadding = 0; // Match Door2D pPadM = 0
+
     if (midRailsEnabled && midRails.length > 0) {
       const sortedRails = [...midRails].sort((a, b) => a.positionFromBottom - b.positionFromBottom);
       let lastY = bottomRail;
@@ -352,47 +350,55 @@ function drawDoorLeaf(
       if (lastY < height - topRail) {
         sections.push({ startY: lastY, endY: height - topRail, isTop: true });
       }
+      if (sections.length > 0) sections[sections.length - 1].isTop = true;
     } else {
-      sections.push({ startY: bottomRail, endY: height - topRail, isTop: true });
-    }
-
-    for (const section of sections) {
-      const sH = section.endY - section.startY;
-      const pW = (panelAreaWidth - panelPadding * (panelCount + 1)) / panelCount;
-      const pH = sH - panelPadding * 2;
+      const panelBottom = bottomRail;
+      const panelTop = height - topRail;
+      const totalPanelArea = panelTop - panelBottom;
+      const netPanelArea = totalPanelArea - (panelCount - 1) * panelPadding;
+      const individualPanelHeight = netPanelArea / panelCount;
 
       for (let i = 0; i < panelCount; i++) {
-        const pX_rel = leftStile + panelPadding + i * (pW + panelPadding);
-        const pY_rel = section.startY + panelPadding;
+        const b = panelBottom + i * (individualPanelHeight + panelPadding);
+        const t = b + individualPanelHeight;
+        sections.push({ startY: b, endY: t, isTop: i === panelCount - 1 });
+      }
+    }
 
-        const currentLS = pX_rel;
-        const currentRS = width - (pX_rel + pW);
-        const currentTR = height - (pY_rel + pH);
-        const currentBR = pY_rel;
+    for (const [secIdx, section] of sections.entries()) {
+      const currentLS = leftStile + panelPadding;
+      const currentRS = rightStile + panelPadding;
+      const currentTR = height - section.endY + panelPadding;
+      const currentBR = section.startY + panelPadding;
 
-        const panelPts = getInnerProfilePoints(
-          width, height,
-          currentLS, currentRS, currentTR, currentBR,
-          angledLeft, angledRight,
-          leftCutW, leftCutH,
-          rightCutW, rightCutH
-        );
+      const panelPts = getInnerProfilePoints(
+        width, height,
+        currentLS, currentRS, currentTR, currentBR,
+        angledLeft, angledRight,
+        leftCutW, leftCutH,
+        rightCutW, rightCutH,
+        leftAngledRailWidth,
+        rightAngledRailWidth
+      );
 
+      // Need at least 3 points to form a polygon
+      if (panelPts.length > 2) {
         const pathD = `M ${panelPts.map(p => `${toX(p.x)} ${transformY(p.y)}`).join(" L ")} Z`;
-        svg += `  <path d="${pathD}" fill="${panelFillColor}" stroke="#a8a29e" stroke-width="${1 * scale}"${panelClipAttr} />\n`;
+        svg += `  <path d="${pathD}" fill="${panelFillColor}" stroke="#a8a29e" stroke-width="${1 * scale}"${clipAttr} />\n`;
 
         // Reeded lines
         if (panelType === "REEDED_19MM") {
           const reedSpacing = 12;
+          const pW = width - currentLS - currentRS;
           const count = Math.max(2, Math.round(pW / reedSpacing));
           const step = pW / count;
-          const clipId = `reed-clip-${xOffset}-${section.startY}-${i}-${Date.now()}`;
+          const clipId = `reed-clip-${xOffset}-${section.startY}-${secIdx}-${Date.now()}`;
 
           svg += `  <defs><clipPath id="${clipId}"><path d="${pathD}" /></clipPath></defs>\n`;
           svg += `  <g clip-path="url(#${clipId})">\n`;
           for (let r = 0; r <= count; r++) {
-            const rx = toX(pX_rel + r * step);
-            svg += `    <line x1="${rx}" y1="${transformY(pY_rel)}" x2="${rx}" y2="${transformY(pY_rel + pH)}" stroke="#a8a29e" stroke-width="${0.5 * scale}" opacity="0.6" />\n`;
+            const rx = toX(currentLS + r * step);
+            svg += `    <line x1="${rx}" y1="${transformY(section.startY)}" x2="${rx}" y2="${transformY(section.endY)}" stroke="#a8a29e" stroke-width="${0.5 * scale}" opacity="0.6" />\n`;
           }
           svg += `  </g>\n`;
         }
@@ -404,10 +410,14 @@ function drawDoorLeaf(
             currentLS + innerPad, currentRS + innerPad, currentTR + innerPad, currentBR + innerPad,
             angledLeft, angledRight,
             leftCutW, leftCutH,
-            rightCutW, rightCutH
+            rightCutW, rightCutH,
+            leftAngledRailWidth,
+            rightAngledRailWidth
           );
-          const innerPathD = `M ${innerPts.map(p => `${toX(p.x)} ${transformY(p.y)}`).join(" L ")} Z`;
-          svg += `  <path d="${innerPathD}" fill="${panelFillColor}" stroke="#a8a29e" stroke-width="${1 * scale}"${panelClipAttr} />\n`;
+          if (innerPts.length > 2) {
+            const innerPathD = `M ${innerPts.map(p => `${toX(p.x)} ${transformY(p.y)}`).join(" L ")} Z`;
+            svg += `  <path d="${innerPathD}" fill="${panelFillColor}" stroke="#a8a29e" stroke-width="${1 * scale}"${clipAttr} />\n`;
+          }
         }
       }
     }

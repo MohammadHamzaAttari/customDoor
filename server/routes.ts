@@ -562,13 +562,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Convert SVG to PNG using sharp
-      // We use a rectangular output (800x1200) matching the compact SVG's 2:3 aspect ratio
-      // This maximizes the door's visibility when Shopify shrinks to small thumbnails.
+      // We use a square output (1000x1000). Shopify compresses thumbnails to squares
+      // and squashes non-square images without preserving aspect ratio in draft orders.
       const pngBuffer = await sharp(Buffer.from(svgContent), { density: 300 })
         .flatten({ background: '#ffffff' }) // Ensure white background
         .resize({
-          width: 800,
-          height: 1200,
+          width: 1000,
+          height: 1000,
           fit: 'contain',
           background: { r: 255, g: 255, b: 255, alpha: 1 }
         })
@@ -942,21 +942,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Find matching Style/Finish IDs
         // Attempt to match style details (shaker/slab etc)
-        // Simplification: We map item.panelType to a style if possible, or use default
-        let styleId = defaultStyle?.id;
-        // Search for style matching category?
-        // This logic depends on how your DB `door_styles` are populated.
+        // Match item.category or item.panelType to styleCode
+        let styleId: number | undefined;
+        const styleMatch = allStyles.find(s =>
+          s.styleCode === (item.category?.toUpperCase()) ||
+          s.styleCode === (item.panelType?.toUpperCase()) ||
+          (item.panelType === "NONE" && s.styleCode === "SLAB")
+        );
 
-        let finishId = defaultFinish?.id;
-        const matchingFinish = allFinishes.find(f => f.finishCode === item.finish) || allFinishes.find(f => f.finishName === item.finish);
-        if (matchingFinish) finishId = matchingFinish.id;
+        if (styleMatch) {
+          styleId = styleMatch.id;
+        } else if (defaultStyle) {
+          styleId = defaultStyle.id;
+        }
+
+        if (styleId === undefined) {
+          throw new Error("Critical Error: No door styles found in database. Please run seed script.");
+        }
+
+        let finishId: number | undefined;
+        const matchingFinish = allFinishes.find(f => f.finishCode === item.finish) ||
+          allFinishes.find(f => f.finishName === item.finish);
+        if (matchingFinish) {
+          finishId = matchingFinish.id;
+        } else if (defaultFinish) {
+          finishId = defaultFinish.id;
+        }
+
+        if (finishId === undefined) {
+          throw new Error("Critical Error: No finish options found in database. Please run seed script.");
+        }
 
         const dbItem = await storage.createOrderItem({
           orderId: newOrder.id,
           lineNumber: i + 1,
           quantity: item.quantity,
-          styleId: styleId!,
-          finishId: finishId!,
+          styleId: styleId,
+          finishId: finishId,
           heightMm: item.height,
           widthMm: item.width,
           panelThicknessMm: item.thickness || 22,
@@ -964,7 +986,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           panelOrientation: item.panelOrientation || "vertical",
           material: item.material || "MR MDF",
 
-          isAngled: item.angledLeft || item.angledRight,
+          isAngled: !!(item.angledLeft || item.angledRight),
           angledShorterSide: item.angledLeft ? "LEFT" : (item.angledRight ? "RIGHT" : null),
           leftAngleDegrees: (item.leftAngleDegrees || 0).toString(),
           rightAngleDegrees: (item.rightAngleDegrees || 0).toString(),
@@ -977,11 +999,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           borderRightStile: item.customBorders ? item.rightStile : (item.borderWidth || 90),
           borderTopRail: item.customBorders ? item.topRail : (item.borderWidth || 90),
           borderBottomRail: item.customBorders ? item.bottomRail : (item.borderWidth || 90),
-
-          rebateWidthMm: item.rebateWidthMm || 10,
-          rebateDepthMm: item.rebateDepthMm || 14,
-          frontFaceThicknessMm: item.frontFaceThicknessMm || 8,
-          cornerRadiusMm: (item.cornerRadiusMm || 2.5).toString(),
 
           unitPriceExcVat: item.price.toFixed(2),
           lineTotalExcVat: (item.price * item.quantity).toFixed(2),

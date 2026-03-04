@@ -24,29 +24,29 @@ export function getInnerProfilePoints(
     w: number, h: number,
     ls: number, rs: number, tr: number, br: number,
     angL: boolean, angR: boolean,
-    lW: number, lH: number, rW: number, rH: number
+    lW: number, lH: number, rW: number, rH: number,
+    arwL: number = 90, arwR: number = 90
 ): Point[] {
     const pts: Point[] = [];
-
-    // Angle Lines (Parallel Offsets)
-    // Distance S offset from outer diagonal.
-    // We use Top Rail width as the primary offset distance for the angled cuts.
-    const sOffset = tr;
 
     let lineRA = null;
     if (angR && rW > 0 && rH > 0) {
         const L = Math.sqrt(rW * rW + rH * rH);
+        // Distance offset from outer diagonal (Angled Rail Width)
+        const sOffsetR = arwR;
         // Outer Right: rH*x + rW*y = rH*w - rH*rW + rW*h
         const C = rH * w - rH * rW + rW * h;
-        lineRA = { A: rH, B: rW, C: C - sOffset * L };
+        lineRA = { A: rH, B: rW, C: C - sOffsetR * L };
     }
 
     let lineLA = null;
     if (angL && lW > 0 && lH > 0) {
         const L = Math.sqrt(lW * lW + lH * lH);
+        // Distance offset from outer diagonal (Angled Rail Width)
+        const sOffsetL = arwL;
         // Outer Left: lH*x - lW*y = lH*lW - lW*h
         const C = lH * lW - lW * h;
-        lineLA = { A: lH, B: -lW, C: C + sOffset * L };
+        lineLA = { A: lH, B: -lW, C: C + sOffsetL * L };
     }
 
     // 1. Bottom Left (ls, br)
@@ -60,61 +60,78 @@ export function getInnerProfilePoints(
         // Intersect Right Stile (x = w-rs) with Right Angled
         const p1 = intersect(1, 0, w - rs, lineRA.A, lineRA.B, lineRA.C);
 
-        // Safety check: point must be above bottom rail
-        if (p1 && p1.y > br) {
+        // Safety check: point must be between bottom rail and top rail boundary
+        if (p1 && p1.y > br && p1.y < h - tr) {
             pts.push(p1);
         }
 
         // Handle Peak or Top Rail
         if (lineLA) {
-            // Intersection of both angled lines (The Peak)
             const peak = intersect(lineLA.A, lineLA.B, lineLA.C, lineRA.A, lineRA.B, lineRA.C);
 
-            // If peak is below top rail level, it's a PEAK door
             if (peak && peak.y <= h - tr) {
-                // Special case: if the peak is already "past" the right stile intersection, skip p1
+                // p1 is valid if it's below the peak
                 if (p1 && p1.y > peak.y) {
                     pts.pop();
                 }
                 pts.push(peak);
             } else {
-                // Flat top: intersect both angled lines with Top Rail line (y = h-tr)
+                // Flat top
                 const p2 = intersect(0, 1, h - tr, lineRA.A, lineRA.B, lineRA.C);
                 const p3 = intersect(0, 1, h - tr, lineLA.A, lineLA.B, lineLA.C);
 
-                // Ensure CCW order and that points are within horizontal bounds
-                if (p2 && p2.x > ls) pts.push(p2);
-                if (p3 && p3.x < (p2 ? p2.x : w)) pts.push(p3);
+                if (p2 && p2.x > ls && p2.x < w - rs) {
+                    pts.push(p2);
+                } else if (!p1 && p2 && p2.x >= w - rs) {
+                    // If no intersection on right stile, and top rail intersection is right of stile,
+                    // then this panel's top-right corner is just the stile corner.
+                    pts.push({ x: w - rs, y: h - tr });
+                }
+
+                if (p3 && p3.x < (p2 ? p2.x : w - rs) && p3.x > ls) {
+                    pts.push(p3);
+                }
             }
         } else {
             // Just Right angle to Top Rail
             const p2 = intersect(0, 1, h - tr, lineRA.A, lineRA.B, lineRA.C);
-            if (p2 && p2.x > ls) {
+            if (p2 && p2.x > ls && p2.x < w - rs) {
                 pts.push(p2);
+                pts.push({ x: ls, y: h - tr });
+            } else if (p2 && p2.x >= w - rs) {
+                // Angle is entirely above or to the right of this panel
+                pts.push({ x: w - rs, y: h - tr });
                 pts.push({ x: ls, y: h - tr });
             } else if (p2) {
                 // Cut hits the left stile directly
                 const pL = intersect(1, 0, ls, lineRA.A, lineRA.B, lineRA.C);
-                if (pL && pL.y > br) pts.push(pL);
+                if (pL && pL.y > br && pL.y < h - tr) pts.push(pL);
+                else pts.push({ x: ls, y: h - tr });
             } else {
                 pts.push({ x: ls, y: h - tr });
             }
         }
     } else if (lineLA) {
         // Just Left angle
-        pts.push({ x: w - rs, y: h - tr });
         const pTop = intersect(0, 1, h - tr, lineLA.A, lineLA.B, lineLA.C);
-        if (pTop) {
-            if (pTop.x < w - rs) {
-                pts.push(pTop);
+        if (pTop && pTop.x < w - rs && pTop.x > ls) {
+            pts.push({ x: w - rs, y: h - tr });
+            pts.push(pTop);
+        } else if (pTop && pTop.x <= ls) {
+            // Angle is entirely above or to the left of this panel
+            pts.push({ x: w - rs, y: h - tr });
+            pts.push({ x: ls, y: h - tr });
+        } else if (pTop) {
+            // Intersects right stile
+            const pR = intersect(1, 0, w - rs, lineLA.A, lineLA.B, lineLA.C);
+            if (pR && pR.y > br && pR.y < h - tr) {
+                pts.push(pR);
             } else {
-                // Cut hits right stile directly
-                const pR = intersect(1, 0, w - rs, lineLA.A, lineLA.B, lineLA.C);
-                if (pR && pR.y > br) {
-                    pts.pop(); // Remove the (w-rs, h-tr) corner
-                    pts.push(pR);
-                }
+                pts.push({ x: w - rs, y: h - tr });
             }
+        } else {
+            pts.push({ x: w - rs, y: h - tr });
+            pts.push({ x: ls, y: h - tr });
         }
     } else {
         // Standard Rectangle
@@ -124,13 +141,9 @@ export function getInnerProfilePoints(
 
     // 4. Back to Left side
     if (lineLA) {
-        // Intersect Left Stile (x = ls) with Left Angled
         const pL = intersect(1, 0, ls, lineLA.A, lineLA.B, lineLA.C);
-
-        // Only add if it hasn't been added yet (peak case) and is valid
         const last = pts[pts.length - 1];
-        if (pL && pL.y > br && (!last || Math.abs(last.x - pL.x) > 0.1 || Math.abs(last.y - pL.y) > 0.1)) {
-            // Also check if pL is below the last point for CCW
+        if (pL && pL.y > br && pL.y < h - tr && (!last || Math.abs(last.x - pL.x) > 0.1 || Math.abs(last.y - pL.y) > 0.1)) {
             if (pL.y < last.y) {
                 pts.push(pL);
             }

@@ -339,7 +339,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (state.thickness === 18 && panelType !== "NONE") {
           set({ panelType, thickness: 22 });
         } else if (panelType === "NONE") {
-          set({ panelType });
+          set({ panelType, midRailsEnabled: false });
         } else {
           if ((panelType === "REEDED_19MM" || panelType === "MELAMINE_18MM") && state.thickness !== 22) {
             set({ panelType, thickness: 22 });
