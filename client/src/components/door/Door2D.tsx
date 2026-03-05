@@ -271,6 +271,9 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
   const renderMidRails = () => {
     if (!midRailsEnabled || midRails.length === 0) return null;
 
+    // FRONT: mid-rail fills to frame opening (stile). BACK: mid-rail extends to rebate edge.
+    const rM = isBack ? -(rebateWidthMm / 1000) : 0;
+
     return midRails.map((rail) => {
       const railBottom = rail.positionFromBottom / 1000;
       const railTop = railBottom + rail.dimension / 1000;
@@ -293,11 +296,11 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
 
       const points: string[] = [];
       uniqueYSamples.forEach(y => {
-        const { leftInner: xL } = getInnerEdgesAtY(y, w, h, ls, rs, ts, bs, arwL, arwR, angledLeft, angledRight, lcw, lch, rcw, rch);
+        const { leftInner: xL } = getInnerEdgesAtY(y, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch);
         points.push(`${toX((xL + w / 2) * 1000)},${toY((y + h / 2) * 1000)}`);
       });
       [...uniqueYSamples].reverse().forEach(y => {
-        const { rightInner: xR } = getInnerEdgesAtY(y, w, h, ls, rs, ts, bs, arwL, arwR, angledLeft, angledRight, lcw, lch, rcw, rch);
+        const { rightInner: xR } = getInnerEdgesAtY(y, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch);
         points.push(`${toX((xR + w / 2) * 1000)},${toY((y + h / 2) * 1000)}`);
       });
 
@@ -306,8 +309,7 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
           key={rail.id}
           points={points.join(" ")}
           fill={railFillColor}
-          stroke={strokeColor}
-          strokeWidth={1}
+          stroke="none"
         />
       );
     });
@@ -458,13 +460,52 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     // Sort hinges by position from top for labeling
     const topHinges = hinges.filter(h => h.reference === "TOP").sort((a, b) => a.positionMm - b.positionMm);
     const bottomHinges = hinges.filter(h => h.reference === "BOTTOM").sort((a, b) => a.positionMm - b.positionMm);
-    let topIdx = 0;
-    let bottomIdx = 0;
+
+    // Helper: check if a hinge position overlaps the angled edge
+    const isInAngleZone = (hinge: typeof hinges[0]) => {
+      const hY = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
+      const hX = hinge.side === "LEFT" ? HINGE_CENTER_OFFSET_MM : width - HINGE_CENTER_OFFSET_MM;
+      if (hinge.side === "LEFT" && angledLeft && leftTriangleCutoutHeight > 0) {
+        const heightFromTop = height - hY;
+        if (heightFromTop < leftTriangleCutoutHeight) {
+          const maxX = leftTriangleCutoutWidth * (1 - heightFromTop / leftTriangleCutoutHeight);
+          if (hX < maxX) return true;
+        }
+      }
+      if (hinge.side === "RIGHT" && angledRight && rightTriangleCutoutHeight > 0) {
+        const heightFromTop = height - hY;
+        if (heightFromTop < rightTriangleCutoutHeight) {
+          const minX = width - rightTriangleCutoutWidth * (1 - heightFromTop / rightTriangleCutoutHeight);
+          if (hX > minX) return true;
+        }
+      }
+      return false;
+    };
 
     return hinges.map((hinge) => {
       const hingeSide = hinge.side;
-      const xCenter = hingeSide === "LEFT" ? HINGE_CENTER_OFFSET_MM : width - HINGE_CENTER_OFFSET_MM;
+      // When showing back view, we mirror the horizontal position
+      const effectiveSide = isBack ? (hingeSide === "LEFT" ? "RIGHT" : "LEFT") : hingeSide;
+      let xCenter = effectiveSide === "LEFT" ? HINGE_CENTER_OFFSET_MM : width - HINGE_CENTER_OFFSET_MM;
       const yCenter = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
+
+      const invalid = isInAngleZone(hinge);
+
+      // Clamp hinge X inward if it falls outside the angled edge at this Y
+      if (effectiveSide === "LEFT" && angledLeft && leftTriangleCutoutHeight > 0) {
+        const heightFromTop = height - yCenter;
+        if (heightFromTop < leftTriangleCutoutHeight) {
+          const edgeX = leftTriangleCutoutWidth * (1 - heightFromTop / leftTriangleCutoutHeight);
+          xCenter = Math.max(xCenter, edgeX + cupRadiusMm + 2);
+        }
+      }
+      if (effectiveSide === "RIGHT" && angledRight && rightTriangleCutoutHeight > 0) {
+        const heightFromTop = height - yCenter;
+        if (heightFromTop < rightTriangleCutoutHeight) {
+          const edgeX = width - rightTriangleCutoutWidth * (1 - heightFromTop / rightTriangleCutoutHeight);
+          xCenter = Math.min(xCenter, edgeX - cupRadiusMm - 2);
+        }
+      }
 
       // Label: T1, T2... from top; B1, B2... from bottom
       let label: string;
@@ -476,18 +517,20 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
         label = `B${idx}`;
       }
 
+      const strokeCol = invalid ? "#ef4444" : hingeStrokeColor;
+
       return (
         <g key={`hinge-${hinge.id}`}>
-          <circle cx={toX(xCenter)} cy={toY(yCenter)} r={cupRadiusSvg} fill="none" stroke={hingeStrokeColor} strokeWidth={1.5} strokeDasharray="4 2" />
-          <line x1={toX(xCenter) - 4} y1={toY(yCenter)} x2={toX(xCenter) + 4} y2={toY(yCenter)} stroke={hingeStrokeColor} strokeWidth={1} />
-          <line x1={toX(xCenter)} y1={toY(yCenter) - 4} x2={toX(xCenter)} y2={toY(yCenter) + 4} stroke={hingeStrokeColor} strokeWidth={1} />
+          <circle cx={toX(xCenter)} cy={toY(yCenter)} r={cupRadiusSvg} fill="none" stroke={strokeCol} strokeWidth={invalid ? 2 : 1.5} strokeDasharray="4 2" />
+          <line x1={toX(xCenter) - 4} y1={toY(yCenter)} x2={toX(xCenter) + 4} y2={toY(yCenter)} stroke={strokeCol} strokeWidth={1} />
+          <line x1={toX(xCenter)} y1={toY(yCenter) - 4} x2={toX(xCenter)} y2={toY(yCenter) + 4} stroke={strokeCol} strokeWidth={1} />
           <text
-            x={hingeSide === "LEFT" ? toX(xCenter) + cupRadiusSvg + 6 : toX(xCenter) - cupRadiusSvg - 6}
+            x={effectiveSide === "LEFT" ? toX(xCenter) + cupRadiusSvg + 6 : toX(xCenter) - cupRadiusSvg - 6}
             y={toY(yCenter) + 4}
-            textAnchor={hingeSide === "LEFT" ? "start" : "end"}
-            fill={hingeStrokeColor} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="600"
+            textAnchor={effectiveSide === "LEFT" ? "start" : "end"}
+            fill={strokeCol} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="600"
           >
-            {label} — {hinge.positionMm}
+            {label} — {hinge.positionMm}mm
           </text>
         </g>
       );

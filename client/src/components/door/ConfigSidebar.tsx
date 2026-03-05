@@ -405,6 +405,7 @@ function BorderWidthsSection() {
 
 function MidRailsSection() {
   const {
+    height, bottomRail, topRail,
     midRailsEnabled, midRailsEqualise, midRails,
     setMidRailsEnabled, setMidRailsEqualise,
     addMidRail, removeMidRail, updateMidRail,
@@ -429,6 +430,18 @@ function MidRailsSection() {
             </div>
             <Switch checked={midRailsEqualise} onCheckedChange={setMidRailsEqualise} />
           </div>
+
+          {midRailsEqualise && midRails.length > 0 && (
+            <div className="px-3 py-2 bg-amber-50 border border-amber-100 rounded-md text-[10px] text-amber-800 font-medium">
+              Panel Heights: {(() => {
+                const railCount = midRails.length;
+                const usableHeight = height - bottomRail - topRail;
+                const totalRailsWidth = midRails.reduce((sum, r) => sum + r.dimension, 0);
+                const gapHeight = (usableHeight - totalRailsWidth) / (railCount + 1);
+                return `${Math.round(gapHeight)}mm between rails`;
+              })()}
+            </div>
+          )}
 
           <div className="space-y-4 flex flex-col-reverse">
             {[...midRails].sort((a, b) => a.positionFromBottom - b.positionFromBottom).map((rail, index) => (
@@ -641,11 +654,9 @@ function HingePositionsSection() {
                             className="flex h-8 w-full rounded-md border border-input bg-white px-2 py-1 text-xs shadow-sm focus:ring-1 focus:ring-orange-500 transition-all font-medium"
                           >
                             {[100, 200, 300, 400, 500, 600, 700].map((pos) => {
-                              const symbol = hinge.reference === "TOP" ? "T" : "B";
-                              const prefix = `${symbol}${pos / 100}`;
                               return (
                                 <option key={pos} value={pos}>
-                                  {prefix} ({pos}mm)
+                                  {pos}mm
                                 </option>
                               );
                             })}

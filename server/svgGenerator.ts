@@ -68,11 +68,10 @@ export function generateDoorSvg(config: SvgDoorConfig): string {
   const w = width;
   const isDoubleDoor = preset === "double";
 
-  // Compact mode: Shopify squashes non-square images, so output a perfect 1:1 square
-  // Normal mode: match Door2D scaling logic for consistency
-  const maxWidth = compact ? 1000 : 500;
-  const maxHeight = compact ? 1000 : 650;
-  const padding = compact ? 40 : 80;
+  // Use identical scaling logic to Door2D.tsx
+  const padding = compact ? 20 : 80;
+  const maxWidth = compact ? 500 : 500; // Keep internal coordinate space consistent
+  const maxHeight = compact ? 650 : 650;
 
   const scaleX = (maxWidth - padding * 2) / width;
   const scaleY = (maxHeight - padding * 2) / height;
@@ -92,7 +91,7 @@ export function generateDoorSvg(config: SvgDoorConfig): string {
   const dimensionColor = "#78716c"; // stone-500
 
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${maxWidth} ${maxHeight}" width="${maxWidth}" height="${maxHeight}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${maxWidth} ${maxHeight}" width="${compact ? 1000 : maxWidth}" height="${compact ? 1000 : maxHeight}">
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="${compact ? 2 : 3}" />
@@ -330,7 +329,7 @@ function drawDoorLeaf(
       ];
 
       const pathD = `M ${points.map(p => `${p[0]} ${p[1]}`).join(" L ")} Z`;
-      svg += `  <path d="${pathD}" fill="${railFillColor}" stroke="#52525b" stroke-width="${1 * scale}"${clipAttr} />\n`;
+      svg += `  <path d="${pathD}" fill="${railFillColor}" stroke="#52525b" stroke-width="${(config.compact ? 2 : 1) * scale}"${clipAttr} />\n`;
     }
   }
 
@@ -384,7 +383,7 @@ function drawDoorLeaf(
       // Need at least 3 points to form a polygon
       if (panelPts.length > 2) {
         const pathD = `M ${panelPts.map(p => `${toX(p.x)} ${transformY(p.y)}`).join(" L ")} Z`;
-        svg += `  <path d="${pathD}" fill="${panelFillColor}" stroke="#a8a29e" stroke-width="${1 * scale}"${clipAttr} />\n`;
+        svg += `  <path d="${pathD}" fill="${panelFillColor}" stroke="#a8a29e" stroke-width="${(config.compact ? 2 : 1) * scale}"${clipAttr} />\n`;
 
         // Reeded lines
         if (panelType === "REEDED_19MM") {

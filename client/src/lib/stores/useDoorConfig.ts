@@ -211,6 +211,27 @@ let midRailIdCounter = 0;
 let hingeIdCounter = 0;
 
 /**
+ * Re-compute equalized mid-rail positions based on current door state.
+ * Returns the unchanged array if equalization is off or there are no rails.
+ */
+function reEqualiseMidRails(state: DoorConfig): MidRail[] {
+  if (!state.midRailsEqualise || state.midRails.length === 0) return state.midRails;
+  const railCount = state.midRails.length;
+  const usableHeight = state.height - state.bottomRail - state.topRail;
+  const totalRailsWidth = state.midRails.reduce((sum, r) => sum + r.dimension, 0);
+  const gapCount = railCount + 1;
+  const gapHeight = (usableHeight - totalRailsWidth) / gapCount;
+  let currentPos = state.bottomRail + gapHeight;
+  return [...state.midRails]
+    .sort((a, b) => a.positionFromBottom - b.positionFromBottom)
+    .map((rail) => {
+      const newRail = { ...rail, positionFromBottom: Math.round(currentPos) };
+      currentPos += rail.dimension + gapHeight;
+      return newRail;
+    });
+}
+
+/**
  * Get minimum border width for a given side based on whether hinges are present on that side
  */
 function getMinBorder(hingeDrilling: boolean, hinges: Hinge[], side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM"): number {
@@ -313,6 +334,9 @@ export const useDoorConfig = create<DoorConfigStore>()(
         get().clearNewSession();
         const clamped = Math.max(MIN_HEIGHT_MM, Math.min(MAX_HEIGHT_MM, Math.round(height)));
         set({ height: clamped });
+        // Re-equalize mid-rails with updated height
+        const updated = reEqualiseMidRails({ ...get(), height: clamped });
+        set({ midRails: updated });
         get().calculatePrice();
       },
 
@@ -339,7 +363,7 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (state.thickness === 18 && panelType !== "NONE") {
           set({ panelType, thickness: 22 });
         } else if (panelType === "NONE") {
-          set({ panelType, midRailsEnabled: false });
+          set({ panelType, midRailsEnabled: false, customBorders: false });
         } else {
           if ((panelType === "REEDED_19MM" || panelType === "MELAMINE_18MM") && state.thickness !== 22) {
             set({ panelType, thickness: 22 });
@@ -379,36 +403,45 @@ export const useDoorConfig = create<DoorConfigStore>()(
       setLeftTriangleCutoutWidth: (width: number) => {
         if (isNaN(width) || width < 0) return;
         const state = get();
+        // Prevent cutout from exceeding door width
+        const maxWidth = state.width - 50;
+        const clampedWidth = Math.min(width, maxWidth);
         set({
-          leftTriangleCutoutWidth: width,
-          leftAngleDegrees: calculateAngleFromCutout(width, state.leftTriangleCutoutHeight),
+          leftTriangleCutoutWidth: clampedWidth,
+          leftAngleDegrees: calculateAngleFromCutout(clampedWidth, state.leftTriangleCutoutHeight),
         });
       },
 
       setLeftTriangleCutoutHeight: (height: number) => {
         if (isNaN(height) || height < 0) return;
         const state = get();
+        const maxHeight = state.height - 50;
+        const clampedHeight = Math.min(height, maxHeight);
         set({
-          leftTriangleCutoutHeight: height,
-          leftAngleDegrees: calculateAngleFromCutout(state.leftTriangleCutoutWidth, height),
+          leftTriangleCutoutHeight: clampedHeight,
+          leftAngleDegrees: calculateAngleFromCutout(state.leftTriangleCutoutWidth, clampedHeight),
         });
       },
 
       setRightTriangleCutoutWidth: (width: number) => {
         if (isNaN(width) || width < 0) return;
         const state = get();
+        const maxWidth = state.width - 50;
+        const clampedWidth = Math.min(width, maxWidth);
         set({
-          rightTriangleCutoutWidth: width,
-          rightAngleDegrees: calculateAngleFromCutout(width, state.rightTriangleCutoutHeight),
+          rightTriangleCutoutWidth: clampedWidth,
+          rightAngleDegrees: calculateAngleFromCutout(clampedWidth, state.rightTriangleCutoutHeight),
         });
       },
 
       setRightTriangleCutoutHeight: (height: number) => {
         if (isNaN(height) || height < 0) return;
         const state = get();
+        const maxHeight = state.height - 50;
+        const clampedHeight = Math.min(height, maxHeight);
         set({
-          rightTriangleCutoutHeight: height,
-          rightAngleDegrees: calculateAngleFromCutout(state.rightTriangleCutoutWidth, height),
+          rightTriangleCutoutHeight: clampedHeight,
+          rightAngleDegrees: calculateAngleFromCutout(state.rightTriangleCutoutWidth, clampedHeight),
         });
       },
 
@@ -434,6 +467,9 @@ export const useDoorConfig = create<DoorConfigStore>()(
           leftAngledRailWidth: borderWidth,
           rightAngledRailWidth: borderWidth,
         });
+        // Re-equalize mid-rails with updated borders
+        const updated = reEqualiseMidRails({ ...get(), bottomRail: borderWidth, topRail: borderWidth });
+        set({ midRails: updated });
         get().calculatePrice();
       },
 
@@ -467,11 +503,15 @@ export const useDoorConfig = create<DoorConfigStore>()(
       setBottomRail: (bottomRail: number) => {
         if (isNaN(bottomRail) || bottomRail <= 0) return;
         set({ bottomRail });
+        const updated = reEqualiseMidRails({ ...get(), bottomRail });
+        set({ midRails: updated });
       },
 
       setTopRail: (topRail: number) => {
         if (isNaN(topRail) || topRail <= 0) return;
         set({ topRail });
+        const updated = reEqualiseMidRails({ ...get(), topRail });
+        set({ midRails: updated });
       },
 
       setRebateWidth: (rebateWidthMm: number) => set({ rebateWidthMm }),
@@ -490,20 +530,10 @@ export const useDoorConfig = create<DoorConfigStore>()(
       },
 
       setMidRailsEqualise: (midRailsEqualise: boolean) => {
-        const state = get();
-        if (midRailsEqualise && state.midRails.length > 0) {
-          const railCount = state.midRails.length;
-          const usableHeight = state.height - state.bottomRail - state.topRail;
-          const spacing = usableHeight / (railCount + 1);
-
-          const updatedRails = state.midRails.map((rail, index) => ({
-            ...rail,
-            positionFromBottom: Math.round(state.bottomRail + spacing * (index + 1)),
-          }));
-
-          set({ midRailsEqualise, midRails: updatedRails });
-        } else {
-          set({ midRailsEqualise });
+        set({ midRailsEqualise });
+        if (midRailsEqualise) {
+          const updated = reEqualiseMidRails({ ...get(), midRailsEqualise });
+          set({ midRails: updated });
         }
       },
 
@@ -514,25 +544,35 @@ export const useDoorConfig = create<DoorConfigStore>()(
           positionFromBottom: Math.round(state.height / 2),
           dimension: state.borderWidth,
         };
-        set({ midRails: [...state.midRails, newRail] });
+        const newRails = [...state.midRails, newRail];
+        set({ midRails: newRails });
+        // Re-equalize with the new rail included
+        const updated = reEqualiseMidRails({ ...get(), midRails: newRails });
+        set({ midRails: updated });
         get().calculatePrice();
       },
 
       removeMidRail: (id: string) => {
-        set((state) => ({
-          midRails: state.midRails.filter(rail => rail.id !== id)
-        }));
+        const newRails = get().midRails.filter(rail => rail.id !== id);
+        set({ midRails: newRails });
+        // Re-equalize after removal
+        const updated = reEqualiseMidRails({ ...get(), midRails: newRails });
+        set({ midRails: updated });
         get().calculatePrice();
       },
 
       updateMidRail: (id: string, field: 'positionFromBottom' | 'dimension', value: number) => {
         if (isNaN(value)) return;
         const clampedValue = field === 'dimension' ? Math.max(35, value) : value;
-        set((state) => ({
-          midRails: state.midRails.map(rail =>
-            rail.id === id ? { ...rail, [field]: clampedValue } : rail
-          )
-        }));
+        const newRails = get().midRails.map(rail =>
+          rail.id === id ? { ...rail, [field]: clampedValue } : rail
+        );
+        set({ midRails: newRails });
+        // Re-equalize when dimension changes
+        if (field === 'dimension') {
+          const updated = reEqualiseMidRails({ ...get(), midRails: newRails });
+          set({ midRails: updated });
+        }
       },
 
       setHingeDrilling: (hingeDrilling: boolean) => {
@@ -633,9 +673,19 @@ export const useDoorConfig = create<DoorConfigStore>()(
         const state = get();
         if (state.hinges.length < 2) return;
 
-        // Equalise hinges logically. If there are 2 hinges, put them 100mm from top and bottom.
-        // If more, distribute them.
-        const topOffset = 100;
+        // Determine if hinge side has an angled cutout
+        const hingeSide = state.hinges[0]?.side || "LEFT";
+        let angleCutoutHeight = 0;
+        if (hingeSide === "LEFT" && state.angledLeft) {
+          angleCutoutHeight = state.leftTriangleCutoutHeight;
+        } else if (hingeSide === "RIGHT" && state.angledRight) {
+          angleCutoutHeight = state.rightTriangleCutoutHeight;
+        }
+
+        // Top offset must clear the angled zone (with a 50mm safety margin)
+        const topOffset = angleCutoutHeight > 0
+          ? Math.max(100, angleCutoutHeight + 50)
+          : 100;
         const bottomOffset = 100;
         const count = state.hinges.length;
 

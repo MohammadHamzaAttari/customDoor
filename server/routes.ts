@@ -1089,13 +1089,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await fs.promises.writeFile(dxfPath, dxfContent);
 
           // SVG (normal — for order file)
-          const svgContent = generateDoorSvg({ ...fullConfig, borderWidth: 90 } as any);
+          const svgContent = generateDoorSvg(fullConfig as any);
           const svgFilename = `${dbItem.id}_preview.svg`;
           const svgPath = path.join(storageDir, svgFilename);
           await fs.promises.writeFile(svgPath, svgContent);
 
           // SVG (compact — optimized for Shopify thumbnail: no labels, minimal padding, bolder strokes)
-          const compactSvg = generateDoorSvg({ ...fullConfig, borderWidth: 90, compact: true } as any);
+          const compactSvg = generateDoorSvg({ ...fullConfig, compact: true } as any);
 
           // Store compact SVG in preview cache for Shopify checkout image
           const previewToken = nanoid();
