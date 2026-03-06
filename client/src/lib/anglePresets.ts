@@ -6,7 +6,9 @@
  */
 export function calculateAngleFromCutout(width: number, height: number): number {
   if (width <= 0 || height <= 0) return 0;
-  return Math.round(Math.atan(height / width) * (180 / Math.PI));
+  // Calculate precise angle and retain 2 decimal digit precision instead of integer rounding
+  const exactAngle = Math.atan(height / width) * (180 / Math.PI);
+  return Number(exactAngle.toFixed(2));
 }
 
 /**
@@ -38,8 +40,8 @@ export function calculateCutoutFromAngle(
     : cutWidth;
 
   return {
-    width: Math.round(Math.max(0, finalWidth)),
-    height: Math.round(Math.max(0, clampedHeight)),
+    width: Number(Math.max(0, finalWidth).toFixed(2)),
+    height: Number(Math.max(0, clampedHeight).toFixed(2)),
   };
 }
 

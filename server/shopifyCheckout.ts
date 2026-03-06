@@ -120,6 +120,7 @@ export interface CheckoutLineItem {
   hinges?: any[];
   _imageUrl?: string; // Public URL to door preview SVG for Shopify checkout
   _imageBase64?: string; // Base64-encoded PNG image data for Shopify product image
+  _dxfUrl?: string; // Public URL to download the DXF file
 }
 
 // ─── Fetch base product variant from Shopify ─────────────────────────────────
@@ -404,6 +405,7 @@ export async function createDraftOrderFromLineItems(
       ...(item.hingeDrilling && item.hinges?.length
         ? [{ name: "Hinge Holes", value: `${item.hinges.length}` }]
         : []),
+      ...(item._dxfUrl ? [{ name: "Production DXF", value: item._dxfUrl }] : []),
     ];
 
     // Try to create a temp product with the door preview image

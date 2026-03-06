@@ -539,6 +539,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }, 30 * 60 * 1000);
 
+  // ─── DXF Download Cache (for attaching to Shopify draft orders) ───
+  const dxfDownloadCache = new Map<string, { filename: string; content: string | Buffer; createdAt: number }>();
+
+  // Clean up DXF cache periodically (keep for 24 hours so merchants can download)
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of dxfDownloadCache.entries()) {
+      if (now - val.createdAt > 86400000) dxfDownloadCache.delete(key);
+    }
+  }, 60 * 60 * 1000);
+
+  // Public endpoint for merchants to download the DXF file from Shopify admin
+  app.get("/api/dxf/:token", (req, res) => {
+    const cached = dxfDownloadCache.get(req.params.token);
+    if (!cached) {
+      return res.status(404).send("DXF link expired or not found");
+    }
+    res.setHeader("Content-Type", "application/dxf");
+    res.setHeader("Content-Disposition", `attachment; filename="${cached.filename}"`);
+    res.send(cached.content);
+  });
+
   // Public endpoint to serve SVG previews (used by Shopify for checkout images)
   app.get("/api/preview/:token.svg", (req, res) => {
     const cached = svgPreviewCache.get(req.params.token);
@@ -1109,6 +1131,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Attach image URL to the line item so Shopify can display it
           (item as any)._imageUrl = imageUrl;
+
+          // Cache the DXF file so we can attach a public link to the Shopify order
+          const dxfToken = nanoid(12);
+          dxfDownloadCache.set(dxfToken, {
+            filename: dxfFilename,
+            content: dxfContent,
+            createdAt: Date.now()
+          });
+          const dxfUrl = `${hostName}/api/dxf/${dxfToken}`;
+          (item as any)._dxfUrl = dxfUrl;
 
           // Update Item with DXF Path
           await storage.updateOrderItem(dbItem.id, {

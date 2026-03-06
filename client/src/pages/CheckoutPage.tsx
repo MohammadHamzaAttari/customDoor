@@ -27,6 +27,7 @@ const PANEL_LABELS: Record<string, string> = {
   NONE: "Slab (No Panel)",
   FRETWORK: "Fretwork Pattern",
   GLASS: "Glass Ready",
+  UNSELECTED: "Not Selected",
 };
 
 const FINISH_LABELS: Record<string, { label: string; color: string }> = {
@@ -34,6 +35,7 @@ const FINISH_LABELS: Record<string, { label: string; color: string }> = {
   ASSEMBLED_PREP: { label: "Assembled & Prepped", color: "bg-stone-200 text-stone-800" },
   PRIMED: { label: "Primed", color: "bg-emerald-100 text-emerald-700" },
   PAINTED: { label: "Painted", color: "bg-blue-100 text-blue-700" },
+  NONE: { label: "Not Selected", color: "bg-gray-100 text-gray-500" },
 };
 
 const CATEGORY_LABELS: Record<string, { label: string; icon: string }> = {
@@ -132,186 +134,153 @@ function CartItemCard({
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4 pb-4">
+          <CardContent className="space-y-3 pb-3">
             {/* Quantity + Line Price */}
-            <div className="flex items-center justify-between p-3 bg-orange-50/60 rounded-xl border border-orange-100">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-stone-700">Qty</span>
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between p-2.5 bg-orange-50/60 rounded-lg border border-orange-100">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-stone-700 uppercase tracking-wider">Qty</span>
+                <div className="flex items-center gap-1">
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8 rounded-full border-stone-300"
+                    className="h-7 w-7 rounded border-stone-300"
                     onClick={() => onQuantityChange(item.id, Math.max(1, item.qty - 1))}
                     disabled={item.qty <= 1}
                   >
-                    <Minus className="w-3.5 h-3.5" />
+                    <Minus className="w-3 h-3" />
                   </Button>
-                  <span className="text-lg font-bold w-8 text-center tabular-nums">{item.qty}</span>
+                  <span className="text-base font-bold w-6 text-center tabular-nums">{item.qty}</span>
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8 rounded-full border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                    className="h-7 w-7 rounded border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
                     onClick={() => onQuantityChange(item.id, item.qty + 1)}
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3 h-3" />
                   </Button>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-xs text-stone-500">£{item.unitPrice.toFixed(2)} each</p>
-                <p className="text-lg font-bold text-stone-900">£{item.lineTotal.toFixed(2)}</p>
+                <p className="text-[10px] text-stone-500">£{item.unitPrice.toFixed(2)} ea</p>
+                <p className="text-base font-bold text-stone-900">£{item.lineTotal.toFixed(2)}</p>
               </div>
             </div>
 
-            {/* Dimensions */}
-            <div>
-              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <Ruler className="w-4 h-4 text-stone-400" />
-                Dimensions
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: "Height", value: `${item.height}mm` },
-                  { label: "Width", value: `${item.width}mm` },
-                  { label: "Thickness", value: `${item.thickness}mm` },
-                ].map((d) => (
-                  <div key={d.label} className="bg-stone-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-stone-500 uppercase tracking-wider">{d.label}</p>
-                    <p className="text-lg font-bold text-stone-900">{d.value}</p>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-
-            <Separator />
-
-            {/* Quick Actions — Catalogue Mode (per spec requirements) */}
-            <div>
-              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-stone-400" />
-                Quick Edit
-              </h3>
-              <div className="space-y-3">
-                {/* Finish Quick Change */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-stone-600">Finish</span>
-                  <div className="flex gap-1">
-                    {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED", "PAINTED"] as const).map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => onFinishChange(item.id, f)}
-                        className={cn(
-                          "px-2 py-1 text-xs rounded-md border transition-all",
-                          item.finish === f
-                            ? "border-orange-500 bg-orange-50 text-orange-700 font-semibold"
-                            : "border-stone-200 text-stone-500 hover:border-orange-300"
-                        )}
-                      >
-                        {FINISH_LABELS[f].label.split(" ")[0]}
-                      </button>
-                    ))}
-                  </div>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Dimensions */}
+              <div>
+                <h3 className="text-xs font-semibold text-stone-700 mb-2 flex items-center gap-1.5">
+                  <Ruler className="w-3.5 h-3.5 text-stone-400" />
+                  Dimensions
+                </h3>
+                <div className="bg-stone-50 rounded-lg p-2 flex flex-col gap-1">
+                  <div className="flex justify-between text-xs"><span className="text-stone-500">H:</span><span className="font-bold text-stone-900">{item.height}mm</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-stone-500">W:</span><span className="font-bold text-stone-900">{item.width}mm</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-stone-500">T:</span><span className="font-bold text-stone-900">{item.thickness}mm</span></div>
                 </div>
+              </div>
 
-                {/* Hinge Side Quick Swap */}
-                {item.hingeDrilling && item.hinges.length > 0 && (
-                  <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100">
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">
-                        Hinges: {hingeSide}
-                      </p>
+              {/* Quick Actions */}
+              <div>
+                <h3 className="text-xs font-semibold text-stone-700 mb-2 flex items-center gap-1.5">
+                  <Settings2 className="w-3.5 h-3.5 text-stone-400" />
+                  Quick Edit
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider">Finish</span>
+                    <div className="flex flex-wrap gap-1">
+                      {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED", "PAINTED"] as const).map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => onFinishChange(item.id, f)}
+                          className={cn(
+                            "px-1.5 py-0.5 text-[10px] rounded border transition-all truncate max-w-full",
+                            item.finish === f
+                              ? "border-orange-500 bg-orange-50 text-orange-700 font-bold"
+                              : "border-stone-200 text-stone-500 hover:border-orange-300"
+                          )}
+                          title={FINISH_LABELS[f].label}
+                        >
+                          {f === "RAW_UNASSEMBLED" ? "Raw" : f === "ASSEMBLED_PREP" ? "Prepped" : f === "PRIMED" ? "Primed" : "Painted"}
+                        </button>
+                      ))}
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onSwapHinge(item.id)}
-                      className="border-blue-300 text-blue-700 hover:bg-blue-100 h-7 text-xs"
-                    >
-                      <ArrowLeftRight className="w-3 h-3 mr-1" />
-                      Swap Side
-                    </Button>
                   </div>
-                )}
+
+                  {item.hingeDrilling && item.hinges.length > 0 && (
+                    <div className="flex items-center justify-between p-1.5 bg-blue-50 rounded border border-blue-100">
+                      <p className="text-[10px] font-medium text-blue-900">
+                        {hingeSide} Hinges
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onSwapHinge(item.id)}
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100 h-5 px-1.5 text-[10px]"
+                      >
+                        <ArrowLeftRight className="w-2.5 h-2.5 mr-1" />
+                        Swap
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
-            <Separator />
 
             {/* Specifications */}
             <div>
-              <h3 className="text-sm font-semibold text-stone-700 mb-3 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-stone-400" />
+              <h3 className="text-xs font-semibold text-stone-700 mb-2 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-stone-400" />
                 Specifications
               </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-stone-600">Panel Type</span>
-                  <span className="text-sm font-medium text-stone-900">
-                    {PANEL_LABELS[item.panelType] || item.panelType}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex justify-between items-center py-1.5 px-2 bg-gray-50 rounded text-xs">
+                  <span className="text-stone-500">Panel</span>
+                  <span className="font-bold text-stone-900 truncate max-w-[80px]" title={PANEL_LABELS[item.panelType] || item.panelType}>
+                    {item.panelType === "NONE" ? "Slab" : (PANEL_LABELS[item.panelType] || item.panelType).split(" ")[0]}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-stone-600">Finish Level</span>
-                  <span className="text-sm font-medium text-stone-900 italic">
-                    {currentFinish.label}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="py-2 px-3 bg-gray-50 rounded-lg">
-                    <p className="text-[10px] text-stone-500 uppercase">Rebate</p>
-                    <p className="text-sm font-medium text-stone-900">{item.rebateWidthMm}w × {item.rebateDepthMm}d mm</p>
-                  </div>
-                  <div className="py-2 px-3 bg-gray-50 rounded-lg">
-                    <p className="text-[10px] text-stone-500 uppercase">Corner Rad.</p>
-                    <p className="text-sm font-medium text-stone-900">F:R{item.cornerRadiusMm} / B:R{item.rearCornerRadiusMm}</p>
-                  </div>
+                <div className="flex justify-between items-center py-1.5 px-2 bg-gray-50 rounded text-xs">
+                  <span className="text-stone-500">Rebate</span>
+                  <span className="font-bold text-stone-900">{item.rebateWidthMm}×{item.rebateDepthMm}</span>
                 </div>
               </div>
             </div>
 
             {/* Custom Options */}
             {hasCustomOptions && (
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-dashed border-stone-200 mt-2">
                 {item.angledLeft && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Left Angle
+                  <div className="flex justify-between items-center py-1 px-2 bg-orange-50/50 rounded text-[10px]">
+                    <span className="text-orange-700 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> L-Angle
                     </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {item.leftAngleDegrees}°
-                    </span>
+                    <span className="font-bold text-orange-900">{item.leftAngleDegrees}°</span>
                   </div>
                 )}
                 {item.angledRight && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Right Angle
+                  <div className="flex justify-between items-center py-1 px-2 bg-orange-50/50 rounded text-[10px]">
+                    <span className="text-orange-700 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> R-Angle
                     </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {item.rightAngleDegrees}°
-                    </span>
+                    <span className="font-bold text-orange-900">{item.rightAngleDegrees}°</span>
                   </div>
                 )}
                 {item.midRailsEnabled && item.midRails?.length > 0 && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Mid Rails
+                  <div className="flex justify-between items-center py-1 px-2 bg-orange-50/50 rounded text-[10px] col-span-2 sm:col-span-1">
+                    <span className="text-orange-700 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Rails
                     </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {item.midRails.length} rail{item.midRails.length > 1 ? "s" : ""}
-                    </span>
+                    <span className="font-bold text-orange-900">{item.midRails.length}</span>
                   </div>
                 )}
                 {item.hingeDrilling && item.hinges?.length > 0 && (
-                  <div className="flex justify-between items-center py-2 px-3 bg-orange-50 rounded-lg">
-                    <span className="text-sm text-orange-700 flex items-center gap-2">
-                      <Check className="w-4 h-4" /> Hinge Drilling
+                  <div className="flex justify-between items-center py-1 px-2 bg-orange-50/50 rounded text-[10px] col-span-2 sm:col-span-1">
+                    <span className="text-orange-700 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Hinges
                     </span>
-                    <span className="text-sm font-medium text-orange-900">
-                      {item.hinges.length} hole{item.hinges.length > 1 ? "s" : ""} ({item.hinges[0]?.type === "INSERTA" ? "Inserta" : "Screw"})
-                    </span>
+                    <span className="font-bold text-orange-900">{item.hinges.length} h</span>
                   </div>
                 )}
               </div>
@@ -558,8 +527,8 @@ export default function CheckoutPage() {
               'Door Type': door.preset === 'double' ? 'Double' : 'Single',
             };
 
-            if (door.angledLeft) properties['Left Angle'] = `${door.leftAngleDegrees}°`;
-            if (door.angledRight) properties['Right Angle'] = `${door.rightAngleDegrees}°`;
+            if (door.angledLeft) properties['Left Angle'] = `${(door.leftAngleDegrees || 0).toFixed(2)}°`;
+            if (door.angledRight) properties['Right Angle'] = `${(door.rightAngleDegrees || 0).toFixed(2)}°`;
             if (door.midRailsEnabled) properties['Mid Rails'] = `${door.midRails.length}`;
             if (door.hingeDrilling) properties['Hinge Holes'] = `${door.hinges.length}`;
 
@@ -654,7 +623,11 @@ export default function CheckoutPage() {
           <Button
             variant="outline"
             className="border-orange-200 text-orange-700 hover:bg-orange-50"
-            onClick={() => setLocation("/")}
+            onClick={() => {
+              useDoorConfig.getState().resetConfig();
+              useDoorStore.getState().setActiveDoor(null);
+              setLocation("/");
+            }}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Another Door
@@ -691,7 +664,11 @@ export default function CheckoutPage() {
 
             <button
               className="w-full border-2 border-dashed border-stone-300 hover:border-orange-400 rounded-xl p-6 flex flex-col items-center justify-center gap-2 text-stone-400 hover:text-orange-600 transition-colors group cursor-pointer"
-              onClick={() => setLocation("/")}
+              onClick={() => {
+                useDoorConfig.getState().resetConfig();
+                useDoorStore.getState().setActiveDoor(null);
+                setLocation("/");
+              }}
             >
               <div className="w-12 h-12 rounded-full bg-stone-100 group-hover:bg-orange-50 flex items-center justify-center transition-colors">
                 <Plus className="w-6 h-6" />

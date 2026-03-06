@@ -82,7 +82,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
 
     const up = (vals: any) => updateDoor(doorId, vals);
 
-    const calculateTotal = () => doors.reduce((acc, d) => acc + d.price, 0);
+    const calculateTotal = () => doors.reduce((acc, d) => acc + d.lineTotal, 0);
 
     const handleExport = async (type: "dxf" | "svg") => {
         setIsExporting(true);
@@ -107,7 +107,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
     const addHinge = () => {
         const newHinge = {
             id: Math.random().toString(36).substr(2, 9),
-            positionFromBottomMm: Math.round(door.height / 2),
+            positionMm: Math.round(door.height / 2),
             side: "LEFT" as const,
             type: "SCREW_POINTS" as const
         };
@@ -118,7 +118,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
     const updateHinge = (id: string, updates: any) => up({ hinges: door.hinges.map(h => h.id === id ? { ...h, ...updates } : h) });
 
     const isHingeInvalid = (hinge: any) => {
-        const hY = hinge.positionFromBottomMm;
+        const hY = hinge.positionMm;
         const hX = hinge.side === "LEFT" ? 22 : door.width - 22;
         if (hinge.side === "LEFT" && door.angledLeft) {
             if ((hX) / (door.leftTriangleCutoutWidth || 1) + (door.height - hY) / (door.leftTriangleCutoutHeight || 1) < 1) return true;
@@ -179,7 +179,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                                         {door.label}
                                         <span className="text-[9px] uppercase tracking-widest font-bold text-white px-2 py-0.5 premium-accent-gradient rounded-full">Premium</span>
                                     </h3>
-                                    <p className="text-xs text-muted-foreground mt-0.5">{door.width} x {door.height}mm &bull; <span className="font-semibold text-foreground">£{door.price.toFixed(2)}</span></p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{door.width} x {door.height}mm &bull; <span className="font-semibold text-foreground">£{door.unitPrice.toFixed(2)}</span></p>
                                 </div>
                                 {history.length > 0 && (
                                     <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setCurrentView("history")}>
@@ -236,7 +236,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
 
                                     {/* HARDWARE */}
                                     <TabsContent value="hardware" className="space-y-3 mt-4">
-                                        <div className="flex items-center justify-between border p-3 rounded-lg"><div><Label className="text-sm font-medium">Hinge Drilling</Label><p className="text-[10px] text-muted-foreground">(+£1.50/hole)</p></div><Switch checked={door.hingeDrilling} onCheckedChange={(c) => { const updates: any = { hingeDrilling: c }; if (c && door.hinges.length === 0) { updates.hinges = [{ id: 'h1', positionFromBottomMm: 100, side: "LEFT", type: "SCREW_POINTS" }, { id: 'h2', positionFromBottomMm: door.height - 100, side: "LEFT", type: "SCREW_POINTS" }]; } up(updates); }} /></div>
+                                        <div className="flex items-center justify-between border p-3 rounded-lg"><div><Label className="text-sm font-medium">Hinge Drilling</Label><p className="text-[10px] text-muted-foreground">(+£1.50/hole)</p></div><Switch checked={door.hingeDrilling} onCheckedChange={(c) => { const updates: any = { hingeDrilling: c }; if (c && door.hinges.length === 0) { updates.hinges = [{ id: 'h1', positionMm: 100, side: "LEFT", type: "SCREW_POINTS" }, { id: 'h2', positionMm: door.height - 100, side: "LEFT", type: "SCREW_POINTS" }]; } up(updates); }} /></div>
                                         {door.hingeDrilling && (
                                             <div className="space-y-3">
                                                 <div className="flex items-center justify-between"><Label className="text-xs">Hinges: {door.hinges.length}</Label><Button size="sm" variant="outline" onClick={addHinge} className="h-7 text-xs"><Plus className="w-3 h-3 mr-1" />Add</Button></div>
@@ -245,7 +245,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                                                         <div key={h.id} className="p-2.5 border rounded-lg bg-muted/30 space-y-2">
                                                             <div className="flex items-center justify-between"><span className="text-[10px] font-semibold text-muted-foreground uppercase">Hinge {i + 1}</span><Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-destructive" onClick={() => removeHinge(h.id)}><Trash2 className="w-3 h-3" /></Button></div>
                                                             {isHingeInvalid(h) && <div className="text-[9px] text-amber-600 bg-amber-100 p-1.5 rounded"><AlertTriangle className="w-3 h-3 inline mr-1" />In angled area</div>}
-                                                            <div className="grid grid-cols-2 gap-2"><div className="space-y-0.5"><Label className="text-[9px] text-muted-foreground">Position (mm)</Label><Input type="number" value={h.positionFromBottomMm} className="h-7 text-xs" onChange={(e) => updateHinge(h.id, { positionFromBottomMm: Number(e.target.value) })} /></div><div className="space-y-0.5"><Label className="text-[9px] text-muted-foreground">Side</Label><Select value={h.side} onValueChange={(v) => updateHinge(h.id, { side: v })}><SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger><SelectContent className="bg-background"><SelectItem value="LEFT">Left</SelectItem><SelectItem value="RIGHT">Right</SelectItem></SelectContent></Select></div></div>
+                                                            <div className="grid grid-cols-2 gap-2"><div className="space-y-0.5"><Label className="text-[9px] text-muted-foreground">Position (mm)</Label><Input type="number" value={h.positionMm} className="h-7 text-xs" onChange={(e) => updateHinge(h.id, { positionMm: Number(e.target.value) })} /></div><div className="space-y-0.5"><Label className="text-[9px] text-muted-foreground">Side</Label><Select value={h.side} onValueChange={(v) => updateHinge(h.id, { side: v })}><SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger><SelectContent className="bg-background"><SelectItem value="LEFT">Left</SelectItem><SelectItem value="RIGHT">Right</SelectItem></SelectContent></Select></div></div>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -268,9 +268,10 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                                 <Button
                                     className="w-full h-12 premium-gradient text-white font-black text-base uppercase tracking-wider shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
                                     onClick={() => setCurrentView("cart")}
+                                    disabled={door.width < 200 || door.height < 200 || door.panelType === "UNSELECTED" || door.finish === "NONE"}
                                 >
                                     <ShoppingCart className="w-5 h-5 mr-3" />
-                                    Add to Cart
+                                    {door.width < 200 || door.height < 200 ? "Enter Dimensions" : door.panelType === "UNSELECTED" ? "Select Panel" : door.finish === "NONE" ? "Select Finish" : "Add to Cart"}
                                 </Button>
                             </motion.div>
                         </div>
@@ -302,7 +303,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                                             <p className="font-semibold text-sm truncate">{d.label}</p>
                                             <p className="text-xs text-muted-foreground">{d.width}x{d.height}mm &bull; Qty: {d.qty}</p>
                                         </div>
-                                        <p className="font-bold text-sm shrink-0">£{d.price.toFixed(2)}</p>
+                                        <p className="font-bold text-sm shrink-0">£{d.unitPrice.toFixed(2)}</p>
                                         <div className="flex items-center gap-1 shrink-0">
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setActiveDoor(d.id); setCurrentView("config"); }}><Box className="w-4 h-4 text-primary" /></Button>
                                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { duplicateDoor(d.id); toast.success("Door duplicated"); }}><Copy className="w-4 h-4" /></Button>
@@ -453,7 +454,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
 
                         {phase !== "complete" && (
                             <div className="p-4 border-t mt-auto shrink-0">
-                                <Button className="w-full h-11 premium-gradient text-white font-bold" onClick={handleCheckout} disabled={isSubmittingHook || (phase !== "idle" && phase !== "error")}>
+                                <Button className="w-full h-11 premium-gradient text-white font-bold" onClick={handleCheckout} disabled={isSubmittingHook || (phase !== "idle" && (phase as string) !== "error")}>
                                     {isSubmittingHook ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</> : "Confirm & Sync To Shopify"}
                                 </Button>
                             </div>

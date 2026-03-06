@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 650" width="500" height="650">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+      <feOffset dx="2" dy="2" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect x="0" y="0" width="500" height="650" fill="#ffffff" />
+  <!-- Face Label (Match Door2D) -->
+  <text x="250" y="30" text-anchor="middle" fill="#2563eb" font-family="Liberation Sans, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">FRONT VIEW</text>
+  <defs><clipPath id="clip-145-1772795571296"><path d="M 145 570 L 145 535 L 162.03333333333333 80 L 355 80 L 355 570 Z" /></clipPath></defs>
+  <path d="M 145 570 L 145 535 L 162.03333333333333 80 L 355 80 L 355 570 Z" fill="#fafaf9" stroke="#44403c" stroke-width="0.35" filter="url(#shadow)" />
+  <path d="M 165.35958183022137 552.5 L 182.3929151635547 97.5 L 337.5 97.5 L 337.5 552.5 Z" fill="#e7e5e4" stroke="#a8a29e" stroke-width="0.23333333333333334" clip-path="url(#clip-145-1772795571296)" />
+  <circle cx="349.8666666666667" cy="NaN" r="4.083333333333333" fill="#a1a1aa" stroke="#52525b" stroke-width="0.23333333333333334" fill-opacity="0.3" stroke-dasharray="0.9333333333333333 0.4666666666666667" />
+  <circle cx="349.8666666666667" cy="NaN" r="0.4666666666666667" fill="#52525b" />
+  <circle cx="349.8666666666667" cy="NaN" r="4.083333333333333" fill="#a1a1aa" stroke="#52525b" stroke-width="0.23333333333333334" fill-opacity="0.3" stroke-dasharray="0.9333333333333333 0.4666666666666667" />
+  <circle cx="349.8666666666667" cy="NaN" r="0.4666666666666667" fill="#52525b" />
+  <circle cx="349.8666666666667" cy="NaN" r="4.083333333333333" fill="#a1a1aa" stroke="#52525b" stroke-width="0.23333333333333334" fill-opacity="0.3" stroke-dasharray="0.9333333333333333 0.4666666666666667" />
+  <circle cx="349.8666666666667" cy="NaN" r="0.4666666666666667" fill="#52525b" />
+  <line x1="145" y1="575.8333333333334" x2="355" y2="575.8333333333334" stroke="#78716c" stroke-width="1" />
+  <line x1="145" y1="570.8333333333334" x2="145" y2="580.8333333333334" stroke="#78716c" stroke-width="1" />
+  <line x1="355" y1="570.8333333333334" x2="355" y2="580.8333333333334" stroke="#78716c" stroke-width="1" />
+  <text font-family="Liberation Sans, Arial, sans-serif" font-size="12px" fill="#78716c" font-weight="600" x="250" y="590.8333333333334" text-anchor="middle">900mm</text>
+  <line x1="360.8333333333333" y1="570" x2="360.8333333333333" y2="80" stroke="#78716c" stroke-width="1" />
+  <line x1="355.8333333333333" y1="570" x2="365.8333333333333" y2="570" stroke="#78716c" stroke-width="1" />
+  <line x1="355.8333333333333" y1="80" x2="365.8333333333333" y2="80" stroke="#78716c" stroke-width="1" />
+  <text font-family="Liberation Sans, Arial, sans-serif" font-size="12px" fill="#78716c" font-weight="600" x="368.8333333333333" y="325" text-anchor="start" dominant-baseline="middle" transform="rotate(0, 368.8333333333333, 325)">2100mm</text>
+  <text x="250" y="642" text-anchor="middle" fill="#999" font-family="Liberation Sans, Arial, sans-serif" font-size="10">900mm × 2100mm | MELAMINE 18MM</text>
+</svg>

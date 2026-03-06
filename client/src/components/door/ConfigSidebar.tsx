@@ -209,6 +209,21 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionItem>
           )}
         </Accordion>
+
+        <div className="mt-8 mb-6">
+          <Button
+            variant="outline"
+            className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to reset all configurations to default (720x600 rectangular)?")) {
+                config.resetConfig();
+              }
+            }}
+          >
+            Reset to Default Door
+          </Button>
+        </div>
+
         <div className="h-6" />
       </div>
     </div>
@@ -431,51 +446,78 @@ function MidRailsSection() {
             <Switch checked={midRailsEqualise} onCheckedChange={setMidRailsEqualise} />
           </div>
 
-          {midRailsEqualise && midRails.length > 0 && (
-            <div className="px-3 py-2 bg-amber-50 border border-amber-100 rounded-md text-[10px] text-amber-800 font-medium">
-              Panel Heights: {(() => {
-                const railCount = midRails.length;
-                const usableHeight = height - bottomRail - topRail;
-                const totalRailsWidth = midRails.reduce((sum, r) => sum + r.dimension, 0);
-                const gapHeight = (usableHeight - totalRailsWidth) / (railCount + 1);
-                return `${Math.round(gapHeight)}mm between rails`;
-              })()}
-            </div>
-          )}
+          <div className="flex flex-col gap-3 mt-4">
+            {(() => {
+              const sorted = [...midRails].sort((a, b) => b.positionFromBottom - a.positionFromBottom);
+              const elements = [];
 
-          <div className="space-y-4 flex flex-col-reverse">
-            {[...midRails].sort((a, b) => a.positionFromBottom - b.positionFromBottom).map((rail, index) => (
-              <div key={rail.id} className="p-3 bg-gray-50 rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Mid Rail {index + 1}</span>
-                  <Button variant="ghost" size="sm" onClick={() => removeMidRail(rail.id)} className="h-6 w-6 p-0 text-red-500">
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">Position from bottom (mm)</Label>
-                    <NumberInput
-                      value={rail.positionFromBottom}
-                      onChange={(val) => updateMidRail(rail.id, "positionFromBottom", val)}
-                      min={50}
-                      disabled={midRailsEqualise}
-                      className="h-8 text-sm"
-                    />
+              for (let i = 0; i < sorted.length; i++) {
+                const rail = sorted[i];
+                const realIndex = midRails.filter(r => r.positionFromBottom < rail.positionFromBottom).length + 1;
+
+                // 1. Top Panel Indicator (only before the highest rail)
+                if (i === 0) {
+                  const topPanelSpace = height - topRail - (rail.positionFromBottom + rail.dimension);
+                  elements.push(
+                    <div key="top-panel" className="flex justify-center">
+                      <span className="bg-yellow-50 text-yellow-800 text-[11px] font-medium px-3 py-1 rounded-full border border-yellow-200 flex items-center gap-1.5">
+                        Top Panel: {Math.round(topPanelSpace)}mm
+                      </span>
+                    </div>
+                  );
+                }
+
+                // 2. The Mid Rail Card
+                elements.push(
+                  <div key={rail.id} className="p-4 bg-gray-50/80 rounded-xl space-y-3 border border-gray-100 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-700">Mid Rail {realIndex}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeMidRail(rail.id)} className="h-6 w-6 p-0 text-red-500 hover:bg-red-50">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-gray-500 font-medium">Position from bottom (mm)</Label>
+                        <NumberInput
+                          value={rail.positionFromBottom}
+                          onChange={(val) => updateMidRail(rail.id, "positionFromBottom", val)}
+                          min={50}
+                          disabled={midRailsEqualise}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-gray-500 font-medium">Rail width (mm, min 35)</Label>
+                        <NumberInput
+                          value={rail.dimension}
+                          onChange={(val) => updateMidRail(rail.id, "dimension", val)}
+                          min={35}
+                          max={200}
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-gray-500">Rail width (mm, min 35)</Label>
-                    <NumberInput
-                      value={rail.dimension}
-                      onChange={(val) => updateMidRail(rail.id, "dimension", val)}
-                      min={35}
-                      max={200}
-                      className="h-8 text-sm"
-                    />
+                );
+
+                // 3. The Panel Below Indicator
+                const railBelow = sorted[i + 1];
+                const bottomPanelSpace = railBelow
+                  ? rail.positionFromBottom - (railBelow.positionFromBottom + railBelow.dimension)
+                  : rail.positionFromBottom - bottomRail;
+
+                const label = railBelow ? `Mid Panel (R${realIndex - 1} to R${realIndex})` : `Bottom Panel`;
+                elements.push(
+                  <div key={`panel-below-${rail.id}`} className="flex justify-center">
+                    <span className="bg-yellow-50 text-yellow-800 text-[11px] font-medium px-3 py-1 rounded-full border border-yellow-200 flex items-center gap-1.5">
+                      {label}: {Math.round(bottomPanelSpace)}mm
+                    </span>
                   </div>
-                </div>
-              </div>
-            ))}
+                );
+              }
+              return elements;
+            })()}
           </div>
 
           <Button variant="outline" size="sm" onClick={addMidRail} className="w-full">
@@ -514,25 +556,7 @@ function HingePositionsSection() {
     setHinges(newHinges);
   };
 
-  const isHingeInvalid = (hinge: any) => {
-    const hY = hinge.reference === "BOTTOM" ? hinge.positionMm : height - hinge.positionMm;
-    const hX = hinge.side === "LEFT" ? 22.5 : width - 22.5;
-    if (hinge.side === "LEFT" && angledLeft) {
-      const heightFromTop = height - hY;
-      if (heightFromTop < leftTriangleCutoutHeight && leftTriangleCutoutHeight > 0) {
-        const maxX = leftTriangleCutoutWidth * (1 - heightFromTop / leftTriangleCutoutHeight);
-        if (hX < maxX) return true;
-      }
-    }
-    if (hinge.side === "RIGHT" && angledRight) {
-      const heightFromTop = height - hY;
-      if (heightFromTop < rightTriangleCutoutHeight && rightTriangleCutoutHeight > 0) {
-        const minX = width - rightTriangleCutoutWidth * (1 - heightFromTop / rightTriangleCutoutHeight);
-        if (hX > minX) return true;
-      }
-    }
-    return false;
-  };
+
 
   const currentSide = hinges.length > 0 ? hinges[0].side : "LEFT";
 
@@ -610,12 +634,7 @@ function HingePositionsSection() {
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                    {isHingeInvalid(hinge) && (
-                      <div className="flex items-center gap-2 text-[10px] text-red-500 bg-red-50 p-1.5 rounded border border-red-100 shadow-sm">
-                        <AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                        <span>Hinge overlaps angled edge or rail</span>
-                      </div>
-                    )}
+
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-[10px] font-bold text-gray-400 uppercase">Anchor</Label>
@@ -801,6 +820,7 @@ function RebateSection() {
         </div>
 
         {/* Premium Dynamic Corner Diagram */}
+        {/*
         <DynamicCornerDiagram
           thickness={thickness}
           rebateWidthMm={rebateWidthMm}
@@ -810,6 +830,7 @@ function RebateSection() {
           rearCornerRadiusMm={rearCornerRadiusMm}
           panelType={panelType}
         />
+        */}
       </div>
 
       <div className="pt-2 border-t border-stone-200">

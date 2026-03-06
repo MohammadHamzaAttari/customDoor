@@ -5,12 +5,12 @@ import { calculateAngleFromCutout } from "../anglePresets";
 import { calculateDoorPrice, DEFAULT_PRICING } from "@shared/doorSchema";
 
 export type DoorPreset = "single" | "double" | "shaker_2" | "shaker_4" | "shaker_6" | "panel_3" | "panel_4" | "panel_6";
-export type PanelType = "STANDARD_12MM" | "STANDARD_9MM" | "REEDED_19MM" | "MELAMINE_18MM" | "FRETWORK" | "GLASS" | "NONE";
+export type PanelType = "STANDARD_12MM" | "STANDARD_9MM" | "REEDED_19MM" | "MELAMINE_18MM" | "FRETWORK" | "GLASS" | "NONE" | "UNSELECTED";
 export type PanelOrientation = "vertical" | "horizontal";
 export type BorderStyle = "none" | "simple" | "detailed";
 export type DoorShape = "rectangular" | "angled";
 export type MaterialType = "MDF" | "OAK" | "WALNUT" | "PINE";
-export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED" | "PAINTED";
+export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED" | "PAINTED" | "NONE";
 export type HingeType = "SCREW_POINTS" | "INSERTA";
 export type ViewSide = "front" | "back";
 
@@ -156,38 +156,38 @@ interface DoorConfigStore extends DoorConfig {
 }
 
 const initialState: DoorConfig = {
-  width: 600,
-  height: 720,
+  width: 0,
+  height: 0,
   thickness: 22,
   preset: "single",
-  panelType: "STANDARD_12MM",
+  panelType: "UNSELECTED",
   panelCount: 1,
   panelOrientation: "vertical",
   shape: "rectangular",
 
   angledLeft: false,
   angledRight: false,
-  leftTriangleCutoutWidth: 180,
-  leftTriangleCutoutHeight: 400,
-  rightTriangleCutoutWidth: 180,
-  rightTriangleCutoutHeight: 400,
-  leftAngleDegrees: 42,
-  rightAngleDegrees: 42,
-  leftAngledRailWidth: 90,
-  rightAngledRailWidth: 90,
+  leftTriangleCutoutWidth: 0,
+  leftTriangleCutoutHeight: 0,
+  rightTriangleCutoutWidth: 0,
+  rightTriangleCutoutHeight: 0,
+  leftAngleDegrees: 0,
+  rightAngleDegrees: 0,
+  leftAngledRailWidth: 0,
+  rightAngledRailWidth: 0,
 
-  borderWidth: 90,
+  borderWidth: 0,
   customBorders: false,
-  leftStile: 90,
-  rightStile: 90,
-  bottomRail: 90,
-  topRail: 90,
+  leftStile: 0,
+  rightStile: 0,
+  bottomRail: 0,
+  topRail: 0,
 
-  rebateWidthMm: 10,
-  rebateDepthMm: 14,
-  frontFaceThicknessMm: 8,
-  cornerRadiusMm: 2.5,
-  rearCornerRadiusMm: 2.5,
+  rebateWidthMm: 0,
+  rebateDepthMm: 0,
+  frontFaceThicknessMm: 0,
+  cornerRadiusMm: 0,
+  rearCornerRadiusMm: 0,
 
   midRailsEnabled: false,
   midRailsEqualise: false,
@@ -197,7 +197,7 @@ const initialState: DoorConfig = {
   hinges: [],
 
   material: "MDF",
-  finish: "RAW_UNASSEMBLED",
+  finish: "NONE",
   showDimensions: true,
   viewSide: "front" as ViewSide,
   price: 0,
@@ -325,7 +325,24 @@ export const useDoorConfig = create<DoorConfigStore>()(
         if (isNaN(width)) return;
         get().clearNewSession();
         const clamped = Math.max(MIN_WIDTH_MM, Math.min(MAX_WIDTH_MM, Math.round(width)));
-        set({ width: clamped });
+
+        const state = get();
+        let newLeftCW = state.leftTriangleCutoutWidth;
+        let newRightCW = state.rightTriangleCutoutWidth;
+        const maxComb = clamped - 50;
+
+        if (newLeftCW + newRightCW > maxComb) {
+          if (newLeftCW > maxComb) newLeftCW = Math.max(0, maxComb);
+          if (newLeftCW + newRightCW > maxComb) newRightCW = Math.max(0, maxComb - newLeftCW);
+        }
+
+        set({
+          width: clamped,
+          leftTriangleCutoutWidth: newLeftCW,
+          leftAngleDegrees: calculateAngleFromCutout(newLeftCW, state.leftTriangleCutoutHeight),
+          rightTriangleCutoutWidth: newRightCW,
+          rightAngleDegrees: calculateAngleFromCutout(newRightCW, state.rightTriangleCutoutHeight),
+        });
         get().calculatePrice();
       },
 
@@ -392,19 +409,28 @@ export const useDoorConfig = create<DoorConfigStore>()(
         get().clearNewSession();
         set({ angledLeft });
         get().calculatePrice();
+        // Re-equalize hinges to account for newly added/removed angle
+        if (get().hingeDrilling && get().hinges.length > 0) {
+          setTimeout(() => get().equaliseHinges(), 0);
+        }
       },
 
       setAngledRight: (angledRight: boolean) => {
         get().clearNewSession();
         set({ angledRight });
         get().calculatePrice();
+        // Re-equalize hinges to account for newly added/removed angle
+        if (get().hingeDrilling && get().hinges.length > 0) {
+          setTimeout(() => get().equaliseHinges(), 0);
+        }
       },
 
       setLeftTriangleCutoutWidth: (width: number) => {
         if (isNaN(width) || width < 0) return;
         const state = get();
-        // Prevent cutout from exceeding door width
-        const maxWidth = state.width - 50;
+        // Prevent cutout from exceeding door width, leaving at least 50mm straight edge
+        const rightWidth = state.angledRight ? state.rightTriangleCutoutWidth : 0;
+        const maxWidth = Math.max(0, state.width - rightWidth - 50);
         const clampedWidth = Math.min(width, maxWidth);
         set({
           leftTriangleCutoutWidth: clampedWidth,
@@ -421,12 +447,17 @@ export const useDoorConfig = create<DoorConfigStore>()(
           leftTriangleCutoutHeight: clampedHeight,
           leftAngleDegrees: calculateAngleFromCutout(state.leftTriangleCutoutWidth, clampedHeight),
         });
+        // Re-equalize hinges if they're on the left (angled) side
+        if (get().hingeDrilling && get().hinges.length > 0 && get().hinges[0].side === "LEFT") {
+          setTimeout(() => get().equaliseHinges(), 0);
+        }
       },
 
       setRightTriangleCutoutWidth: (width: number) => {
         if (isNaN(width) || width < 0) return;
         const state = get();
-        const maxWidth = state.width - 50;
+        const leftWidth = state.angledLeft ? state.leftTriangleCutoutWidth : 0;
+        const maxWidth = Math.max(0, state.width - leftWidth - 50);
         const clampedWidth = Math.min(width, maxWidth);
         set({
           rightTriangleCutoutWidth: clampedWidth,
@@ -443,6 +474,10 @@ export const useDoorConfig = create<DoorConfigStore>()(
           rightTriangleCutoutHeight: clampedHeight,
           rightAngleDegrees: calculateAngleFromCutout(state.rightTriangleCutoutWidth, clampedHeight),
         });
+        // Re-equalize hinges if they're on the right (angled) side
+        if (get().hingeDrilling && get().hinges.length > 0 && get().hinges[0].side === "RIGHT") {
+          setTimeout(() => get().equaliseHinges(), 0);
+        }
       },
 
       setLeftAngledRailWidth: (leftAngledRailWidth: number) => {
@@ -522,7 +557,12 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
       setMidRailsEnabled: (midRailsEnabled: boolean) => {
         get().clearNewSession();
-        set({ midRailsEnabled });
+        if (!midRailsEnabled) {
+          // Reset equalise flag so it doesn't stay stale when re-enabled
+          set({ midRailsEnabled, midRailsEqualise: false });
+        } else {
+          set({ midRailsEnabled });
+        }
         if (midRailsEnabled && get().midRails.length === 0) {
           get().addMidRail();
         }
@@ -532,9 +572,10 @@ export const useDoorConfig = create<DoorConfigStore>()(
       setMidRailsEqualise: (midRailsEqualise: boolean) => {
         set({ midRailsEqualise });
         if (midRailsEqualise) {
-          const updated = reEqualiseMidRails({ ...get(), midRailsEqualise });
+          const updated = reEqualiseMidRails({ ...get(), midRailsEqualise: true });
           set({ midRails: updated });
         }
+        get().calculatePrice();
       },
 
       addMidRail: () => {
@@ -603,9 +644,13 @@ export const useDoorConfig = create<DoorConfigStore>()(
         // If ref not provided, intelligently pick
         const reference = ref || (state.hinges.length > 0 && state.hinges[state.hinges.length - 1].reference === "TOP" ? "BOTTOM" : "TOP");
 
+        // Compute safe default position
+        // Since yCenter accounts for angleCutoutHeight (shoulder), default stays 100mm.
+        let defaultPos = 100;
+
         const newHinge: Hinge = {
           id: `hinge_${Date.now()}_${++hingeIdCounter}`,
-          positionMm: 100,
+          positionMm: defaultPos,
           reference,
           side: existingSide,
           type: existingType,
@@ -666,28 +711,29 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
         if (state.leftStile < minLeft) set({ leftStile: minLeft });
         if (state.rightStile < minRight) set({ rightStile: minRight });
+
+        // Auto re-measure / equalise hinges when swapping sides to account for angled edges
+        setTimeout(() => get().equaliseHinges(), 0);
       },
 
 
       equaliseHinges: () => {
         const state = get();
-        if (state.hinges.length < 2) return;
+        if (state.hinges.length === 0) return;
 
-        // Determine if hinge side has an angled cutout
-        const hingeSide = state.hinges[0]?.side || "LEFT";
-        let angleCutoutHeight = 0;
-        if (hingeSide === "LEFT" && state.angledLeft) {
-          angleCutoutHeight = state.leftTriangleCutoutHeight;
-        } else if (hingeSide === "RIGHT" && state.angledRight) {
-          angleCutoutHeight = state.rightTriangleCutoutHeight;
-        }
-
-        // Top offset must clear the angled zone (with a 50mm safety margin)
-        const topOffset = angleCutoutHeight > 0
-          ? Math.max(100, angleCutoutHeight + 50)
-          : 100;
+        // Top offset is safely 100mm since measuring begins below the shoulder.
+        const topOffset = 100;
         const bottomOffset = 100;
         const count = state.hinges.length;
+
+        // Single hinge: just ensure it clears the angle zone
+        if (count === 1) {
+          const h = state.hinges[0];
+          if (h.reference === "TOP" && h.positionMm < topOffset) {
+            set({ hinges: [{ ...h, positionMm: topOffset }] });
+          }
+          return;
+        }
 
         if (count === 2) {
           const updatedHinges = [
@@ -756,9 +802,14 @@ export const useDoorConfig = create<DoorConfigStore>()(
     {
       name: "door-config-storage",
       storage: createJSONStorage(() => createResilientStorage()),
-      version: 6,
+      version: 8,
       migrate: (persistedState: any, version: number) => {
         const migrated = persistedState || {};
+
+        // Migration to v8: wipe old state and enforce new 0-defaults + unselected panel/finish
+        if (version < 8) {
+          return { ...initialState };
+        }
 
         // Migration v1 -> v2: Remove PRIMED finish
         if (version < 2) {

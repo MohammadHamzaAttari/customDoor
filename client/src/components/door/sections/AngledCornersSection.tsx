@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useState, useEffect } from "react";
 
 export function AngledCornersSection() {
   const {
@@ -38,6 +39,22 @@ export function AngledCornersSection() {
   // Validation
   const leftValidation = validateAngleCutout(width, height, leftTriangleCutoutWidth, leftTriangleCutoutHeight, borderWidth);
   const rightValidation = validateAngleCutout(width, height, rightTriangleCutoutWidth, rightTriangleCutoutHeight, borderWidth);
+
+  // Local state for precise decimal typing without losing trailing dots
+  const [leftInput, setLeftInput] = useState(leftAngleDegrees?.toString() || "");
+  const [rightInput, setRightInput] = useState(rightAngleDegrees?.toString() || "");
+
+  useEffect(() => {
+    if (leftAngleDegrees !== undefined && parseFloat(leftInput) !== leftAngleDegrees) {
+      setLeftInput(leftAngleDegrees.toString());
+    }
+  }, [leftAngleDegrees]);
+
+  useEffect(() => {
+    if (rightAngleDegrees !== undefined && parseFloat(rightInput) !== rightAngleDegrees) {
+      setRightInput(rightAngleDegrees.toString());
+    }
+  }, [rightAngleDegrees]);
 
   /**
    * When the user types an angle directly, recalculate the cutout dimensions
@@ -100,7 +117,7 @@ export function AngledCornersSection() {
                 <span className="font-medium text-gray-900">Left Angle</span>
                 {angledLeft && (
                   <Badge variant="secondary" className="ml-2 text-xs">
-                    {leftAngleDegrees}°
+                    {(leftAngleDegrees || 0).toFixed(2)}°
                   </Badge>
                 )}
               </div>
@@ -116,10 +133,14 @@ export function AngledCornersSection() {
                   <Label className="text-xs text-gray-600 mb-1 block">Angle (degrees)</Label>
                   <Input
                     type="number"
-                    value={leftAngleDegrees}
-                    onChange={(e) => handleLeftAngleChange(Number(e.target.value))}
+                    value={leftInput}
+                    onChange={(e) => {
+                      setLeftInput(e.target.value);
+                      handleLeftAngleChange(parseFloat(e.target.value));
+                    }}
                     min={5}
                     max={85}
+                    step="0.01"
                     className="h-9"
                   />
                   <span className="text-[10px] text-gray-400 mt-0.5 block">Recommended: 5° – 85°</span>
@@ -152,7 +173,7 @@ export function AngledCornersSection() {
                 <div className="flex items-center justify-between pt-2 border-t">
                   <span className="text-sm text-gray-600">Resulting Angle:</span>
                   <Badge variant="outline" className="font-mono">
-                    {leftAngleDegrees}°
+                    {(leftAngleDegrees || 0).toFixed(2)}°
                   </Badge>
                 </div>
               </div>
@@ -174,7 +195,7 @@ export function AngledCornersSection() {
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
                   <Check className="w-4 h-4 text-green-600" />
                   <span className="text-xs text-green-700">
-                    {leftAngleDegrees}° angle configured — {leftTriangleCutoutWidth}mm × {leftTriangleCutoutHeight}mm cutout
+                    {(leftAngleDegrees || 0).toFixed(2)}° angle configured — {leftTriangleCutoutWidth}mm × {leftTriangleCutoutHeight}mm cutout
                   </span>
                 </div>
               )}
@@ -204,7 +225,7 @@ export function AngledCornersSection() {
                 <span className="font-medium text-gray-900">Right Angle</span>
                 {angledRight && (
                   <Badge variant="secondary" className="ml-2 text-xs bg-purple-100 text-purple-700">
-                    {rightAngleDegrees}°
+                    {(rightAngleDegrees || 0).toFixed(2)}°
                   </Badge>
                 )}
               </div>
@@ -220,10 +241,14 @@ export function AngledCornersSection() {
                   <Label className="text-xs text-gray-600 mb-1 block">Angle (degrees)</Label>
                   <Input
                     type="number"
-                    value={rightAngleDegrees}
-                    onChange={(e) => handleRightAngleChange(Number(e.target.value))}
+                    value={rightInput}
+                    onChange={(e) => {
+                      setRightInput(e.target.value);
+                      handleRightAngleChange(parseFloat(e.target.value));
+                    }}
                     min={5}
                     max={85}
+                    step="0.01"
                     className="h-9"
                   />
                   <span className="text-[10px] text-gray-400 mt-0.5 block">Recommended: 5° – 85°</span>
@@ -256,7 +281,7 @@ export function AngledCornersSection() {
                 <div className="flex items-center justify-between pt-2 border-t">
                   <span className="text-sm text-gray-600">Resulting Angle:</span>
                   <Badge variant="outline" className="font-mono">
-                    {rightAngleDegrees}°
+                    {(rightAngleDegrees || 0).toFixed(2)}°
                   </Badge>
                 </div>
               </div>
@@ -277,7 +302,7 @@ export function AngledCornersSection() {
                 <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
                   <Check className="w-4 h-4 text-green-600" />
                   <span className="text-xs text-green-700">
-                    {rightAngleDegrees}° angle configured — {rightTriangleCutoutWidth}mm × {rightTriangleCutoutHeight}mm cutout
+                    {(rightAngleDegrees || 0).toFixed(2)}° angle configured — {rightTriangleCutoutWidth}mm × {rightTriangleCutoutHeight}mm cutout
                   </span>
                 </div>
               )}

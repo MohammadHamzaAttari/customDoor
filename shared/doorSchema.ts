@@ -13,6 +13,7 @@ export const panelTypeValues = [
   "FRETWORK",
   "GLASS",
   "NONE",
+  "UNSELECTED",
 ] as const;
 
 export const finishTypeValues = [
@@ -20,6 +21,7 @@ export const finishTypeValues = [
   "ASSEMBLED_PREP",
   "PRIMED",
   "PAINTED",
+  "NONE",
 ] as const;
 
 export const hingeTypeValues = [
@@ -70,8 +72,8 @@ export type MidRailData = z.infer<typeof midRailSchema>;
 
 export const doorConfigSchema = z.object({
   // Dimensions
-  width: z.number().min(200).max(1200),
-  height: z.number().min(200).max(2430),
+  width: z.number().min(0).max(1200),
+  height: z.number().min(0).max(2430),
   thickness: z.number().refine(
     (v) => v === 18 || v === 22,
     { message: "Thickness must be 18mm or 22mm" }
@@ -83,17 +85,17 @@ export const doorConfigSchema = z.object({
   panelCount: z.number().min(0).max(6),
 
   // Borders (mm, measured at front face)
-  borderWidth: z.number().min(35).max(300),
+  borderWidth: z.number().min(0).max(300),
   customBorders: z.boolean(),
-  leftStile: z.number().min(35).max(300),
-  rightStile: z.number().min(35).max(300),
-  topRail: z.number().min(35).max(300),
-  bottomRail: z.number().min(35).max(300),
+  leftStile: z.number().min(0).max(300),
+  rightStile: z.number().min(0).max(300),
+  topRail: z.number().min(0).max(300),
+  bottomRail: z.number().min(0).max(300),
 
   // Rebate specifications
-  rebateWidthMm: z.number().min(5).max(20).default(10),
-  rebateDepthMm: z.number().min(8).max(20).default(14),
-  frontFaceThicknessMm: z.number().min(4).max(12).default(8),
+  rebateWidthMm: z.number().min(0).max(20).default(10),
+  rebateDepthMm: z.number().min(0).max(20).default(14),
+  frontFaceThicknessMm: z.number().min(0).max(12).default(8),
   cornerRadiusMm: z.number().min(0).max(10).default(0),
   rearCornerRadiusMm: z.number().min(0).max(10).default(2.5),
 
@@ -106,8 +108,8 @@ export const doorConfigSchema = z.object({
   rightTriangleCutoutHeight: z.number().min(0).default(0),
   leftAngleDegrees: z.number().min(0).max(90).default(0),
   rightAngleDegrees: z.number().min(0).max(90).default(0),
-  leftAngledRailWidth: z.number().min(35).max(200).default(90),
-  rightAngledRailWidth: z.number().min(35).max(200).default(90),
+  leftAngledRailWidth: z.number().min(0).max(200).default(90),
+  rightAngledRailWidth: z.number().min(0).max(200).default(90),
 
   // Mid rails
   midRailsEnabled: z.boolean().default(false),
@@ -268,6 +270,7 @@ export function calculateDoorPrice(
     ASSEMBLED_PREP: 1.15,
     PRIMED: 1.5,
     PAINTED: 1.8,
+    NONE: 1.0,
   };
   const finishMultiplier = finishMultipliers[config.finish] || 1.0;
 

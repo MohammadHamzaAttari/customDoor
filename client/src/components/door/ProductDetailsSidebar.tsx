@@ -102,15 +102,20 @@ export function ProductDetailsSidebar() {
     finishLabels[finish] || finishLabels.RAW_UNASSEMBLED;
 
   // Build features list
-  const features: { label: string; value: string; highlight?: boolean }[] = [
-    { label: "Dimensions", value: `${width} × ${height} × ${thickness}mm` },
-    { label: "Panel Type", value: panelLabels[panelType] || panelType },
-  ];
+  const features: { label: string; value: string; highlight?: boolean }[] = [];
+
+  if (width > 0 && height > 0) {
+    features.push({ label: "Dimensions", value: `${width} × ${height} × ${thickness}mm` });
+  }
+
+  if (panelType !== "UNSELECTED") {
+    features.push({ label: "Panel Type", value: panelLabels[panelType] || panelType });
+  }
 
   if (angledLeft) {
     features.push({
       label: "Left Angle",
-      value: `${leftAngleDegrees}°`,
+      value: `${(leftAngleDegrees || 0).toFixed(2)}°`,
       highlight: true,
     });
   }
@@ -118,7 +123,7 @@ export function ProductDetailsSidebar() {
   if (angledRight) {
     features.push({
       label: "Right Angle",
-      value: `${rightAngleDegrees}°`,
+      value: `${(rightAngleDegrees || 0).toFixed(2)}°`,
       highlight: true,
     });
   }
@@ -148,18 +153,24 @@ export function ProductDetailsSidebar() {
   }
 
   if (panelType !== "NONE") {
-    features.push({
-      label: "Rebate",
-      value: `${rebateWidthMm}w × ${rebateDepthMm}d mm`,
-    });
-    features.push({
-      label: "Front Face",
-      value: `${frontFaceThicknessMm}mm`,
-    });
-    features.push({
-      label: "Radii (F/R)",
-      value: `R${cornerRadiusMm} / R${rearCornerRadiusMm}`,
-    });
+    if (rebateWidthMm > 0 || rebateDepthMm > 0) {
+      features.push({
+        label: "Rebate",
+        value: `${rebateWidthMm}w × ${rebateDepthMm}d mm`,
+      });
+    }
+    if (frontFaceThicknessMm > 0) {
+      features.push({
+        label: "Front Face",
+        value: `${frontFaceThicknessMm}mm`,
+      });
+    }
+    if (cornerRadiusMm > 0 || rearCornerRadiusMm > 0) {
+      features.push({
+        label: "Radii (F/R)",
+        value: `R${cornerRadiusMm} / R${rearCornerRadiusMm}`,
+      });
+    }
   }
 
   const buildDoorData = () => ({
@@ -271,9 +282,11 @@ export function ProductDetailsSidebar() {
               Custom MDF Door
             </p>
           </div>
-          <Badge className={cn("text-xs font-medium", currentFinish.color)}>
-            {currentFinish.label}
-          </Badge>
+          {finish !== "NONE" && (
+            <Badge className={cn("text-xs font-medium", currentFinish.color)}>
+              {currentFinish.label}
+            </Badge>
+          )}
         </div>
 
         <div className="bg-gradient-to-r from-stone-800 to-stone-900 rounded-xl p-4 text-white shadow-lg border border-stone-700">
@@ -350,6 +363,7 @@ export function ProductDetailsSidebar() {
               : "bg-gradient-to-r from-orange-600 to-red-600"
           )}
           onClick={handleAddToCart}
+          disabled={width < 200 || height < 200 || panelType === "UNSELECTED" || finish === "NONE"}
         >
           {justAdded ? (
             <>
@@ -359,12 +373,16 @@ export function ProductDetailsSidebar() {
           ) : (
             <>
               <Plus className="w-5 h-5 mr-2" />
-              {editingCartItemId ? "Save Changes" : "Add to Cart"}
+              {width < 200 || height < 200 ? "Enter Dimensions" : panelType === "UNSELECTED" ? "Select Panel" : finish === "NONE" ? "Select Finish" : editingCartItemId ? "Save Changes" : "Add to Cart"}
             </>
           )}
         </Button>
 
-        <Button variant="outline" onClick={handleAddAndCheckout}>
+        <Button
+          variant="outline"
+          onClick={handleAddAndCheckout}
+          disabled={width < 200 || height < 200 || panelType === "UNSELECTED" || finish === "NONE"}
+        >
           <ShoppingCart className="w-4 h-4 mr-2" />
           {editingCartItemId ? "Save & Checkout" : "Add & Checkout"}
         </Button>

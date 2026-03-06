@@ -111,11 +111,11 @@ interface DoorStore {
 
 const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTotal"> = {
   qty: 1,
-  width: 600,
-  height: 720,
+  width: 0,
+  height: 0,
   thickness: 22,
   preset: "single",
-  panelType: "STANDARD_12MM",
+  panelType: "UNSELECTED",
   panelCount: 1,
   panelOrientation: "vertical",
   shape: "rectangular",
@@ -138,11 +138,11 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   bottomRail: 90,
   topRail: 90,
 
-  rebateWidthMm: 10,
-  rebateDepthMm: 14,
-  frontFaceThicknessMm: 8,
-  cornerRadiusMm: 2.5,
-  rearCornerRadiusMm: 2.5,
+  rebateWidthMm: 0,
+  rebateDepthMm: 0,
+  frontFaceThicknessMm: 0,
+  cornerRadiusMm: 0,
+  rearCornerRadiusMm: 0,
 
   midRailsEnabled: false,
   midRailsEqualise: false,
@@ -152,7 +152,7 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   hinges: [],
 
   material: "MDF",
-  finish: "RAW_UNASSEMBLED",
+  finish: "NONE",
   showDimensions: true,
 };
 
@@ -521,13 +521,13 @@ export const useDoorStore = create<DoorStore>()(
     }),
     {
       name: "door-order-storage",
-      version: 4,
+      version: 5,
       migrate: (persistedState: any, version: number) => {
         const migrated = persistedState || { doors: [], activeDoorId: null };
 
-        // Ensure doors array exists
-        if (!Array.isArray(migrated.doors)) {
-          migrated.doors = [];
+        // Migration v4 -> v5: Wipe out old cart since we changed defaults and schemas 
+        if (version < 5) {
+          return { doors: [], activeDoorId: null };
         }
 
         // Migration v2 -> v3: Add left/rightAngledRailWidth
