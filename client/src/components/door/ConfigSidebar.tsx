@@ -9,6 +9,7 @@ import {
   MIN_HEIGHT_MM,
   MAX_HEIGHT_MM,
 } from "@/lib/stores/useDoorConfig";
+import { useDoorStore } from "@/lib/stores/useDoorStore";
 import { AngledCornersSection } from "@/components/door/sections/AngledCornersSection";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,7 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   Equal,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +76,7 @@ interface ConfigSidebarProps {
 
 export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps) {
   const { selectedSection, setSelectedSection, ...config } = useDoorConfig();
+  const { activeDoorId, updateDoor } = useDoorStore();
 
   return (
     <div
@@ -93,11 +96,13 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
               Design your perfect door
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-orange-200 text-xs">Unit Price</p>
-            <p className="text-xl font-bold text-white">
-              £{config.price.toFixed(2)}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-orange-200 text-xs">Unit Price</p>
+              <p className="text-xl font-bold text-white">
+                £{config.price.toFixed(2)}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -116,7 +121,21 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
               Door Dimensions
             </AccordionTrigger>
             <AccordionContent>
-              <DoorDimensionsSection />
+              <div className="pt-2">
+                <DoorDimensionsSection />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-4 text-[10px] h-7 uppercase tracking-wider text-gray-500 hover:text-black border border-dashed border-gray-200"
+                  onClick={() => {
+                    config.setWidth(0);
+                    config.setHeight(0);
+                    config.setPanelType("UNSELECTED");
+                  }}
+                >
+                  Start with Blank Slate
+                </Button>
+              </div>
             </AccordionContent>
           </AccordionItem>
 
@@ -198,29 +217,54 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          {config.panelType !== "NONE" && (
-            <AccordionItem value="rebates">
-              <AccordionTrigger className="text-sm font-medium">
-                Detailed Specifications
-              </AccordionTrigger>
-              <AccordionContent>
-                <RebateSection />
-              </AccordionContent>
-            </AccordionItem>
-          )}
+          <AccordionItem value="rebates" className="border-b-0 opacity-50 hover:opacity-100 transition-opacity">
+            <AccordionTrigger className="text-[10px] py-2 uppercase tracking-widest font-bold text-stone-400 hover:no-underline">
+              Rebate & Technical Specs
+            </AccordionTrigger>
+            <AccordionContent>
+              <RebateSection />
+            </AccordionContent>
+          </AccordionItem>
         </Accordion>
 
-        <div className="mt-8 mb-6">
+        <div className="mt-6 mb-2">
           <Button
             variant="outline"
-            className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+            className="w-full text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors"
             onClick={() => {
-              if (window.confirm("Are you sure you want to reset all configurations to default (720x600 rectangular)?")) {
+              if (window.confirm("Are you sure you want to reset all configurations to default?")) {
                 config.resetConfig();
+
+                // Add explicit synchronization with the main store if a door is currently active
+                if (activeDoorId) {
+                  const defaultVals = {
+                    width: 600,
+                    height: 720,
+                    thickness: 22,
+                    preset: "single",
+                    panelType: "STANDARD_12MM",
+                    panelCount: 1,
+                    shape: "rectangular",
+                    angledLeft: false,
+                    angledRight: false,
+                    leftTriangleCutoutWidth: 0,
+                    leftTriangleCutoutHeight: 0,
+                    rightTriangleCutoutWidth: 0,
+                    rightTriangleCutoutHeight: 0,
+                    borderWidth: 65,
+                    customBorders: false,
+                    midRailsEnabled: false,
+                    hingeDrilling: false,
+                    hinges: [],
+                    midRails: [],
+                  };
+                  updateDoor(activeDoorId, defaultVals as any);
+                }
               }
             }}
           >
-            Reset to Default Door
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset Configuration
           </Button>
         </div>
 

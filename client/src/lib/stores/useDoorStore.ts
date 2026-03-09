@@ -111,11 +111,11 @@ interface DoorStore {
 
 const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTotal"> = {
   qty: 1,
-  width: 0,
-  height: 0,
+  width: 600,
+  height: 720,
   thickness: 22,
   preset: "single",
-  panelType: "UNSELECTED",
+  panelType: "STANDARD_12MM",
   panelCount: 1,
   panelOrientation: "vertical",
   shape: "rectangular",
@@ -138,11 +138,11 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   bottomRail: 90,
   topRail: 90,
 
-  rebateWidthMm: 0,
-  rebateDepthMm: 0,
-  frontFaceThicknessMm: 0,
+  rebateWidthMm: 10,
+  rebateDepthMm: 14,
+  frontFaceThicknessMm: 8,
   cornerRadiusMm: 0,
-  rearCornerRadiusMm: 0,
+  rearCornerRadiusMm: 2.5,
 
   midRailsEnabled: false,
   midRailsEqualise: false,
@@ -152,7 +152,7 @@ const DEFAULT_DOOR: Omit<DoorOrderItem, "id" | "label" | "unitPrice" | "lineTota
   hinges: [],
 
   material: "MDF",
-  finish: "NONE",
+  finish: "RAW_UNASSEMBLED",
   showDimensions: true,
 };
 

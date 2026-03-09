@@ -129,7 +129,13 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
   const rch = rightTriangleCutoutHeight / 1000;
 
   const effectiveMidRails = midRailsEnabled ? midRails : [];
-  const holeSections = getHoleSections(effectiveMidRails, h, bs, ts, panelCount);
+  const holeSections = getHoleSections(
+    midRailsEnabled ? midRails : [],
+    h,
+    bs,
+    ts,
+    midRailsEnabled ? (panelCount || 1) : 1
+  );
 
   // Render inner frame lines (stiles and rails as lines, not filled rectangles)
   const renderFrameLines = () => {
@@ -397,18 +403,23 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
             stroke="none"
           />
           {showDimensions && panelHeightMm > 30 && (
-            <text
-              transform={`translate(${toX(width / 2)}, ${toY((textY + h / 2) * 1000)}) ${isBack ? "scale(-1, 1)" : ""}`}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={dimensionColor}
-              fontSize="12"
-              fontFamily="Arial, sans-serif"
-              fontWeight="600"
-              opacity={0.6}
-            >
-              {panelHeightMm}mm
-            </text>
+            <g transform={`translate(${toX(width / 2)}, ${toY((textY + h / 2) * 1000)})`}>
+              <rect
+                x={-28} y={-9} width={56} height={18} rx={9}
+                fill="#dcfce7" stroke="#16a34a" strokeWidth={0.5} opacity={0.9}
+              />
+              <text
+                transform={isBack ? "scale(-1, 1)" : undefined}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#16a34a"
+                fontSize="11"
+                fontFamily="Arial, sans-serif"
+                fontWeight="700"
+              >
+                {panelHeightMm}mm
+              </text>
+            </g>
           )}
         </g>
       );
@@ -501,12 +512,15 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
       const effectiveSide = isBack ? (hingeSide === "LEFT" ? "RIGHT" : "LEFT") : hingeSide;
       let xCenter = effectiveSide === "LEFT" ? HINGE_CENTER_OFFSET_MM : width - HINGE_CENTER_OFFSET_MM;
       let angleCutoutH = 0;
-      if (hingeSide === "LEFT" && angledLeft) angleCutoutH = leftTriangleCutoutHeight;
-      else if (hingeSide === "RIGHT" && angledRight) angleCutoutH = rightTriangleCutoutHeight;
+      if (hinge.side === "LEFT" && angledLeft) {
+        angleCutoutH = Number(leftTriangleCutoutHeight) || 0;
+      } else if (hinge.side === "RIGHT" && angledRight) {
+        angleCutoutH = Number(rightTriangleCutoutHeight) || 0;
+      }
 
       const yCenter = hinge.reference === "BOTTOM"
         ? hinge.positionMm
-        : height - angleCutoutH - hinge.positionMm;
+        : (height - angleCutoutH) - hinge.positionMm;
 
       // Clamp hinge X inward if it falls outside the angled edge at this Y
       if (effectiveSide === "LEFT" && effectiveAngledLeft && effectiveLeftCutoutH > 0) {
@@ -534,19 +548,20 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
         label = `B${idx}`;
       }
 
-      const baseStrokeCol = isBack ? hingeStrokeColor : "#9ca3af";
+      const baseStrokeCol = isBack ? "#000" : "#9ca3af";
       const dashArray = isBack ? "none" : "4 2";
+      const hingeStrokeWidth = isBack ? 3.5 : 1.5;
 
       return (
         <g key={`hinge-${hinge.id}`}>
-          <circle cx={toX(xCenter)} cy={toY(yCenter)} r={cupRadiusSvg} fill={isBack ? "rgba(0,0,0,0.05)" : "none"} stroke={baseStrokeCol} strokeWidth={1.5} strokeDasharray={dashArray} />
+          <circle cx={toX(xCenter)} cy={toY(yCenter)} r={cupRadiusSvg} fill={isBack ? "none" : "none"} stroke={baseStrokeCol} strokeWidth={hingeStrokeWidth} strokeDasharray={dashArray} />
           <line x1={toX(xCenter) - 4} y1={toY(yCenter)} x2={toX(xCenter) + 4} y2={toY(yCenter)} stroke={baseStrokeCol} strokeWidth={1} strokeDasharray={dashArray} />
           <line x1={toX(xCenter)} y1={toY(yCenter) - 4} x2={toX(xCenter)} y2={toY(yCenter) + 4} stroke={baseStrokeCol} strokeWidth={1} strokeDasharray={dashArray} />
           <text
             x={effectiveSide === "LEFT" ? toX(xCenter) - cupRadiusSvg - 16 : toX(xCenter) + cupRadiusSvg + 16}
             y={toY(yCenter) + 4}
             textAnchor={effectiveSide === "LEFT" ? "end" : "start"}
-            fill={baseStrokeCol} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="600"
+            fill={baseStrokeCol} fontSize="9" fontFamily="Arial, sans-serif" fontWeight="700"
           >
             {label} — {hinge.positionMm}mm
           </text>
@@ -691,6 +706,29 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
           <g key="dim-angle-left-degrees">
             <text x={tx(leftTriangleCutoutWidth / 3)} y={toY(height - leftTriangleCutoutHeight) - 15} textAnchor="middle" fill="#ea580c" fontSize="10" fontFamily="Arial, sans-serif" fontWeight="800">{(leftAngleDegrees || 0).toFixed(2)}°</text>
           </g>
+        );
+      }
+    }
+
+    // Add angle labels for angled doors
+    const angleLabelColor = isBack ? "#000" : "#9ca3af"; // Use hinge color for consistency
+    if (panelType === "NONE") { // Only show angle labels for slab doors
+      if (angledLeft && leftAngleDegrees > 0) {
+        const textX = -(width / 2) + 20;
+        const textY = height / 2 - 20;
+        elements.push(
+          <text key="left-angle-deg" x={tx(textX + width / 2)} y={toY(textY + height / 2)} textAnchor={anchorStart} fill={angleLabelColor} fontSize="14" fontFamily="Arial, sans-serif" fontWeight="800">
+            {(leftAngleDegrees || 0).toFixed(2)}°
+          </text>
+        );
+      }
+      if (angledRight && rightAngleDegrees > 0) {
+        const textX = width / 2 - 20;
+        const textY = height / 2 - 20;
+        elements.push(
+          <text key="right-angle-deg" x={tx(textX + width / 2)} y={toY(textY + height / 2)} textAnchor={anchorEnd} fill={angleLabelColor} fontSize="14" fontFamily="Arial, sans-serif" fontWeight="800">
+            {(rightAngleDegrees || 0).toFixed(2)}°
+          </text>
         );
       }
     }

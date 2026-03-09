@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDoorStore } from "@/lib/stores/useDoorStore";
+import { useDoorConfig } from "@/lib/stores/useDoorConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,67 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
         setCustomerDetails(prev => ({ ...prev, [field]: value }));
         orderValidation.handleChange(field);
     }, [orderValidation]);
+
+    // SYNC: Load active door config into editor store whenever selection changes
+    const configStore = useDoorConfig();
+    React.useEffect(() => {
+        if (door) {
+            configStore.loadFromCartItem(door);
+        }
+    }, [doorId, door?.id]);
+
+    // SYNC: Automatically persist any changes from configStore back to the main door store
+    React.useEffect(() => {
+        // We only want to sync if we're actually editing a door and not during initial hydration
+        if (doorId && configStore._hasInteracted) {
+            const {
+                width, height, thickness, preset, panelType, panelCount,
+                panelOrientation, shape, angledLeft, angledRight,
+                leftTriangleCutoutWidth, leftTriangleCutoutHeight,
+                rightTriangleCutoutWidth, rightTriangleCutoutHeight,
+                leftAngleDegrees, rightAngleDegrees,
+                leftAngledRailWidth, rightAngledRailWidth,
+                borderWidth, customBorders, leftStile, rightStile,
+                bottomRail, topRail, rebateWidthMm, rebateDepthMm,
+                frontFaceThicknessMm, cornerRadiusMm, rearCornerRadiusMm,
+                midRailsEnabled, midRailsEqualise, midRails,
+                hingeDrilling, hinges, material, finish, showDimensions
+            } = configStore;
+
+            updateDoor(doorId, {
+                width, height, thickness, preset, panelType, panelCount,
+                panelOrientation, shape, angledLeft, angledRight,
+                leftTriangleCutoutWidth, leftTriangleCutoutHeight,
+                rightTriangleCutoutWidth, rightTriangleCutoutHeight,
+                leftAngleDegrees, rightAngleDegrees,
+                leftAngledRailWidth, rightAngledRailWidth,
+                borderWidth, customBorders, leftStile, rightStile,
+                bottomRail, topRail, rebateWidthMm, rebateDepthMm,
+                frontFaceThicknessMm, cornerRadiusMm, rearCornerRadiusMm,
+                midRailsEnabled, midRailsEqualise, midRails,
+                hingeDrilling, hinges, material, finish, showDimensions
+            } as any);
+        }
+    }, [
+        doorId,
+        configStore.width, configStore.height, configStore.thickness,
+        configStore.preset, configStore.panelType, configStore.panelCount,
+        configStore.panelOrientation, configStore.shape,
+        configStore.angledLeft, configStore.angledRight,
+        configStore.leftTriangleCutoutWidth, configStore.leftTriangleCutoutHeight,
+        configStore.rightTriangleCutoutWidth, configStore.rightTriangleCutoutHeight,
+        configStore.leftAngleDegrees, configStore.rightAngleDegrees,
+        configStore.leftAngledRailWidth, configStore.rightAngledRailWidth,
+        configStore.borderWidth, configStore.customBorders,
+        configStore.leftStile, configStore.rightStile,
+        configStore.bottomRail, configStore.topRail,
+        configStore.rebateWidthMm, configStore.rebateDepthMm,
+        configStore.frontFaceThicknessMm, configStore.cornerRadiusMm,
+        configStore.rearCornerRadiusMm, configStore.midRailsEnabled,
+        configStore.midRailsEqualise, configStore.midRails,
+        configStore.hingeDrilling, configStore.hinges,
+        configStore.material, configStore.finish, configStore.showDimensions
+    ]);
 
     const handleBlur = useCallback((field: string) => {
         setTouched(prev => {
@@ -193,6 +255,48 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                         {/* Content */}
                         <ScrollArea className="flex-1">
                             <div className="p-4 space-y-4">
+                                <div className="flex items-center justify-between gap-4">
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Door Configuration</h4>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 px-3 text-[10px] border-dashed border hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-colors"
+                                        onClick={() => {
+                                            if (window.confirm("Reset this door to default settings?")) {
+                                                // 1. Reset the local config store
+                                                configStore.resetConfig();
+
+                                                // 2. Extract initial values (excluding state flags) to update the main store
+                                                const defaultVals = {
+                                                    width: 600,
+                                                    height: 720,
+                                                    thickness: 22,
+                                                    preset: "single",
+                                                    panelType: "STANDARD_12MM",
+                                                    panelCount: 1,
+                                                    shape: "rectangular",
+                                                    angledLeft: false,
+                                                    angledRight: false,
+                                                    leftTriangleCutoutWidth: 0,
+                                                    leftTriangleCutoutHeight: 0,
+                                                    rightTriangleCutoutWidth: 0,
+                                                    rightTriangleCutoutHeight: 0,
+                                                    borderWidth: 65,
+                                                    customBorders: false,
+                                                    midRailsEnabled: false,
+                                                    hingeDrilling: false,
+                                                    hinges: [],
+                                                    midRails: [],
+                                                };
+                                                updateDoor(doorId, defaultVals as any);
+                                                toast.success("Door reset to defaults");
+                                            }
+                                        }}
+                                    >
+                                        Reset to Default
+                                    </Button>
+                                </div>
+
                                 <Tabs defaultValue="dimensions">
                                     <TabsList className="w-full grid grid-cols-4 p-1 bg-muted/50 rounded-xl">
                                         <TabsTrigger value="dimensions" className="rounded-lg text-xs">Dims</TabsTrigger>
@@ -320,7 +424,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                             </div>
                         </ScrollArea>
                         <div className="p-3 border-t mt-auto shrink-0 space-y-2 bg-muted/20">
-                            <Button className="w-full h-11" variant="outline" onClick={() => { addDoor(); setCurrentView("config"); }}><Plus className="w-4 h-4 mr-2" />Add Another Door</Button>
+                            <Button className="w-full h-11" variant="outline" onClick={() => { addDoor(); useDoorConfig.getState().resetConfig(); setCurrentView("config"); }}><Plus className="w-4 h-4 mr-2" />Add Another Door</Button>
                             <Button className="w-full h-12 premium-gradient text-white font-bold text-base uppercase tracking-wide shadow-lg" onClick={() => setCurrentView("checkout")}>
                                 Checkout Now<ArrowRight className="w-5 h-5 ml-2" />
                             </Button>

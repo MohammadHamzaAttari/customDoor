@@ -168,6 +168,36 @@ export function AngledCornersSection() {
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-600 mb-1 block">Vertical Side Height (mm)</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={Math.round(height - leftTriangleCutoutHeight)}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                if (!isNaN(val)) {
+                                  setLeftTriangleCutoutHeight(Math.max(0, height - val));
+                                }
+                              }}
+                              className="h-9 pr-8"
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-mono">
+                              V
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Height of the straight vertical edge (Total Height - Cut Height)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t">
@@ -276,6 +306,36 @@ export function AngledCornersSection() {
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <Label className="text-xs text-gray-600 mb-1 block">Vertical Side Height (mm)</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={Math.round(height - rightTriangleCutoutHeight)}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                if (!isNaN(val)) {
+                                  setRightTriangleCutoutHeight(Math.max(0, height - val));
+                                }
+                              }}
+                              className="h-9 pr-8"
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-mono">
+                              V
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Height of the straight vertical edge (Total Height - Cut Height)</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t">

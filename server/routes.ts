@@ -295,7 +295,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (posFromBottom == null && body.positionMm != null && body.reference) {
         const item = await storage.getOrderItem(orderItemId);
         if (item && body.reference === "TOP") {
-          posFromBottom = item.heightMm - body.positionMm;
+          let angleCutoutH = 0;
+          if (body.side === "LEFT" && item.leftTriangleCutoutHeight) {
+            angleCutoutH = Number(item.leftTriangleCutoutHeight) || 0;
+          } else if (body.side === "RIGHT" && item.rightTriangleCutoutHeight) {
+            angleCutoutH = Number(item.rightTriangleCutoutHeight) || 0;
+          }
+          posFromBottom = (item.heightMm - angleCutoutH) - body.positionMm;
         } else {
           posFromBottom = body.positionMm;
         }
@@ -1050,9 +1056,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (h.positionFromBottomMm != null) {
               posFromBottom = h.positionFromBottomMm;
             } else if (h.positionMm != null && h.reference) {
-              posFromBottom = h.reference === "TOP"
-                ? item.height - h.positionMm
-                : h.positionMm;
+              if (h.reference === "TOP") {
+                let angleCutoutH = 0;
+                if (h.side === "LEFT" && item.leftTriangleCutoutHeight) {
+                  angleCutoutH = Number(item.leftTriangleCutoutHeight) || 0;
+                } else if (h.side === "RIGHT" && item.rightTriangleCutoutHeight) {
+                  angleCutoutH = Number(item.rightTriangleCutoutHeight) || 0;
+                }
+                posFromBottom = (item.height - angleCutoutH) - h.positionMm;
+              } else {
+                posFromBottom = h.positionMm;
+              }
             } else if (h.position != null) {
               posFromBottom = h.position;
             } else {

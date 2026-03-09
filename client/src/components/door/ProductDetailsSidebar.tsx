@@ -66,6 +66,7 @@ export function ProductDetailsSidebar() {
   // ✅ Single source of truth
   const cartCount = doors.reduce((sum: number, d: any) => sum + d.qty, 0);
   const [justAdded, setJustAdded] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   // Panel type labels
   const panelLabels: Record<string, string> = {
@@ -175,6 +176,7 @@ export function ProductDetailsSidebar() {
 
   const buildDoorData = () => ({
     id: editingCartItemId || undefined,
+    qty: quantity,
     width,
     height,
     thickness,
@@ -224,6 +226,7 @@ export function ProductDetailsSidebar() {
     }
 
     setJustAdded(true);
+    setQuantity(1); // Reset quantity back to 1 after adding
     setTimeout(() => setJustAdded(false), 2000);
 
     const newTotal = editingCartItemId ? cartCount : cartCount + 1;
@@ -282,11 +285,26 @@ export function ProductDetailsSidebar() {
               Custom MDF Door
             </p>
           </div>
-          {finish !== "NONE" && (
-            <Badge className={cn("text-xs font-medium", currentFinish.color)}>
-              {currentFinish.label}
-            </Badge>
-          )}
+          <div className="flex flex-col items-end gap-2">
+            {finish !== "NONE" && (
+              <Badge className={cn("text-[10px] uppercase font-bold tracking-wider", currentFinish.color)}>
+                {currentFinish.label}
+              </Badge>
+            )}
+            {editingCartItemId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-[10px] font-bold uppercase tracking-tighter border-stone-200 text-stone-500 hover:text-black hover:bg-stone-50"
+                onClick={() => {
+                  config.resetConfig();
+                  useDoorStore.getState().setActiveDoor(null);
+                }}
+              >
+                Configure New
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="bg-gradient-to-r from-stone-800 to-stone-900 rounded-xl p-4 text-white shadow-lg border border-stone-700">
@@ -316,14 +334,14 @@ export function ProductDetailsSidebar() {
             <div
               key={i}
               className={cn(
-                "flex justify-between py-2 px-3 rounded-lg",
+                "flex justify-between py-1 px-2 rounded-md",
                 f.highlight ? "bg-orange-50" : "bg-gray-50"
               )}
             >
-              <span className="text-sm text-gray-600">{f.label}</span>
+              <span className="text-[11px] text-gray-500 truncate mr-2">{f.label}</span>
               <span
                 className={cn(
-                  "text-sm font-medium",
+                  "text-[11px] font-bold text-right",
                   f.highlight ? "text-orange-700" : "text-gray-900"
                 )}
               >
@@ -355,36 +373,56 @@ export function ProductDetailsSidebar() {
 
       {/* Actions */}
       <div className="p-4 border-t bg-gray-50 space-y-3">
-        <Button
-          className={cn(
-            "w-full h-12 font-bold",
-            justAdded
-              ? "bg-emerald-600"
-              : "bg-gradient-to-r from-orange-600 to-red-600"
+        <div className="flex gap-2">
+          {!editingCartItemId && (
+            <div className="flex items-center border border-gray-300 rounded-md bg-white overflow-hidden h-12 shrink-0 shadow-sm">
+              <button
+                className="px-3 hover:bg-gray-100 text-gray-600 h-full flex items-center justify-center font-bold transition-colors"
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                disabled={quantity <= 1}
+              >
+                -
+              </button>
+              <div className="px-2 font-semibold w-8 text-center text-sm">{quantity}</div>
+              <button
+                className="px-3 hover:bg-gray-100 text-gray-600 h-full flex items-center justify-center font-bold transition-colors"
+                onClick={() => setQuantity(quantity + 1)}
+              >
+                +
+              </button>
+            </div>
           )}
-          onClick={handleAddToCart}
-          disabled={width < 200 || height < 200 || panelType === "UNSELECTED" || finish === "NONE"}
-        >
-          {justAdded ? (
-            <>
-              <Check className="w-5 h-5 mr-2" />
-              {editingCartItemId ? "Saved!" : "Added!"}
-            </>
-          ) : (
-            <>
-              <Plus className="w-5 h-5 mr-2" />
-              {width < 200 || height < 200 ? "Enter Dimensions" : panelType === "UNSELECTED" ? "Select Panel" : finish === "NONE" ? "Select Finish" : editingCartItemId ? "Save Changes" : "Add to Cart"}
-            </>
-          )}
-        </Button>
+          <Button
+            className={cn(
+              "flex-1 h-12 font-bold",
+              justAdded
+                ? "bg-emerald-600"
+                : "bg-gradient-to-r from-orange-600 to-red-600"
+            )}
+            onClick={handleAddToCart}
+            disabled={width < 200 || height < 200 || panelType === "UNSELECTED" || finish === "NONE"}
+          >
+            {justAdded ? (
+              <>
+                <Check className="w-5 h-5 mr-2" />
+                {editingCartItemId ? "Saved!" : "Added!"}
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5 mr-2" />
+                {width < 200 || height < 200 ? "Enter Dimensions" : panelType === "UNSELECTED" ? "Select Panel" : finish === "NONE" ? "Select Finish" : editingCartItemId ? "Save Changes" : "Add to Cart"}
+              </>
+            )}
+          </Button>
+        </div>
 
         <Button
           variant="outline"
-          onClick={handleAddAndCheckout}
-          disabled={width < 200 || height < 200 || panelType === "UNSELECTED" || finish === "NONE"}
+          onClick={handleViewCart}
+          className="w-full h-12"
         >
           <ShoppingCart className="w-4 h-4 mr-2" />
-          {editingCartItemId ? "Save & Checkout" : "Add & Checkout"}
+          View Cart
         </Button>
       </div>
     </div>

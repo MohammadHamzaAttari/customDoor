@@ -156,11 +156,11 @@ interface DoorConfigStore extends DoorConfig {
 }
 
 const initialState: DoorConfig = {
-  width: 0,
-  height: 0,
+  width: 600,
+  height: 720,
   thickness: 22,
   preset: "single",
-  panelType: "UNSELECTED",
+  panelType: "STANDARD_12MM",
   panelCount: 1,
   panelOrientation: "vertical",
   shape: "rectangular",
@@ -176,18 +176,18 @@ const initialState: DoorConfig = {
   leftAngledRailWidth: 0,
   rightAngledRailWidth: 0,
 
-  borderWidth: 0,
+  borderWidth: 65,
   customBorders: false,
-  leftStile: 0,
-  rightStile: 0,
-  bottomRail: 0,
-  topRail: 0,
+  leftStile: 65,
+  rightStile: 65,
+  bottomRail: 65,
+  topRail: 65,
 
-  rebateWidthMm: 0,
-  rebateDepthMm: 0,
-  frontFaceThicknessMm: 0,
+  rebateWidthMm: 10,
+  rebateDepthMm: 14,
+  frontFaceThicknessMm: 8,
   cornerRadiusMm: 0,
-  rearCornerRadiusMm: 0,
+  rearCornerRadiusMm: 2.5,
 
   midRailsEnabled: false,
   midRailsEqualise: false,
@@ -197,7 +197,7 @@ const initialState: DoorConfig = {
   hinges: [],
 
   material: "MDF",
-  finish: "NONE",
+  finish: "RAW_UNASSEMBLED",
   showDimensions: true,
   viewSide: "front" as ViewSide,
   price: 0,
@@ -217,11 +217,14 @@ let hingeIdCounter = 0;
 function reEqualiseMidRails(state: DoorConfig): MidRail[] {
   if (!state.midRailsEqualise || state.midRails.length === 0) return state.midRails;
   const railCount = state.midRails.length;
-  const usableHeight = state.height - state.bottomRail - state.topRail;
+  // Use effective border values: when customBorders is off, all borders equal borderWidth
+  const effectiveBottom = state.customBorders ? state.bottomRail : state.borderWidth;
+  const effectiveTop = state.customBorders ? state.topRail : state.borderWidth;
+  const usableHeight = state.height - effectiveBottom - effectiveTop;
   const totalRailsWidth = state.midRails.reduce((sum, r) => sum + r.dimension, 0);
   const gapCount = railCount + 1;
   const gapHeight = (usableHeight - totalRailsWidth) / gapCount;
-  let currentPos = state.bottomRail + gapHeight;
+  let currentPos = effectiveBottom + gapHeight;
   return [...state.midRails]
     .sort((a, b) => a.positionFromBottom - b.positionFromBottom)
     .map((rail) => {
@@ -407,7 +410,20 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
       setAngledLeft: (angledLeft: boolean) => {
         get().clearNewSession();
-        set({ angledLeft });
+
+        // When toggling on, if cutout is 0, give it a default so an angle is visible
+        const state = get();
+        if (angledLeft && state.leftTriangleCutoutWidth === 0 && state.leftTriangleCutoutHeight === 0) {
+          set({
+            angledLeft,
+            leftTriangleCutoutWidth: 100,
+            leftTriangleCutoutHeight: 100,
+            leftAngleDegrees: calculateAngleFromCutout(100, 100),
+          });
+        } else {
+          set({ angledLeft });
+        }
+
         get().calculatePrice();
         // Re-equalize hinges to account for newly added/removed angle
         if (get().hingeDrilling && get().hinges.length > 0) {
@@ -417,7 +433,20 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
       setAngledRight: (angledRight: boolean) => {
         get().clearNewSession();
-        set({ angledRight });
+
+        // When toggling on, if cutout is 0, give it a default so an angle is visible
+        const state = get();
+        if (angledRight && state.rightTriangleCutoutWidth === 0 && state.rightTriangleCutoutHeight === 0) {
+          set({
+            angledRight,
+            rightTriangleCutoutWidth: 100,
+            rightTriangleCutoutHeight: 100,
+            rightAngleDegrees: calculateAngleFromCutout(100, 100),
+          });
+        } else {
+          set({ angledRight });
+        }
+
         get().calculatePrice();
         // Re-equalize hinges to account for newly added/removed angle
         if (get().hingeDrilling && get().hinges.length > 0) {
@@ -558,8 +587,8 @@ export const useDoorConfig = create<DoorConfigStore>()(
       setMidRailsEnabled: (midRailsEnabled: boolean) => {
         get().clearNewSession();
         if (!midRailsEnabled) {
-          // Reset equalise flag so it doesn't stay stale when re-enabled
-          set({ midRailsEnabled, midRailsEqualise: false });
+          // Reset equalise flag and clear stale rails so re-enabling starts fresh
+          set({ midRailsEnabled, midRailsEqualise: false, midRails: [] });
         } else {
           set({ midRailsEnabled });
         }
@@ -644,9 +673,17 @@ export const useDoorConfig = create<DoorConfigStore>()(
         // If ref not provided, intelligently pick
         const reference = ref || (state.hinges.length > 0 && state.hinges[state.hinges.length - 1].reference === "TOP" ? "BOTTOM" : "TOP");
 
-        // Compute safe default position
-        // Since yCenter accounts for angleCutoutHeight (shoulder), default stays 100mm.
+        // Compute safe default position: find first free 100mm slot
         let defaultPos = 100;
+        let foundClear = false;
+        while (!foundClear) {
+          const conflict = state.hinges.find(h => h.reference === reference && h.side === existingSide && h.positionMm === defaultPos);
+          if (conflict) {
+            defaultPos += 100;
+          } else {
+            foundClear = true;
+          }
+        }
 
         const newHinge: Hinge = {
           id: `hinge_${Date.now()}_${++hingeIdCounter}`,
@@ -786,13 +823,16 @@ export const useDoorConfig = create<DoorConfigStore>()(
           rightStile: state.customBorders ? state.rightStile : state.borderWidth,
           topRail: state.customBorders ? state.topRail : state.borderWidth,
           bottomRail: state.customBorders ? state.bottomRail : state.borderWidth,
+          midRails: state.midRailsEnabled ? state.midRails : [],
+          panelCount: state.midRailsEnabled ? state.panelCount : 1,
         });
 
         set({ price: result.unitTotal });
       },
 
       resetConfig: () => {
-        set({ ...initialState, isNewSession: true });
+        set({ ...initialState, isNewSession: false, _hasInteracted: true });
+        get().calculatePrice();
       },
 
       setSelectedSection: (selectedSection: string) => {
