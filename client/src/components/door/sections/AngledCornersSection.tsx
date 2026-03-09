@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { NumberInput } from "@/components/ui/NumberInput";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, Check, Info } from "lucide-react";
 import {
@@ -28,12 +29,16 @@ export function AngledCornersSection() {
     rightTriangleCutoutHeight,
     leftAngleDegrees,
     rightAngleDegrees,
+    leftAngledRailWidth,
+    rightAngledRailWidth,
     setAngledLeft,
     setAngledRight,
     setLeftTriangleCutoutWidth,
     setLeftTriangleCutoutHeight,
     setRightTriangleCutoutWidth,
     setRightTriangleCutoutHeight,
+    setLeftAngledRailWidth,
+    setRightAngledRailWidth,
   } = useDoorConfig();
 
   // Validation
@@ -198,6 +203,16 @@ export function AngledCornersSection() {
                     </TooltipProvider>
                   </div>
 
+                  <div className="pt-2">
+                    <Label className="text-xs text-blue-600 mb-1 block font-medium">Angled Rail Width (min 35mm)</Label>
+                    <NumberInput
+                      value={leftAngledRailWidth}
+                      onChange={setLeftAngledRailWidth}
+                      min={35}
+                      max={300}
+                      className="h-9 border-blue-200 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t">
@@ -336,6 +351,16 @@ export function AngledCornersSection() {
                     </TooltipProvider>
                   </div>
 
+                  <div className="pt-2">
+                    <Label className="text-xs text-purple-600 mb-1 block font-medium">Angled Rail Width (min 35mm)</Label>
+                    <NumberInput
+                      value={rightAngledRailWidth}
+                      onChange={setRightAngledRailWidth}
+                      min={35}
+                      max={300}
+                      className="h-9 border-purple-200 focus:ring-purple-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-2 border-t">

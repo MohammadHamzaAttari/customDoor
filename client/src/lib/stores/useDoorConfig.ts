@@ -176,12 +176,12 @@ const initialState: DoorConfig = {
   leftAngledRailWidth: 0,
   rightAngledRailWidth: 0,
 
-  borderWidth: 65,
+  borderWidth: 90,
   customBorders: false,
-  leftStile: 65,
-  rightStile: 65,
-  bottomRail: 65,
-  topRail: 65,
+  leftStile: 90,
+  rightStile: 90,
+  bottomRail: 90,
+  topRail: 90,
 
   rebateWidthMm: 10,
   rebateDepthMm: 14,
@@ -609,9 +609,19 @@ export const useDoorConfig = create<DoorConfigStore>()(
 
       addMidRail: () => {
         const state = get();
+
+        let newPosition = Math.round(state.height / 2);
+        if (state.midRails.length > 0) {
+          const highestRail = state.midRails.reduce(
+            (max, rail) => Math.max(max, rail.positionFromBottom),
+            0
+          );
+          newPosition = highestRail + 100;
+        }
+
         const newRail: MidRail = {
           id: `rail_${Date.now()}_${++midRailIdCounter}`,
-          positionFromBottom: Math.round(state.height / 2),
+          positionFromBottom: newPosition,
           dimension: state.borderWidth,
         };
         const newRails = [...state.midRails, newRail];

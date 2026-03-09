@@ -80,23 +80,23 @@ function CartItemCard({
   const hingeSide = item.hinges.length > 0 ? item.hinges[0].side : null;
 
   return (
-    <Card className="border-stone-200 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-stone-50 to-stone-100 border-b">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{categoryInfo.icon}</span>
-          <span className="text-xs font-bold uppercase tracking-wider text-stone-500">
+    <Card className="border-0 shadow-lg bg-white overflow-hidden transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-1 group rounded-2xl">
+      <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-stone-50 to-stone-100/50 border-b border-stone-100">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-lg">{categoryInfo.icon}</div>
+          <span className="text-[11px] font-black uppercase tracking-widest text-stone-500">
             Item {index + 1} — {categoryInfo.label}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
           <Button
             variant="ghost"
             size="sm"
             className="text-stone-500 hover:text-orange-600 hover:bg-orange-50 h-8 px-2"
             onClick={() => onEdit(item)}
           >
-            <Settings2 className="w-4 h-4 mr-1" />
-            <span className="text-xs">Edit</span>
+            <Settings2 className="w-4 h-4 mr-1.5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Edit</span>
           </Button>
           <Button
             variant="ghost"
@@ -104,8 +104,8 @@ function CartItemCard({
             className="text-stone-400 hover:text-red-600 hover:bg-red-50 h-8 px-2"
             onClick={() => onRemove(item.id)}
           >
-            <Trash2 className="w-4 h-4 mr-1" />
-            <span className="text-xs">Remove</span>
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">Remove</span>
           </Button>
         </div>
       </div>
@@ -119,16 +119,16 @@ function CartItemCard({
         </div>
 
         <div className="flex-1">
-          <CardHeader className="pb-3 pt-4">
+          <CardHeader className="pb-3 pt-5 px-6">
             <div className="flex items-start justify-between">
               <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Package className="w-5 h-5 text-orange-600" />
+                <CardTitle className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
+                  <Package className="w-5 h-5 text-orange-500" />
                   {item.label}
                 </CardTitle>
-                <CardDescription className="mt-1">Made-to-order premium door</CardDescription>
+                <CardDescription className="mt-1 text-[13px]">Made-to-order premium door</CardDescription>
               </div>
-              <Badge className={cn("text-xs font-medium", currentFinish.color)}>
+              <Badge className={cn("text-[10px] font-bold uppercase tracking-widest px-2.5 py-1", currentFinish.color)}>
                 {currentFinish.label}
               </Badge>
             </div>
@@ -188,17 +188,17 @@ function CartItemCard({
                 </h3>
                 <div className="space-y-2">
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider">Finish</span>
+                    <span className="text-[10px] uppercase font-bold text-stone-500 tracking-wider">Quick Finish Swap</span>
                     <div className="flex flex-wrap gap-1">
                       {(["RAW_UNASSEMBLED", "ASSEMBLED_PREP", "PRIMED", "PAINTED"] as const).map((f) => (
                         <button
                           key={f}
                           onClick={() => onFinishChange(item.id, f)}
                           className={cn(
-                            "px-1.5 py-0.5 text-[10px] rounded border transition-all truncate max-w-full",
+                            "px-2 py-1 text-[10px] rounded-md border transition-all truncate max-w-full font-bold",
                             item.finish === f
-                              ? "border-orange-500 bg-orange-50 text-orange-700 font-bold"
-                              : "border-stone-200 text-stone-500 hover:border-orange-300"
+                              ? "border-orange-500 bg-orange-50 text-orange-700 shadow-sm"
+                              : "border-stone-200 text-stone-500 hover:border-orange-300 hover:bg-stone-50"
                           )}
                           title={FINISH_LABELS[f].label}
                         >
@@ -635,11 +635,13 @@ export default function CheckoutPage() {
         </div>
 
         {/* Page Title */}
-        <div className="flex items-center gap-3 mb-6">
-          <ShoppingCart className="w-6 h-6 text-orange-600" />
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-red-100 flex items-center justify-center shadow-sm">
+            <ShoppingCart className="w-6 h-6 text-orange-600" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">Your Order</h1>
-            <p className="text-sm text-stone-500">
+            <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight">Your Order</h1>
+            <p className="text-[13px] font-medium text-stone-500 mt-0.5 tracking-wide">
               {doors.length} product{doors.length > 1 ? "s" : ""} · {totalItems} total item
               {totalItems > 1 ? "s" : ""}
             </p>
@@ -663,18 +665,18 @@ export default function CheckoutPage() {
             ))}
 
             <button
-              className="w-full border-2 border-dashed border-stone-300 hover:border-orange-400 rounded-xl p-6 flex flex-col items-center justify-center gap-2 text-stone-400 hover:text-orange-600 transition-colors group cursor-pointer"
+              className="w-full border-2 border-dashed border-stone-300/60 bg-white/50 hover:bg-white hover:border-orange-400 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 text-stone-400 hover:text-orange-600 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
               onClick={() => {
                 useDoorConfig.getState().resetConfig();
                 useDoorStore.getState().setActiveDoor(null);
                 setLocation("/");
               }}
             >
-              <div className="w-12 h-12 rounded-full bg-stone-100 group-hover:bg-orange-50 flex items-center justify-center transition-colors">
-                <Plus className="w-6 h-6" />
+              <div className="w-14 h-14 rounded-full bg-stone-100 group-hover:bg-orange-100 group-hover:scale-110 flex items-center justify-center transition-all duration-300">
+                <Plus className="w-6 h-6 stroke-[3]" />
               </div>
-              <span className="text-sm font-semibold">Add another door configuration</span>
-              <span className="text-xs text-stone-400">
+              <span className="text-sm font-extrabold tracking-wide text-stone-700 group-hover:text-orange-700 mt-2">Add another door configuration</span>
+              <span className="text-[13px] font-medium text-stone-400">
                 Different size, panel, finish, or style
               </span>
             </button>
@@ -682,31 +684,31 @@ export default function CheckoutPage() {
 
           {/* Right Column: Order Summary */}
           <div className="space-y-6">
-            <Card className="border-stone-200 shadow-lg bg-white sticky top-8">
-              <CardHeader className="bg-stone-50 border-b pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Lock className="w-4 h-4 text-green-600" />
+            <Card className="border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.05)] bg-white/70 backdrop-blur-xl sticky top-8 rounded-3xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-br from-stone-50/80 to-stone-100/50 border-b border-stone-200/50 pb-5">
+                <CardTitle className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
+                  <Lock className="w-4 h-4 text-emerald-500" />
                   Order Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-6 space-y-4">
-                {/* Line items summary */}
-                <div className="space-y-3 pb-4 border-b border-dashed">
+              <CardContent className="pt-6 space-y-5 px-6 pb-6">
+                {/* Minimal Receipt view */}
+                <div className="space-y-3 pb-5 border-b border-stone-200/60 border-dashed">
                   {doors.map((item) => {
                     const cat = item.panelType === "NONE" ? "slab" : "shaker";
                     const catInfo = CATEGORY_LABELS[cat] || CATEGORY_LABELS.custom;
                     return (
-                      <div key={item.id} className="flex justify-between items-start gap-2">
+                      <div key={item.id} className="flex justify-between items-start gap-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-stone-900 text-sm truncate">
-                            {catInfo.icon} {item.label.replace(/^Door \d+\s*[—\-]\s*/, '')}
+                          <h3 className="font-bold text-stone-800 text-[13px] truncate">
+                            {catInfo.icon} <span className="ml-1">{item.label.replace(/^Door \d+\s*[—\-]\s*/, '')}</span>
                           </h3>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="font-bold text-sm">£{item.lineTotal.toFixed(2)}</span>
+                          <span className="font-black text-[13px]">£{item.lineTotal.toFixed(2)}</span>
                           {item.qty > 1 && (
-                            <p className="text-xs text-stone-400">
-                              £{item.unitPrice.toFixed(2)} × {item.qty}
+                            <p className="text-[10px] font-bold text-stone-400 mt-0.5 uppercase tracking-wider">
+                              Qty: {item.qty}
                             </p>
                           )}
                         </div>
@@ -715,23 +717,23 @@ export default function CheckoutPage() {
                   })}
                 </div>
 
-                <div className="flex justify-between items-center text-lg font-bold">
+                <div className="flex justify-between items-center text-xl font-black pt-2">
                   <span>Total</span>
-                  <span className="text-orange-600">£{grandTotal.toFixed(2)}</span>
+                  <span className="text-orange-600 tracking-tight">£{grandTotal.toFixed(2)}</span>
                 </div>
 
                 {totalItems >= 5 && (
-                  <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2 bg-emerald-50/50 border border-emerald-100 rounded-xl p-3.5 mt-2">
                     <AlertCircle className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-                    <p className="text-xs text-emerald-700">
-                      <span className="font-semibold">Bulk order:</span> Orders of 10+ doors may
+                    <p className="text-[11px] font-medium text-emerald-800 leading-relaxed">
+                      <span className="font-bold">Bulk order:</span> Orders of 10+ doors may
                       qualify for trade discounts. Contact us for a quote.
                     </p>
                   </div>
                 )}
 
                 <Button
-                  className="w-full h-12 mt-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 font-bold shadow-md disabled:opacity-70"
+                  className="w-full h-14 mt-6 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 font-extrabold text-[15px] shadow-lg shadow-orange-500/25 transition-all hover:-translate-y-0.5 disabled:opacity-70"
                   size="lg"
                   onClick={handleProceedToPayment}
                   disabled={isLoading || doors.length === 0}
@@ -743,14 +745,17 @@ export default function CheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <CreditCard className="w-5 h-5 mr-2" />
+                      <CreditCard className="w-5 h-5 mr-2 stroke-[2.5]" />
                       Proceed to Payment
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-center text-stone-400 mt-2">
-                  You'll be redirected to our secure Shopify checkout
-                </p>
+                <div className="flex items-center justify-center gap-1.5 mt-4 text-stone-400">
+                  <Lock className="w-3 h-3" />
+                  <p className="text-[10px] uppercase font-bold tracking-widest text-center">
+                    Secure Shopify Checkout
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>

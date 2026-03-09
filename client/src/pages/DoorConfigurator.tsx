@@ -4,10 +4,12 @@ import { ConfigSidebar } from "@/components/door/ConfigSidebar";
 import { ProductDetailsSidebar } from "@/components/door/ProductDetailsSidebar";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, Settings2, RotateCcw, Menu, Eye } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { ChevronUp, Settings2, Menu, Eye } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useDoorStore } from "@/lib/stores/useDoorStore";
 import { Door2D } from "@/components/door/Door2D";
 import { cn } from "@/lib/utils";
+import { MobileCartBar } from "@/components/door/ProductDetailsSidebar";
 
 export default function DoorConfigurator() {
   const isMobile = useIsMobile();
@@ -16,13 +18,65 @@ export default function DoorConfigurator() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"front" | "back">("front");
 
+  const { activeDoorId, updateDoor, doors } = useDoorStore();
+
   const handlePartClick = useCallback(
     (section: string) => setSelectedSection(section),
     [setSelectedSection],
   );
 
+  // Sync effect: When editing a cart item, automatically persist changes back to the main store
+  useEffect(() => {
+    if (config.editingCartItemId && config._hasInteracted) {
+      const {
+        width, height, thickness, preset, panelType, panelCount,
+        panelOrientation, shape, angledLeft, angledRight,
+        leftTriangleCutoutWidth, leftTriangleCutoutHeight,
+        rightTriangleCutoutWidth, rightTriangleCutoutHeight,
+        leftAngleDegrees, rightAngleDegrees,
+        leftAngledRailWidth, rightAngledRailWidth,
+        borderWidth, customBorders, leftStile, rightStile,
+        bottomRail, topRail, rebateWidthMm, rebateDepthMm,
+        frontFaceThicknessMm, cornerRadiusMm, rearCornerRadiusMm,
+        midRailsEnabled, midRailsEqualise, midRails,
+        hingeDrilling, hinges, material, finish, showDimensions
+      } = config;
+
+      updateDoor(config.editingCartItemId, {
+        width, height, thickness, preset, panelType, panelCount,
+        panelOrientation: panelOrientation || "vertical", shape: shape || "rectangular",
+        angledLeft, angledRight,
+        leftTriangleCutoutWidth, leftTriangleCutoutHeight,
+        rightTriangleCutoutWidth, rightTriangleCutoutHeight,
+        leftAngleDegrees, rightAngleDegrees,
+        leftAngledRailWidth, rightAngledRailWidth,
+        borderWidth, customBorders, leftStile, rightStile,
+        bottomRail, topRail, rebateWidthMm, rebateDepthMm,
+        frontFaceThicknessMm, cornerRadiusMm, rearCornerRadiusMm,
+        midRailsEnabled, midRailsEqualise: midRailsEqualise || false,
+        midRails: midRailsEnabled ? midRails : [],
+        hingeDrilling, hinges: hingeDrilling ? hinges : [],
+        material, finish, showDimensions
+      } as any);
+    }
+  }, [
+    config.editingCartItemId, config._hasInteracted,
+    config.width, config.height, config.thickness, config.preset, config.panelType,
+    config.panelCount, config.panelOrientation, config.shape,
+    config.angledLeft, config.angledRight,
+    config.leftTriangleCutoutWidth, config.leftTriangleCutoutHeight,
+    config.rightTriangleCutoutWidth, config.rightTriangleCutoutHeight,
+    config.leftAngleDegrees, config.rightAngleDegrees,
+    config.leftAngledRailWidth, config.rightAngledRailWidth,
+    config.borderWidth, config.customBorders, config.leftStile, config.rightStile,
+    config.bottomRail, config.topRail, config.rebateWidthMm, config.rebateDepthMm,
+    config.frontFaceThicknessMm, config.cornerRadiusMm, config.rearCornerRadiusMm,
+    config.midRailsEnabled, config.midRailsEqualise, config.midRails,
+    config.hingeDrilling, config.hinges, config.material, config.finish, config.showDimensions
+  ]);
+
   return (
-    <div className="flex flex-col md:flex-row h-full w-full min-h-screen bg-gray-100 overflow-x-hidden overflow-y-auto">
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#f9f6ef] overflow-hidden">
       {/* Mobile Header */}
       {isMobile && (
         <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-950 z-20 shadow-sm shrink-0">
@@ -49,20 +103,20 @@ export default function DoorConfigurator() {
 
       {/* Main Viewer Area */}
       <div className={cn(
-        "flex-1 relative overflow-hidden flex flex-col bg-white"
+        "flex-1 relative overflow-hidden flex flex-col bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#f9f6ef] via-white to-[#f0ece1]"
       )}>
         {/* View Mode Toggles */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex gap-1 bg-white/90 backdrop-blur-sm rounded-full p-1 shadow-lg border border-gray-200">
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 flex p-1.5 bg-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] backdrop-blur-md border border-white/50 rounded-full">
           {(["front", "back"] as const).map((mode) => (
             <button key={mode}
               onClick={() => setViewMode(mode)}
               className={cn(
-                "px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5",
+                "px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-300 flex items-center gap-2",
                 viewMode === mode
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 scale-100"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-white/60 scale-95 hover:scale-100"
               )}>
-              <><Eye className="w-3.5 h-3.5" />{mode.toUpperCase()}</>
+              <><Eye className="w-4 h-4" />{mode.toUpperCase()}</>
             </button>
           ))}
         </div>
@@ -92,28 +146,32 @@ export default function DoorConfigurator() {
           </div>
         </div>
 
-        {/* Mobile Bottom Sheet */}
+        {/* Mobile Bottom Sheet and Cart Bar */}
         {isMobile && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                <Button className="rounded-full shadow-2xl bg-zinc-100 hover:bg-white text-zinc-950 px-6 py-6 h-auto flex items-center gap-2 group border-2 border-zinc-200">
-                  <Settings2 className="w-5 h-5 text-zinc-950" />
-                  <span className="font-bold uppercase text-xs tracking-wider">Configure Door</span>
-                  <ChevronUp className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-[85vh] px-0 pb-0 rounded-t-3xl border-t-0 shadow-2xl bg-zinc-950">
-                <div className="sr-only"><SheetHeader><SheetTitle>Door Configurator</SheetTitle></SheetHeader></div>
-                <div className="h-full overflow-y-auto pt-2 bg-zinc-950">
-                  <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-4" />
-                  <div className="px-4 pb-20">
-                    <ConfigSidebar isMobile={true} onClose={() => setIsSheetOpen(false)} />
+          <>
+            <div className="absolute bottom-[90px] left-1/2 -translate-x-1/2 z-20">
+              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button className="rounded-full shadow-2xl bg-[#c75b33] hover:bg-[#b04f2c] text-white px-6 py-4 h-auto flex items-center gap-2 group border-2 border-[#b04f2c]">
+                    <Settings2 className="w-5 h-5 text-white" />
+                    <span className="font-bold uppercase text-xs tracking-wider">Configure Door</span>
+                    <ChevronUp className="w-4 h-4 transition-transform group-data-[state=open]:rotate-180" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[85vh] px-0 pb-0 rounded-t-3xl border-t-0 shadow-2xl bg-white">
+                  <div className="sr-only"><SheetHeader><SheetTitle>Door Configurator</SheetTitle></SheetHeader></div>
+                  <div className="h-full overflow-y-auto pt-2 bg-white pb-24">
+                    <div className="w-12 h-1.5 bg-zinc-300 rounded-full mx-auto mb-4" />
+                    <div className="px-4 pb-20">
+                      <ConfigSidebar isMobile={true} onClose={() => setIsSheetOpen(false)} />
+                    </div>
                   </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
+            <MobileCartBar />
+          </>
         )}
       </div>
 

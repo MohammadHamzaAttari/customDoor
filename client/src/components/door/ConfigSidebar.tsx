@@ -86,24 +86,14 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
       )}
     >
       {/* Header */}
-      <div className="p-4 md:p-6 border-b border-gray-100 bg-gradient-to-r from-orange-600 to-red-700">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-base md:text-xl font-bold text-white tracking-wide">
-              Door Configurator
-            </h1>
-            <p className="text-sm text-orange-100 mt-1 font-medium">
-              Design your perfect door
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-orange-200 text-xs">Unit Price</p>
-              <p className="text-xl font-bold text-white">
-                £{config.price.toFixed(2)}
-              </p>
-            </div>
-          </div>
+      <div className="p-4 md:p-6 border-b border-orange-100 bg-gradient-to-br from-orange-50 via-white to-orange-50/30">
+        <div className="flex flex-col">
+          <h1 className="text-base md:text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-orange-700 to-red-600 tracking-tight">
+            Door Configurator
+          </h1>
+          <p className="text-[13px] text-stone-500 mt-1 font-medium tracking-wide">
+            Design your perfect door
+          </p>
         </div>
       </div>
 
@@ -112,12 +102,12 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
         <Accordion
           type="single"
           collapsible
-          className="w-full"
+          className="w-full space-y-2 mt-4"
           value={selectedSection}
           onValueChange={setSelectedSection}
         >
-          <AccordionItem value="dimensions">
-            <AccordionTrigger className="text-sm font-medium">
+          <AccordionItem value="dimensions" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+            <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
               Door Dimensions
             </AccordionTrigger>
             <AccordionContent>
@@ -139,10 +129,10 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="door-style">
-            <AccordionTrigger className="text-sm font-medium">
+          <AccordionItem value="door-style" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+            <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
               <span className="flex items-center gap-2">
-                Door Thickness and Panel
+                Door Thickness & Panel
                 <Badge variant="outline" className="text-[10px]">
                   {config.thickness}mm {config.panelType === "NONE" ? "Slab" : "Shaker"}
                 </Badge>
@@ -154,8 +144,8 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
           </AccordionItem>
 
           {config.panelType !== "NONE" && (
-            <AccordionItem value="borders">
-              <AccordionTrigger className="text-sm font-medium">
+            <AccordionItem value="borders" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+              <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
                 Frames & Borders
               </AccordionTrigger>
               <AccordionContent>
@@ -164,8 +154,8 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionItem>
           )}
 
-          <AccordionItem value="angled">
-            <AccordionTrigger className="text-sm font-medium">
+          <AccordionItem value="angled" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+            <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
               <span className="flex items-center gap-2">
                 Angled Corners
                 {(config.angledLeft || config.angledRight) && (
@@ -179,8 +169,8 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
           </AccordionItem>
 
           {config.panelType !== "NONE" && (
-            <AccordionItem value="mid-rails">
-              <AccordionTrigger className="text-sm font-medium">
+            <AccordionItem value="mid-rails" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+              <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
                 <span className="flex items-center gap-2">
                   Mid Rails
                   {config.midRailsEnabled && config.midRails.length > 0 && (
@@ -194,8 +184,8 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionItem>
           )}
 
-          <AccordionItem value="finish">
-            <AccordionTrigger className="text-sm font-medium">
+          <AccordionItem value="finish" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+            <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
               Level of Finish
             </AccordionTrigger>
             <AccordionContent>
@@ -203,8 +193,8 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="hinges">
-            <AccordionTrigger className="text-sm font-medium">
+          <AccordionItem value="hinges" className="border border-stone-100 rounded-xl px-2 shadow-sm bg-white hover:border-orange-200 transition-colors data-[state=open]:border-orange-200 data-[state=open]:shadow-md">
+            <AccordionTrigger className="text-sm font-semibold text-stone-700 hover:text-orange-700 hover:no-underline py-3">
               <span className="flex items-center gap-2">
                 Hinge Drilling
                 {config.hingeDrilling && (
@@ -217,9 +207,9 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="rebates" className="border-b-0 opacity-50 hover:opacity-100 transition-opacity">
-            <AccordionTrigger className="text-[10px] py-2 uppercase tracking-widest font-bold text-stone-400 hover:no-underline">
-              Rebate & Technical Specs
+          <AccordionItem value="rebates" className="border-b-0 border-transparent bg-transparent opacity-60 hover:opacity-100 transition-opacity">
+            <AccordionTrigger className="text-[10px] py-2 uppercase tracking-widest font-bold text-stone-500 hover:text-stone-800 hover:no-underline">
+              Rebate & Tech Specs
             </AccordionTrigger>
             <AccordionContent>
               <RebateSection />
@@ -234,32 +224,6 @@ export function ConfigSidebar({ isMobile = false, onClose }: ConfigSidebarProps)
             onClick={() => {
               if (window.confirm("Are you sure you want to reset all configurations to default?")) {
                 config.resetConfig();
-
-                // Add explicit synchronization with the main store if a door is currently active
-                if (activeDoorId) {
-                  const defaultVals = {
-                    width: 600,
-                    height: 720,
-                    thickness: 22,
-                    preset: "single",
-                    panelType: "STANDARD_12MM",
-                    panelCount: 1,
-                    shape: "rectangular",
-                    angledLeft: false,
-                    angledRight: false,
-                    leftTriangleCutoutWidth: 0,
-                    leftTriangleCutoutHeight: 0,
-                    rightTriangleCutoutWidth: 0,
-                    rightTriangleCutoutHeight: 0,
-                    borderWidth: 65,
-                    customBorders: false,
-                    midRailsEnabled: false,
-                    hingeDrilling: false,
-                    hinges: [],
-                    midRails: [],
-                  };
-                  updateDoor(activeDoorId, defaultVals as any);
-                }
               }
             }}
           >
@@ -437,18 +401,6 @@ function BorderWidthsSection() {
               </Label>
               <NumberInput value={rightStile} onChange={setRightStile} min={minRight} max={300} className="h-9" />
             </div>
-            {angledLeft && (
-              <div className="space-y-2">
-                <Label className="text-xs text-gray-500 text-blue-600 font-medium">Angled Rail Left (min {minTop}mm)</Label>
-                <NumberInput value={leftAngledRailWidth} onChange={setLeftAngledRailWidth} min={minTop} max={300} className="h-9 border-blue-200 focus:ring-blue-500" />
-              </div>
-            )}
-            {angledRight && (
-              <div className="space-y-2">
-                <Label className="text-xs text-gray-500 text-purple-600 font-medium">Angled Rail Right (min {minTop}mm)</Label>
-                <NumberInput value={rightAngledRailWidth} onChange={setRightAngledRailWidth} min={minTop} max={300} className="h-9 border-purple-200 focus:ring-purple-500" />
-              </div>
-            )}
           </div>
         )}
       </div>

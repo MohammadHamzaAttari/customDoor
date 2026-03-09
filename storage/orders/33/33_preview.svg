@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 650" width="500" height="650">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+      <feOffset dx="2" dy="2" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect x="0" y="0" width="500" height="650" fill="#ffffff" />
+  <!-- Face Label (Match Door2D) -->
+  <text x="250" y="30" text-anchor="middle" fill="#2563eb" font-family="Liberation Sans, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="2">FRONT VIEW</text>
+  <rect x="80" y="155" width="340" height="340" fill="#fafaf9" stroke="#44403c" stroke-width="0.51" filter="url(#shadow)" />
+  <path d="M 105.5 469.5 L 105.5 180.5 L 394.5 180.5 L 394.5 469.5 Z" fill="#e7e5e4" stroke="#a8a29e" stroke-width="0.34" />
+  <line x1="80" y1="503.5" x2="420" y2="503.5" stroke="#78716c" stroke-width="1" />
+  <line x1="80" y1="498.5" x2="80" y2="508.5" stroke="#78716c" stroke-width="1" />
+  <line x1="420" y1="498.5" x2="420" y2="508.5" stroke="#78716c" stroke-width="1" />
+  <text font-family="Liberation Sans, Arial, sans-serif" font-size="12px" fill="#78716c" font-weight="600" x="250" y="518.5" text-anchor="middle">1000mm</text>
+  <line x1="428.5" y1="495" x2="428.5" y2="155" stroke="#78716c" stroke-width="1" />
+  <line x1="423.5" y1="495" x2="433.5" y2="495" stroke="#78716c" stroke-width="1" />
+  <line x1="423.5" y1="155" x2="433.5" y2="155" stroke="#78716c" stroke-width="1" />
+  <text font-family="Liberation Sans, Arial, sans-serif" font-size="12px" fill="#78716c" font-weight="600" x="436.5" y="325" text-anchor="start" dominant-baseline="middle" transform="rotate(0, 436.5, 325)">1000mm</text>
+  <text x="250" y="642" text-anchor="middle" fill="#999" font-family="Liberation Sans, Arial, sans-serif" font-size="10">1000mm × 1000mm | STANDARD 12MM</text>
+</svg>
