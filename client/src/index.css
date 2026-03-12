@@ -26,6 +26,11 @@
     --input: 30 15% 85%;
     --ring: 24 81% 44%;
     --radius: 0.75rem;
+
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+    --shadow-card-hover: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    --shadow-elevated: 0 20px 40px -12px rgb(0 0 0 / 0.12);
+    --shadow-glow-orange: 0 0 20px rgb(199 91 51 / 0.15);
   }
 }
 
@@ -35,7 +40,9 @@
     box-sizing: border-box;
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     width: 100%;
     height: 100%;
     margin: 0;
@@ -46,40 +53,77 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     max-width: 100vw;
   }
 }
 
-/* Custom scrollbar */
+/* Refined scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+  background: #d1ccc4;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #a8a29e;
 }
 
-/* Smooth animations */
+/* Hide scrollbar in sidebars on hover-capable devices */
+@media (hover: hover) {
+  .scrollbar-autohide {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s;
+  }
+
+  .scrollbar-autohide:hover {
+    scrollbar-color: #d1ccc4 transparent;
+  }
+
+  .scrollbar-autohide::-webkit-scrollbar-thumb {
+    background: transparent;
+    transition: background 0.3s;
+  }
+
+  .scrollbar-autohide:hover::-webkit-scrollbar-thumb {
+    background: #d1ccc4;
+  }
+}
+
+/* Number input: hide native spin buttons globally */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ── Premium Animations ── */
 @layer utilities {
+
+  /* Entry animations */
   .animate-in {
-    animation: animate-in 0.2s ease-out;
+    animation: animate-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   @keyframes animate-in {
     from {
       opacity: 0;
-      transform: translateY(-4px);
+      transform: translateY(-6px);
     }
 
     to {
@@ -88,7 +132,216 @@
     }
   }
 
+  .animate-in-up {
+    animation: animate-in-up 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes animate-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
   .slide-in-from-top-2 {
     --tw-enter-translate-y: -0.5rem;
+  }
+
+  /* Shimmer sweep (for price cards, loading states) */
+  .animate-shimmer {
+    animation: shimmer 2.5s ease-in-out infinite;
+    background-size: 200% 100%;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Gentle floating (for icons, onboarding) */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  /* Soft breathing pulse */
+  .animate-pulse-soft {
+    animation: pulse-soft 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-soft {
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.85;
+      transform: scale(1.02);
+    }
+  }
+
+  /* Stagger fade-in children */
+  .stagger-in>* {
+    opacity: 0;
+    animation: stagger-fade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .stagger-in>*:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .stagger-in>*:nth-child(2) {
+    animation-delay: 50ms;
+  }
+
+  .stagger-in>*:nth-child(3) {
+    animation-delay: 100ms;
+  }
+
+  .stagger-in>*:nth-child(4) {
+    animation-delay: 150ms;
+  }
+
+  .stagger-in>*:nth-child(5) {
+    animation-delay: 200ms;
+  }
+
+  .stagger-in>*:nth-child(6) {
+    animation-delay: 250ms;
+  }
+
+  .stagger-in>*:nth-child(7) {
+    animation-delay: 300ms;
+  }
+
+  .stagger-in>*:nth-child(8) {
+    animation-delay: 350ms;
+  }
+
+  @keyframes stagger-fade {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Spinner */
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes shrink {
+    from {
+      width: 100%;
+    }
+
+    to {
+      width: 0%;
+    }
+  }
+
+  /* ── Premium Utility Classes ── */
+
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40;
+    box-shadow: 0 4px 16px -2px rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.04);
+  }
+
+  .glass-strong {
+    @apply bg-white/85 backdrop-blur-2xl border border-white/50;
+    box-shadow: 0 8px 32px -4px rgb(0 0 0 / 0.08), 0 2px 8px rgb(0 0 0 / 0.04),
+      inset 0 1px 0 rgb(255 255 255 / 0.6);
+  }
+
+  .card-lift {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+  }
+
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .card-premium {
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  .card-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -8px rgb(0 0 0 / 0.1), 0 4px 8px -4px rgb(0 0 0 / 0.04);
+  }
+
+  /* Gradient text utility */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(19, 83%, 45%), hsl(0, 72%, 51%));
+  }
+
+  /* Subtle glow for active/focus states */
+  .glow-orange {
+    box-shadow: 0 0 0 3px rgb(199 91 51 / 0.12), 0 0 20px -4px rgb(199 91 51 / 0.18);
+  }
+
+  /* Button press effect */
+  .btn-press:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+
+  /* Smooth border color transitions */
+  .border-transition {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 }

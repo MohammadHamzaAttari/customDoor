@@ -22,7 +22,6 @@ export interface DxfDoorConfig {
   rightTriangleCutoutWidth?: number;
   rightTriangleCutoutHeight?: number;
   hinges: any[];
-  // Detailed Section Props
   leftStile?: number;
   rightStile?: number;
   topRail?: number;
@@ -37,24 +36,25 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
   const dxf = new DxfWriter();
 
   // --- CNC TOOLING LAYERS (8-Tool Standard) ---
-  dxf.addLayer("T1_DRILL_V4", 3, "CONTINUOUS");        // Green - Hinge Screws
-  dxf.addLayer("T8_DRILL_35MM", 3, "CONTINUOUS");      // Green - Hinge Cups
-  dxf.addLayer("T6_REBATE_12MM", 1, "CONTINUOUS");     // Red - Rebate Pocket
-  dxf.addLayer("T6_INNER_ONION", 1, "CONTINUOUS");     // Red - Inner Cut Rough
-  dxf.addLayer("T4_PROFILE_8MM_OS", 5, "CONTINUOUS");  // Blue - Outer Cut Rough
-  dxf.addLayer("T4_PROFILE_8MM_FINAL", 5, "CONTINUOUS"); // Blue - Outer Cut Final
-  dxf.addLayer("T3_REBATE_FINISH", 6, "CONTINUOUS");   // Magenta - Rebate Corners
-  dxf.addLayer("T3_INNER_BREAK", 6, "CONTINUOUS");     // Magenta - Inner Cut Finish
-  dxf.addLayer("PANEL_GEOMETRY", 2, "CONTINUOUS");     // Yellow - The Panel itself (Production Ref)
+  dxf.addLayer("T1_DRILL_V4", 3, "CONTINUOUS");
+  dxf.addLayer("T8_DRILL_35MM", 3, "CONTINUOUS");
+  dxf.addLayer("T6_REBATE_12MM", 1, "CONTINUOUS");
+  dxf.addLayer("T6_INNER_ONION", 1, "CONTINUOUS");
+  dxf.addLayer("T4_PROFILE_8MM_OS", 5, "CONTINUOUS");
+  dxf.addLayer("T4_PROFILE_8MM_FINAL", 5, "CONTINUOUS");
+  dxf.addLayer("T3_REBATE_FINISH", 6, "CONTINUOUS");
+  dxf.addLayer("T3_INNER_BREAK", 6, "CONTINUOUS");
+  dxf.addLayer("PANEL_GEOMETRY", 2, "CONTINUOUS");
 
   // Visual/Doc Layers
   dxf.addLayer("DIMENSIONS", 7, "CONTINUOUS");
   dxf.addLayer("SECTION_Graphics", 7, "CONTINUOUS");
-  dxf.addLayer("HINGES", 7, "CONTINUOUS"); // Visual hinge representation
-  // Add after the existing addLayer calls in dxfGenerator.ts:
+  dxf.addLayer("HINGES", 7, "CONTINUOUS");
   dxf.addLayer("FRAME", 7, "CONTINUOUS");
-  dxf.addLayer("BORDERS", 4, "CONTINUOUS");    // Cyan
-  dxf.addLayer("PANELS", 2, "CONTINUOUS");     // Yellow
+  dxf.addLayer("BORDERS", 4, "CONTINUOUS");
+  dxf.addLayer("PANELS", 2, "CONTINUOUS");
+  dxf.addLayer("MIDRAILS", 4, "CONTINUOUS");
+
   const {
     width,
     height,
@@ -68,7 +68,7 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
     rightTriangleCutoutHeight,
   } = config;
 
-  // Normalize angled flags (backend uses 'shape' string, frontend uses booleans)
+  // Normalize angled flags
   const isAngledShape = config.shape === "angled";
   const aL = config.angledLeft ?? (isAngledShape && (config.leftTriangleCutoutWidth || 0) > 0);
   const aR = config.angledRight ?? (isAngledShape && (config.rightTriangleCutoutWidth || 0) > 0);
@@ -80,60 +80,36 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
   const tRail = config.topRail || defaultBorder;
   const bRail = config.bottomRail || defaultBorder;
   const mRails = config.midRailsEnabled && config.midRails ? config.midRails : [];
+  const lcw = leftTriangleCutoutWidth || 0;
+  const lch = leftTriangleCutoutHeight || 0;
+  const rcw = rightTriangleCutoutWidth || 0;
+  const rch = rightTriangleCutoutHeight || 0;
+  const arwL = config.leftAngledRailWidth ?? 90;
+  const arwR = config.rightAngledRailWidth ?? 90;
 
-  // 1. Generate CNC Geometry for the DOOR FRAME (Leaf)
-  // Double door logic: Generate two layouts side-by-side? 
-  // For CNC manufacturing, usually single parts are nested.
-  // We will generate the CURRENT Leaf geometry at (0,0).
-  // If double, we might need logic, but 'generateDoorDxf' usually handles one 'config' object which describes the *job*.
-  // However, the frontend passes one config for the whole conceptual door.
-  // We'll proceed assuming Single Leaf or specific geometry generation.
-
-  // NOTE: For double doors, we usually manufacture two identical (or mirrored) leaves.
-  // We will draw the PRIMARY leaf at 0,0 for machining.
-
-  // Outer Profile Points
-  const outerPoints = getProfilePoints(width, height, aL, aR, leftTriangleCutoutWidth, leftTriangleCutoutHeight, rightTriangleCutoutWidth, rightTriangleCutoutHeight);
-
-  // A. Outer Profile (T4)
-  // Two passes: Onion Skin and Final
+  // ─── A. Outer Profile (T4) ───
+  const outerPoints = getProfilePoints(width, height, aL, aR, lcw, lch, rcw, rch);
   dxf.addLWPolyline(outerPoints, { flags: LWPolylineFlags.Closed, layerName: "T4_PROFILE_8MM_OS" });
   dxf.addLWPolyline(outerPoints, { flags: LWPolylineFlags.Closed, layerName: "T4_PROFILE_8MM_FINAL" });
 
-  // B. Inner Profile (Hole)
-  // Only if panelType is NOT Slab (NONE)
+  // ─── B. Inner Profile (Panel Hole) ───
   if (panelType !== "NONE") {
-    const w = config.width;
-    const h = config.height;
-    const ls = lStile;
-    const rs = rStile;
-    const ts = tRail;
-    const bs = bRail;
-    const lcw = leftTriangleCutoutWidth || 0;
-    const lch = leftTriangleCutoutHeight || 0;
-    const rcw = rightTriangleCutoutWidth || 0;
-    const rch = rightTriangleCutoutHeight || 0;
-    const arwL = config.leftAngledRailWidth ?? 90;
-    const arwR = config.rightAngledRailWidth ?? 90;
-
     const innerPoints = getInnerProfilePoints(
-      w, h,
-      ls, rs, ts, bs,
+      width, height,
+      lStile, rStile, tRail, bRail,
       aL, aR,
       lcw, lch, rcw, rch,
       arwL, arwR
     ).map(p => ({ point: point2d(p.x, p.y) }));
 
-    // T6 Inner Onion (Bulk removal/Through cut with skin)
     dxf.addLWPolyline(innerPoints, { flags: LWPolylineFlags.Closed, layerName: "T6_INNER_ONION" });
-    // T3 Inner Break (Final cleanup)
     dxf.addLWPolyline(innerPoints, { flags: LWPolylineFlags.Closed, layerName: "T3_INNER_BREAK" });
 
-    // --- REBATE GEOMETRY ---
+    // ─── C. Rebate Geometry ───
     const rM = config.rebateWidthMm || 10;
     const rebatePoints = getInnerProfilePoints(
-      w, h,
-      ls - rM, rs - rM, ts - rM, bs - rM,
+      width, height,
+      lStile - rM, rStile - rM, tRail - rM, bRail - rM,
       aL, aR,
       lcw, lch, rcw, rch,
       arwL - rM, arwR - rM
@@ -141,46 +117,143 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
     dxf.addLWPolyline(rebatePoints, { flags: LWPolylineFlags.Closed, layerName: "T6_REBATE_12MM" });
     dxf.addLWPolyline(rebatePoints, { flags: LWPolylineFlags.Closed, layerName: "T3_REBATE_FINISH" });
 
-    // --- PANEL GEOMETRY (Visual reference) ---
+    // ─── D. Panel Geometry (Visual reference) ───
     const pInset = 10;
     const effectivePanelPoints = getInnerProfilePoints(
-      w, h,
-      ls + pInset, rs + pInset, ts + pInset, bs + pInset,
+      width, height,
+      lStile + pInset, rStile + pInset, tRail + pInset, bRail + pInset,
       aL, aR,
       lcw, lch, rcw, rch,
       arwL + pInset, arwR + pInset
     ).map(p => ({ point: point2d(p.x, p.y) }));
     dxf.addLWPolyline(effectivePanelPoints, { flags: LWPolylineFlags.Closed, layerName: "PANEL_GEOMETRY" });
+
+    // ─── E. Mid Rails ───
+    if (mRails.length > 0) {
+      mRails.forEach((rail: any) => {
+        const railBottomY = Number(rail.positionFromBottom || rail.position || 0);
+        const railDim = Number(rail.dimension || rail.height || 100);
+        const railTopY = railBottomY + railDim;
+
+        // Mid rail extends between stiles (inner edges)
+        // For simple rectangular doors:
+        let mrLeftX = lStile;
+        let mrRightX = width - rStile;
+
+        // For angled doors, compute the inner X at the rail's Y midpoint
+        if (aL && lcw > 0 && lch > 0) {
+          const railMidY = railBottomY + railDim / 2;
+          const hyp = Math.sqrt(lcw * lcw + lch * lch);
+          const totalVertShift = arwL * (hyp / lcw);
+          const m = lch / lcw;
+          const xAtY = (railMidY - (height - lch) + totalVertShift) / m;
+          mrLeftX = Math.max(mrLeftX, xAtY);
+        }
+        if (aR && rcw > 0 && rch > 0) {
+          const railMidY = railBottomY + railDim / 2;
+          const hyp = Math.sqrt(rcw * rcw + rch * rch);
+          const totalVertShift = arwR * (hyp / rcw);
+          const m = -rch / rcw;
+          const xAtY = (railMidY - height + totalVertShift) / m + (width - rcw);
+          mrRightX = Math.min(mrRightX, xAtY);
+        }
+
+        const mrPoints = [
+          { point: point2d(mrLeftX, railBottomY) },
+          { point: point2d(mrRightX, railBottomY) },
+          { point: point2d(mrRightX, railTopY) },
+          { point: point2d(mrLeftX, railTopY) },
+        ];
+        dxf.addLWPolyline(mrPoints, { flags: LWPolylineFlags.Closed, layerName: "MIDRAILS" });
+
+        // Also add on the inner cut layers for CNC
+        dxf.addLWPolyline(mrPoints, { flags: LWPolylineFlags.Closed, layerName: "FRAME" });
+
+        // Add text label
+        const railMidY = railBottomY + railDim / 2;
+        dxf.addText(point3d((mrLeftX + mrRightX) / 2 - 50, railMidY - 7, 0), 16, `MID RAIL (${railDim}mm)`, { layerName: "DIMENSIONS" });
+      });
+    }
   }
 
-  // E. Hinges (T1 & T8)
+  // ─── F. Hinges (T1 & T8) ───
   if (hinges && hinges.length > 0) {
-    hinges.forEach(h => {
-      const y = h.positionFromBottomMm;
-      const x = h.side === "LEFT" ? 22 : width - 22;
+    hinges.forEach((h: any) => {
+      // Convert from client hinge format to absolute Y from bottom
+      let y: number;
+      if (h.positionFromBottomMm != null) {
+        y = Number(h.positionFromBottomMm);
+      } else if (h.positionMm != null && h.reference) {
+        if (h.reference === "TOP") {
+          let angleCutoutH = 0;
+          if (h.side === "LEFT" && aL && lch) {
+            angleCutoutH = Number(lch) || 0;
+          } else if (h.side === "RIGHT" && aR && rch) {
+            angleCutoutH = Number(rch) || 0;
+          }
+          y = (height - angleCutoutH) - Number(h.positionMm);
+        } else {
+          y = Number(h.positionMm);
+        }
+      } else if (h.position != null) {
+        y = Number(h.position);
+      } else {
+        y = 100;
+      }
 
-      // Filtering logic for angled doors
-      if (h.side === "LEFT" && aL && leftTriangleCutoutWidth && leftTriangleCutoutHeight) {
-        if (x / leftTriangleCutoutWidth + (height - y) / leftTriangleCutoutHeight < 1) return;
-      } else if (h.side === "RIGHT" && aR && rightTriangleCutoutWidth && rightTriangleCutoutHeight) {
-        if ((width - x) / rightTriangleCutoutWidth + (height - y) / rightTriangleCutoutHeight < 1) return;
+      // Hinge center offset: 5mm gap + 17.5mm (half of 35mm cup) = 22.5mm
+      const x = h.side === "LEFT" ? 22.5 : width - 22.5;
+
+      // Skip hinges that fall outside angled cutouts
+      if (h.side === "LEFT" && aL && lcw > 0 && lch > 0) {
+        const heightFromBottom = y;
+        const angleStartFromBottom = height - lch;
+        if (heightFromBottom > angleStartFromBottom) {
+          // Check if the hinge X is outside the angled edge at this Y
+          const t = (heightFromBottom - angleStartFromBottom) / lch;
+          const edgeX = lcw * t;
+          if (x < edgeX + 17.5 + 2) return; // Cup radius + clearance
+        }
+      }
+      if (h.side === "RIGHT" && aR && rcw > 0 && rch > 0) {
+        const heightFromBottom = y;
+        const angleStartFromBottom = height - rch;
+        if (heightFromBottom > angleStartFromBottom) {
+          const t = (heightFromBottom - angleStartFromBottom) / rch;
+          const edgeX = width - rcw * t;
+          if (x > edgeX - 17.5 - 2) return;
+        }
       }
 
       // T8: 35mm Cup
       dxf.addCircle(point3d(x, y, 0), 35 / 2, { layerName: "T8_DRILL_35MM" });
 
-      // T1: Screw Centers
+      // T1: Screw/Inserta holes
       const screwOffset = 22.5; // 45mm spread
-      dxf.addCircle(point3d(x, y + screwOffset, 0), 2, { layerName: "T1_DRILL_V4" });
-      dxf.addCircle(point3d(x, y - screwOffset, 0), 2, { layerName: "T1_DRILL_V4" });
+      const hingeType = h.type || h.hingeType || "SCREW_POINTS";
+      const drillRadius = hingeType === "INSERTA" ? 4 : 2;
+
+      dxf.addCircle(point3d(x, y + screwOffset, 0), drillRadius, { layerName: "T1_DRILL_V4" });
+      dxf.addCircle(point3d(x, y - screwOffset, 0), drillRadius, { layerName: "T1_DRILL_V4" });
+
+      // Visual hinge representation & Expert CNC Label
+      dxf.addCircle(point3d(x, y, 0), 17.5, { layerName: "HINGES" });
+      dxf.addCircle(point3d(x, y, 0), 2, { layerName: "HINGES" });
+
+      const lblX = h.side === "LEFT" ? -150 : width + 50;
+      dxf.addText(point3d(lblX, y + 15, 0), 12, `Ø35 DH13.5 (CUP)`, { layerName: "HINGES" });
+      dxf.addText(point3d(lblX, y - 5, 0), 10, `Ø${drillRadius * 2} DH12 (${hingeType})`, { layerName: "HINGES" });
     });
   }
 
-  // Doc Data
+  // ─── PART IDENTIFICATION (Center of door) ───
+  // Removed from center to prevent overlapping with inner toolpaths (mid rails, etc.). 
+  // All relevant information is now strictly confined to the CNC JOB SPECIFICATION block on the right.
+
+  // ─── G. Dimension Annotations ───
   addDimensionAnnotations(dxf, width, height, thickness, false, lStile, rStile, tRail, bRail);
 
-  // --- SECTIONS ---
-  // Side View (Shifted right)
+  // ─── H. Section Views ───
   const sideViewX = width + 200;
   drawSideView(
     dxf, sideViewX, 0, height, thickness,
@@ -188,7 +261,6 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
     tRail, bRail, mRails, panelType
   );
 
-  // Top View (Shifted above)
   const topViewY = height + 200;
   drawTopView(
     dxf, 0, topViewY, width, thickness,
@@ -196,19 +268,23 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
     lStile, rStile, panelType
   );
 
-  // Title Block (Shifted right of side view)
+  // ─── I. Title Block ───
   addTitleBlock(dxf, config);
 
   return dxf.stringify();
 }
 
-// Helper to project points for polygon
-function getProfilePoints(w: number, h: number, angL: any, angR: any, lW: any, lH: any, rW: any, rH: any) {
+// ─── Helper: Outer Profile Points ───
+function getProfilePoints(
+  w: number, h: number,
+  angL: any, angR: any,
+  lW: any, lH: any,
+  rW: any, rH: any
+) {
   const pts = [];
   pts.push({ point: point2d(0, 0) });
-  pts.push({ point: point2d(w, 0) }); // Bottom Right
+  pts.push({ point: point2d(w, 0) });
 
-  // Top Right
   if (angR && rW > 0 && rH > 0) {
     pts.push({ point: point2d(w, h - rH) });
     pts.push({ point: point2d(w - rW, h) });
@@ -216,7 +292,6 @@ function getProfilePoints(w: number, h: number, angL: any, angR: any, lW: any, l
     pts.push({ point: point2d(w, h) });
   }
 
-  // Top Left
   if (angL && lW > 0 && lH > 0) {
     pts.push({ point: point2d(lW, h) });
     pts.push({ point: point2d(0, h - lH) });
@@ -224,9 +299,10 @@ function getProfilePoints(w: number, h: number, angL: any, angR: any, lW: any, l
     pts.push({ point: point2d(0, h) });
   }
 
-  return pts; // Closed by LWPolyline
+  return pts;
 }
 
+// ─── Helper: Side View ───
 function drawSideView(
   dxf: DxfWriter,
   xOffset: number,
@@ -241,27 +317,46 @@ function drawSideView(
   midRails: any[],
   panelType: string
 ) {
-  // Side View Projection: 
-  // X-axis: Thickness (0 to thickness)
-  // Y-axis: Height (0 to height)
-  // 1. Draw Outer Boundary
   const points: any[] = [];
   points.push({ point: point2d(xOffset, yOffset) });
   points.push({ point: point2d(xOffset + thickness, yOffset) });
   points.push({ point: point2d(xOffset + thickness, yOffset + height) });
   points.push({ point: point2d(xOffset, yOffset + height) });
-
   dxf.addLWPolyline(points, { flags: LWPolylineFlags.Closed, layerName: "FRAME" });
 
-  // 2. Rails (Horizontal lines in this view)
-  dxf.addLine(point3d(xOffset, yOffset + bottomRail, 0), point3d(xOffset + thickness, yOffset + bottomRail, 0), { layerName: "BORDERS" });
-  dxf.addLine(point3d(xOffset, yOffset + height - topRail, 0), point3d(xOffset + thickness, yOffset + height - topRail, 0), { layerName: "BORDERS" });
+  // Rails
+  dxf.addLine(
+    point3d(xOffset, yOffset + bottomRail, 0),
+    point3d(xOffset + thickness, yOffset + bottomRail, 0),
+    { layerName: "BORDERS" }
+  );
+  dxf.addLine(
+    point3d(xOffset, yOffset + height - topRail, 0),
+    point3d(xOffset + thickness, yOffset + height - topRail, 0),
+    { layerName: "BORDERS" }
+  );
 
-  // 3. Panel (Recessed)
+  // Mid Rails in side view
+  if (midRails && midRails.length > 0) {
+    midRails.forEach((rail: any) => {
+      const railY = Number(rail.positionFromBottom || rail.position || 0);
+      const railDim = Number(rail.dimension || rail.height || 100);
+      dxf.addLine(
+        point3d(xOffset, yOffset + railY, 0),
+        point3d(xOffset + thickness, yOffset + railY, 0),
+        { layerName: "MIDRAILS" }
+      );
+      dxf.addLine(
+        point3d(xOffset, yOffset + railY + railDim, 0),
+        point3d(xOffset + thickness, yOffset + railY + railDim, 0),
+        { layerName: "MIDRAILS" }
+      );
+    });
+  }
+
+  // Panel
   if (panelType !== "NONE") {
     const pThk = panelType === "REEDED_19MM" ? 19 : panelType === "MELAMINE_18MM" ? 18 : 12;
-    // Y position: from bottomRail to height-topRail.
-    // X position: Recessed from front (X=0) by frontFaceT.
     const pX1 = xOffset + frontFaceT;
     const pX2 = xOffset + frontFaceT + pThk;
     const pY1 = yOffset + bottomRail;
@@ -272,16 +367,14 @@ function drawSideView(
     pPoints.push({ point: point2d(pX2, pY1) });
     pPoints.push({ point: point2d(pX2, pY2) });
     pPoints.push({ point: point2d(pX1, pY2) });
-
     dxf.addLWPolyline(pPoints, { flags: LWPolylineFlags.Closed, layerName: "PANELS" });
   }
 
-  // Labels for verification
   dxf.addText(point3d(xOffset + thickness / 2 - 15, yOffset - 50, 0), 20, "SIDE VIEW", { layerName: "DIMENSIONS" });
   dxf.addText(point3d(xOffset, yOffset - 80, 0), 15, `Thk: ${thickness}mm`, { layerName: "DIMENSIONS" });
 }
 
-
+// ─── Helper: Top View ───
 function drawTopView(
   dxf: DxfWriter,
   xOffset: number,
@@ -295,194 +388,108 @@ function drawTopView(
   rightStile: number,
   panelType: string
 ) {
-  // Top View Projection:
-  // X-axis: Width (0 to width)
-  // Y-axis: Thickness (0 to thickness)
-  // X=0 is Left, X=Width is Right. Y=0 is Front, Y=Thickness is Back.
-
-  // 1. Draw Outer Boundary
   const points: any[] = [];
   points.push({ point: point2d(xOffset, yOffset) });
   points.push({ point: point2d(xOffset + width, yOffset) });
   points.push({ point: point2d(xOffset + width, yOffset + thickness) });
   points.push({ point: point2d(xOffset, yOffset + thickness) });
-
   dxf.addLWPolyline(points, { flags: LWPolylineFlags.Closed, layerName: "FRAME" });
 
-  // 2. Stiles (Vertical lines in this view? No, stiles are on left and right blocks)
-  // Inner edge of Left Stile is at X = leftStile.
-  dxf.addLine(point3d(xOffset + leftStile, yOffset, 0), point3d(xOffset + leftStile, yOffset + thickness, 0), { layerName: "BORDERS" });
+  // Stiles
+  dxf.addLine(
+    point3d(xOffset + leftStile, yOffset, 0),
+    point3d(xOffset + leftStile, yOffset + thickness, 0),
+    { layerName: "BORDERS" }
+  );
+  dxf.addLine(
+    point3d(xOffset + width - rightStile, yOffset, 0),
+    point3d(xOffset + width - rightStile, yOffset + thickness, 0),
+    { layerName: "BORDERS" }
+  );
 
-  // Inner edge of Right Stile is at X = Width - rightStile.
-  dxf.addLine(point3d(xOffset + width - rightStile, yOffset, 0), point3d(xOffset + width - rightStile, yOffset + thickness, 0), { layerName: "BORDERS" });
-
-  // 3. Panel (Recessed)
+  // Panel
   if (panelType !== "NONE") {
     const pThk = panelType === "REEDED_19MM" ? 19 : panelType === "MELAMINE_18MM" ? 18 : 12;
-    // Panel sits between stiles.
-    // Y position: Recessed from front (Y=0) by frontFaceT.
     const pY1 = yOffset + frontFaceT;
     const pY2 = yOffset + frontFaceT + pThk;
-
     const pX1 = xOffset + leftStile;
     const pX2 = xOffset + width - rightStile;
 
-    // Draw Panel Rect in section
     const pPoints: any[] = [];
     pPoints.push({ point: point2d(pX1, pY1) });
     pPoints.push({ point: point2d(pX2, pY1) });
     pPoints.push({ point: point2d(pX2, pY2) });
     pPoints.push({ point: point2d(pX1, pY2) });
-
     dxf.addLWPolyline(pPoints, { flags: LWPolylineFlags.Closed, layerName: "PANELS" });
-
-    // Hatch the panel? Maybe later.
   }
 
-  // 4. Rebates (on top/bottom edges of door? No, rebates are on the stiles usually for double doors or jambs?)
-  // If it's the rebate for the door stop:
-  // Usually on the side edges (Stiles).
+  // Rebates
   if (rebateW > 0 && rebateD > 0) {
-    // Left Edge Rebate (Back side)
-    // Cut out from Back Left corner?
-    // Back is Y=Thickness. Left is X=0.
-    // Recess: X from 0 to rebateW. Y from Thickness-rebateD to Thickness.
-    // But we already drew the outer box. We should draw lines indicating the cut.
-    // Rebate Line: X=rebateW, from Y=Thk to Y=Thk-rebateD.
-
     const backY = yOffset + thickness;
 
-    // Left Rebate
     dxf.addLine(point3d(xOffset + rebateW, backY, 0), point3d(xOffset + rebateW, backY - rebateD, 0), { layerName: "BORDERS" });
     dxf.addLine(point3d(xOffset, backY - rebateD, 0), point3d(xOffset + rebateW, backY - rebateD, 0), { layerName: "BORDERS" });
 
-    // Right Rebate
     dxf.addLine(point3d(xOffset + width - rebateW, backY, 0), point3d(xOffset + width - rebateW, backY - rebateD, 0), { layerName: "BORDERS" });
     dxf.addLine(point3d(xOffset + width, backY - rebateD, 0), point3d(xOffset + width - rebateW, backY - rebateD, 0), { layerName: "BORDERS" });
   }
 
-  // Dimensions
   dxf.addText(point3d(xOffset + width / 2 - 15, yOffset + thickness + 50, 0), 20, "TOP VIEW", { layerName: "DIMENSIONS" });
   dxf.addText(point3d(xOffset + leftStile / 2 - 10, yOffset - 30, 0), 12, `Stile: ${leftStile}`, { layerName: "DIMENSIONS" });
   dxf.addText(point3d(xOffset + width - rightStile / 2 - 20, yOffset - 30, 0), 12, `Stile: ${rightStile}`, { layerName: "DIMENSIONS" });
 }
 
-function drawDoorLeaf(
+// ─── Helper: Draw Expert Dimension Line ───
+function drawDimensionLine(
   dxf: DxfWriter,
-  xOffset: number,
-  yOffset: number,
-  width: number,
-  height: number,
-  angledLeft: boolean,
-  angledRight: boolean,
-  leftCutW: number,
-  leftCutH: number,
-  rightCutW: number,
-  rightCutH: number,
-  panelType: string,
-  panelCount: number,
-  thickness: number,
-  hinges: any[],
-  isLeftLeafOfDouble: boolean
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  text: string,
+  offset: number,
+  layerName: string = "DIMENSIONS"
 ) {
-  const points: any[] = [];
-  points.push({ point: point2d(xOffset, yOffset) });
-  points.push({ point: point2d(xOffset + width, yOffset) });
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return;
+  const nx = -dy / len;
+  const ny = dx / len;
 
-  if (angledRight) {
-    points.push({ point: point2d(xOffset + width, yOffset + height - rightCutH) });
-    points.push({ point: point2d(xOffset + width - rightCutW, yOffset + height) });
-  } else {
-    points.push({ point: point2d(xOffset + width, yOffset + height) });
+  const dp1 = { x: p1.x + nx * offset, y: p1.y + ny * offset };
+  const dp2 = { x: p2.x + nx * offset, y: p2.y + ny * offset };
+
+  const extSign = Math.sign(offset) || 1;
+  const e1S = { x: p1.x + nx * extSign * 10, y: p1.y + ny * extSign * 10 };
+  const e1E = { x: dp1.x + nx * extSign * 15, y: dp1.y + ny * extSign * 15 };
+  const e2S = { x: p2.x + nx * extSign * 10, y: p2.y + ny * extSign * 10 };
+  const e2E = { x: dp2.x + nx * extSign * 15, y: dp2.y + ny * extSign * 15 };
+
+  dxf.addLine(point3d(e1S.x, e1S.y, 0), point3d(e1E.x, e1E.y, 0), { layerName });
+  dxf.addLine(point3d(e2S.x, e2S.y, 0), point3d(e2E.x, e2E.y, 0), { layerName });
+  dxf.addLine(point3d(dp1.x, dp1.y, 0), point3d(dp2.x, dp2.y, 0), { layerName });
+
+  const tick = 12;
+  const tDx = (nx + dx / len) * (tick * 0.707);
+  const tDy = (ny + dy / len) * (tick * 0.707);
+  dxf.addLine(point3d(dp1.x - tDx, dp1.y - tDy, 0), point3d(dp1.x + tDx, dp1.y + tDy, 0), { layerName });
+  dxf.addLine(point3d(dp2.x - tDx, dp2.y - tDy, 0), point3d(dp2.x + tDx, dp2.y + tDy, 0), { layerName });
+
+  const midX = (dp1.x + dp2.x) / 2;
+  const midY = (dp1.y + dp2.y) / 2;
+  let textAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
+
+  // Keep text readable
+  if (textAngle > 90 || textAngle < -90) {
+    textAngle += 180;
   }
 
-  if (angledLeft) {
-    points.push({ point: point2d(xOffset + leftCutW, yOffset + height) });
-    points.push({ point: point2d(xOffset, yOffset + height - leftCutH) });
-  } else {
-    points.push({ point: point2d(xOffset, yOffset + height) });
-  }
+  const tx = midX + nx * (extSign * 8); // Text offset from line
+  const ty = midY + ny * (extSign * 8);
 
-  dxf.addLWPolyline(points, { flags: LWPolylineFlags.Closed, layerName: "FRAME" });
-
-  // Panels (Simplified for now, matching the door outline)
-  if (panelType !== "NONE" && panelCount > 0) {
-    const stileWidth = 75;
-    const railHeight = 75;
-    const panelAreaW = width - stileWidth * 2;
-    const panelAreaH = height - railHeight * 2;
-
-    // Draw a single bounding box for panels if angled, or actual panels if rectangular
-    // For brevity in DXF export of custom shapes, we often just provide the cutout profile
-    // Here we'll draw one panel rectangle that's clipped by the same logic
-    const pX = xOffset + stileWidth;
-    const pY = yOffset + railHeight;
-
-    const pPoints: any[] = [];
-    pPoints.push({ point: point2d(pX, pY) });
-    pPoints.push({ point: point2d(pX + panelAreaW, pY) });
-
-    // Right cut check
-    if (angledRight && rightCutH > 0 && rightCutW > 0) {
-      const cutStartY = height - rightCutH;
-      const pTopY = railHeight + panelAreaH;
-      if (pTopY > cutStartY) {
-        const cutRatio = rightCutW / rightCutH;
-        const overlap = pTopY - cutStartY;
-        pPoints.push({ point: point2d(pX + panelAreaW, yOffset + cutStartY) });
-        pPoints.push({ point: point2d(pX + panelAreaW - overlap * cutRatio, yOffset + pTopY) });
-      } else {
-        pPoints.push({ point: point2d(pX + panelAreaW, yOffset + pTopY) });
-      }
-    } else {
-      pPoints.push({ point: point2d(pX + panelAreaW, yOffset + railHeight + panelAreaH) });
-    }
-
-    // Left cut check
-    if (angledLeft && leftCutH > 0 && leftCutW > 0) {
-      const cutStartY = height - leftCutH;
-      const pTopY = railHeight + panelAreaH;
-      if (pTopY > cutStartY) {
-        const cutRatio = leftCutW / leftCutH;
-        const overlap = pTopY - cutStartY;
-        pPoints.push({ point: point2d(pX + overlap * cutRatio, yOffset + pTopY) });
-        pPoints.push({ point: point2d(pX, yOffset + cutStartY) });
-      } else {
-        pPoints.push({ point: point2d(pX, yOffset + pTopY) });
-      }
-    } else {
-      pPoints.push({ point: point2d(pX, yOffset + railHeight + panelAreaH) });
-    }
-
-    dxf.addLWPolyline(pPoints, { flags: LWPolylineFlags.Closed, layerName: "PANELS" });
-  }
-
-  // Hinges
-  if (hinges && hinges.length > 0) {
-    hinges.forEach(hinge => {
-      // Filter for double doors
-      if (isLeftLeafOfDouble && hinge.side === "RIGHT") return;
-      if (!isLeftLeafOfDouble && hinge.side === "LEFT" && xOffset > 0) return;
-
-      const hY = yOffset + hinge.positionFromBottomMm;
-      const hX = xOffset + (hinge.side === "LEFT" ? 22 : width - 22);
-
-      // Validation
-      let hidden = false;
-      if (hinge.side === "LEFT" && angledLeft && leftCutW > 0 && leftCutH > 0) {
-        if ((hX - xOffset) / leftCutW + (height - (hY - yOffset)) / leftCutH < 1) hidden = true;
-      } else if (hinge.side === "RIGHT" && angledRight && rightCutW > 0 && rightCutH > 0) {
-        if ((width - (hX - xOffset)) / rightCutW + (height - (hY - yOffset)) / rightCutH < 1) hidden = true;
-      }
-
-      if (!hidden) {
-        dxf.addCircle(point3d(hX, hY, 0), 17.5, { layerName: "HINGES" });
-        dxf.addCircle(point3d(hX, hY, 0), 2, { layerName: "HINGES" });
-      }
-    });
-  }
+  dxf.addText(point3d(tx, ty, 0), 18, text, { layerName, rotation: textAngle });
 }
 
+// ─── Helper: Dimension Annotations ───
 function addDimensionAnnotations(
   dxf: DxfWriter,
   width: number,
@@ -494,41 +501,80 @@ function addDimensionAnnotations(
   tRail: number,
   bRail: number
 ) {
-  const dimOffset = 100;
-  // Horizontal (Width)
-  dxf.addLine(point3d(0, -dimOffset, 0), point3d(width, -dimOffset, 0), { layerName: "DIMENSIONS" });
-  dxf.addText(point3d(width / 2, -dimOffset - 40, 0), 20, `${isDouble ? width * 2 + 10 : width}mm`, { layerName: "DIMENSIONS" });
+  // Width Dimension
+  drawDimensionLine(dxf, { x: 0, y: 0 }, { x: width, y: 0 }, `${isDouble ? width * 2 + 10 : width}mm (Width)`, -100);
 
-  // Vertical (Height)
-  dxf.addLine(point3d(-dimOffset, 0, 0), point3d(-dimOffset, height, 0), { layerName: "DIMENSIONS" });
-  dxf.addText(point3d(-dimOffset - 40, height / 2, 0), 20, `${height}mm`, { layerName: "DIMENSIONS", rotation: 90 });
+  // Height Dimension
+  drawDimensionLine(dxf, { x: 0, y: 0 }, { x: 0, y: height }, `${height}mm (Height)`, 100);
 
-  // Border Labels (Internal)
-  // Top Rail
-  dxf.addText(point3d(width / 2 - 50, height - 50, 0), 15, `Top Rail: ${tRail}mm`, { layerName: "DIMENSIONS" });
-  // Bottom Rail
-  dxf.addText(point3d(width / 2 - 50, 50, 0), 15, `Bottom Rail: ${bRail}mm`, { layerName: "DIMENSIONS" });
-  // Left Stile
-  dxf.addText(point3d(25, height / 2, 0), 15, `Stile: ${lStile}mm`, { layerName: "DIMENSIONS", rotation: 90 });
-  // Right Stile
-  dxf.addText(point3d(width - 50, height / 2, 0), 15, `Stile: ${rStile}mm`, { layerName: "DIMENSIONS", rotation: 90 });
+  // Stile/Rail Dimension Labels
+  dxf.addText(point3d(width / 2, height - 40, 0), 15, `TOP RAIL: ${tRail}mm`, { layerName: "DIMENSIONS" });
+  dxf.addText(point3d(width / 2, 25, 0), 15, `BOTTOM RAIL: ${bRail}mm`, { layerName: "DIMENSIONS" });
+  dxf.addText(point3d(40, height / 2, 0), 15, `L-STILE: ${lStile}mm`, { layerName: "DIMENSIONS", rotation: 90 });
+  dxf.addText(point3d(width - 55, height / 2, 0), 15, `R-STILE: ${rStile}mm`, { layerName: "DIMENSIONS", rotation: 90 });
 }
 
+// ─── Helper: Title Block ───
 function addTitleBlock(dxf: DxfWriter, config: DxfDoorConfig) {
-  const titleX = config.width / 2 + 400; // Shifted right due to Side View
-  const titleY = 0;
-  const lineHeight = 40;
-  const specs = [
-    `DOOR SPECIFICATION`,
-    `Material: ${config.material}`,
-    `Finish: ${config.finish}`,
-    `Width: ${config.width}mm`,
-    `Height: ${config.height}mm`,
-    `Thickness: ${config.thickness}mm`,
-    `Shape: ${config.shape.toUpperCase()}`
+  const tbX = config.width + 100;
+  const tbY = config.height - 400; // Place it nicely high on the right side
+  const boxWidth = 500;
+
+  // Outer Border
+  const pPts = [
+    { point: point2d(tbX, tbY) },
+    { point: point2d(tbX + boxWidth, tbY) },
+    { point: point2d(tbX + boxWidth, tbY + 500) },
+    { point: point2d(tbX, tbY + 500) },
+  ];
+  dxf.addLWPolyline(pPts, { flags: LWPolylineFlags.Closed, layerName: "DIMENSIONS" });
+
+  // Title Background Line
+  dxf.addLine(point3d(tbX, tbY + 440, 0), point3d(tbX + boxWidth, tbY + 440, 0), { layerName: "DIMENSIONS" });
+  dxf.addText(point3d(tbX + 20, tbY + 455, 0), 24, `CNC JOB SPECIFICATION`, { layerName: "DIMENSIONS" });
+
+  const lineHeight = 28;
+  const mRailCount = config.midRailsEnabled && config.midRails ? config.midRails.length : 0;
+  const hingeCount = config.hinges ? config.hinges.length : 0;
+
+  const sections = [
+    {
+      title: "--- PART DETAILS ---", data: [
+        `OVERALL SIZE: ${config.height}mm (H) x ${config.width}mm (W)`,
+        `THICKNESS:    ${config.thickness}mm`,
+        `MATERIAL:     ${config.material}`,
+        `FINISH:       ${config.finish}`,
+      ]
+    },
+    {
+      title: "--- PROFILE SETTINGS ---", data: [
+        `SHAPE:        ${config.shape.toUpperCase()}`,
+        `PANEL TYPE:   ${config.panelType}`,
+        `REBATE:       W:${config.rebateWidthMm}mm D:${config.rebateDepthMm}mm`,
+        `FRONT FACE:   ${config.frontFaceThicknessMm}mm`,
+        `STILES:       L->${config.leftStile || 75} R->${config.rightStile || 75}`,
+        `RAILS:        T->${config.topRail || 75} B->${config.bottomRail || 75}`,
+      ]
+    },
+    {
+      title: "--- MACHINING ALERTS ---", data: [
+        ...(mRailCount > 0 ? [`MID RAILS:    ${mRailCount} QTY. (Verify pockets)`] : []),
+        ...(hingeCount > 0 ? [`HINGES:       ${hingeCount} QTY. (Check Ø35 depth)`] : []),
+        ...(config.angledLeft ? [`LEFT ANGLE:   ${config.leftTriangleCutoutWidth}x${config.leftTriangleCutoutHeight}mm`] : []),
+        ...(config.angledRight ? [`RIGHT ANGLE:  ${config.rightTriangleCutoutWidth}x${config.rightTriangleCutoutHeight}mm`] : []),
+        ...((mRailCount === 0 && hingeCount === 0 && !config.angledLeft && !config.angledRight) ? ["* Standard Profile Routing Only"] : [])
+      ]
+    }
   ];
 
-  specs.forEach((line, index) => {
-    dxf.addText(point3d(titleX, titleY + (specs.length - index) * lineHeight, 0), 18, line, { layerName: "DIMENSIONS" });
+  let currentY = tbY + 400;
+  sections.forEach(sec => {
+    dxf.addText(point3d(tbX + 20, currentY, 0), 16, sec.title, { layerName: "DIMENSIONS" });
+    currentY -= lineHeight;
+    sec.data.forEach(line => {
+      dxf.addText(point3d(tbX + 30, currentY, 0), 14, line, { layerName: "DIMENSIONS" });
+      currentY -= lineHeight;
+    });
+    currentY -= 10; // Extra spacing between sections
   });
 }

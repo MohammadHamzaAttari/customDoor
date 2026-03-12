@@ -1,39 +1,57 @@
 // client/src/lib/stores/useDoorConfig.ts
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { calculateAngleFromCutout } from "../anglePresets";
+import { subscribeWithSelector } from "zustand/middleware";
 import { calculateDoorPrice, DEFAULT_PRICING } from "@shared/doorSchema";
 
-export type DoorPreset = "single" | "double" | "shaker_2" | "shaker_4" | "shaker_6" | "panel_3" | "panel_4" | "panel_6";
-export type PanelType = "STANDARD_12MM" | "STANDARD_9MM" | "REEDED_19MM" | "MELAMINE_18MM" | "FRETWORK" | "GLASS" | "NONE" | "UNSELECTED";
-export type PanelOrientation = "vertical" | "horizontal";
-export type BorderStyle = "none" | "simple" | "detailed";
-export type DoorShape = "rectangular" | "angled";
-export type MaterialType = "MDF" | "OAK" | "WALNUT" | "PINE";
-export type FinishType = "RAW_UNASSEMBLED" | "ASSEMBLED_PREP" | "PRIMED" | "PAINTED" | "NONE";
-export type HingeType = "SCREW_POINTS" | "INSERTA";
-export type ViewSide = "front" | "back";
+// ============================================
+// CONSTANTS
+// ============================================
 
-// Hinge center offset: 5mm gap to edge + 17.5mm (half of 35mm cup) = 22.5mm
-export const HINGE_CENTER_OFFSET_MM = 22.5;
-export const HINGE_CUP_DIAMETER_MM = 35;
-export const HINGE_CUP_DEPTH_MM = 13;
-
-// Border minimums per requirements
-export const MIN_BORDER_WITH_HINGES = 65;
-export const MIN_BORDER_WITHOUT_HINGES = 35;
-
-// Dimension limits
-export const MIN_WIDTH_MM = 200;
+export const MIN_BORDER_WITH_HINGES = 80;
+export const MIN_BORDER_WITHOUT_HINGES = 50;
+export const MIN_WIDTH_MM = 100;
 export const MAX_WIDTH_MM = 1200;
-export const MIN_HEIGHT_MM = 200;
-export const MAX_HEIGHT_MM = 2430;
+export const MIN_HEIGHT_MM = 100;
+export const MAX_HEIGHT_MM = 2500;
+export const HINGE_CUP_DIAMETER_MM = 35;
+export const HINGE_CENTER_OFFSET_MM = 22.5;
 
-export interface Hinge {
+// Angled corner constraints (CNC manufacturing limits)
+export const MIN_ANGLE_DEGREES = 15;
+export const MAX_ANGLE_DEGREES = 60;
+export const MIN_SHORT_SIDE_HEIGHT_MM = 0;
+export const MIN_CUTOUT_DIMENSION_MM = 0;
+export const MIN_PANEL_OPENING_MM = 30;
+export const MIN_MATERIAL_BRIDGE_MM = 0;
+
+// ============================================
+// TYPES
+// ============================================
+
+export type PanelType =
+  | "UNSELECTED"
+  | "STANDARD_12MM"
+  | "STANDARD_9MM"
+  | "REEDED_19MM"
+  | "MELAMINE_18MM"
+  | "FRETWORK"
+  | "NONE";
+
+export type FinishOption =
+  | "RAW_UNASSEMBLED"
+  | "ASSEMBLED_PREP"
+  | "PRIMED"
+  | "PAINTED";
+
+export type HingeType = "SCREW_POINTS" | "INSERTA";
+export type HingeSide = "LEFT" | "RIGHT";
+export type HingeReference = "TOP" | "BOTTOM";
+
+export interface HingePosition {
   id: string;
+  side: HingeSide;
+  reference: HingeReference;
   positionMm: number;
-  reference: "TOP" | "BOTTOM";
-  side: "LEFT" | "RIGHT";
   type: HingeType;
 }
 
@@ -43,16 +61,26 @@ export interface MidRail {
   dimension: number;
 }
 
+export interface AngleValidationIssue {
+  type: "error" | "warning";
+  code: string;
+  message: string;
+  side?: "left" | "right" | "both";
+}
+
 export interface DoorConfig {
   width: number;
   height: number;
-  thickness: 22 | 18;
-  preset: DoorPreset;
+  thickness: 18 | 22;
   panelType: PanelType;
   panelCount: number;
-  panelOrientation: PanelOrientation;
-  shape: DoorShape;
-
+  panelOrientation: "vertical" | "horizontal";
+  borderWidth: number;
+  customBorders: boolean;
+  leftStile: number;
+  rightStile: number;
+  topRail: number;
+  bottomRail: number;
   angledLeft: boolean;
   angledRight: boolean;
   leftTriangleCutoutWidth: number;
@@ -63,108 +91,436 @@ export interface DoorConfig {
   rightAngleDegrees: number;
   leftAngledRailWidth: number;
   rightAngledRailWidth: number;
-
-  borderWidth: number;
-  customBorders: boolean;
-  leftStile: number;
-  rightStile: number;
-  bottomRail: number;
-  topRail: number;
-
+  midRailsEnabled: boolean;
+  midRailsEqualise: boolean;
+  midRails: MidRail[];
+  hingeDrilling: boolean;
+  hinges: HingePosition[];
+  intendedHingeSide: HingeSide;
+  finish: FinishOption;
+  showDimensions: boolean;
   rebateWidthMm: number;
   rebateDepthMm: number;
   frontFaceThicknessMm: number;
   cornerRadiusMm: number;
   rearCornerRadiusMm: number;
-
-  midRailsEnabled: boolean;
-  midRailsEqualise: boolean;
-  midRails: MidRail[];
-
-  hingeDrilling: boolean;
-  hinges: Hinge[];
-
-  material: MaterialType;
-  finish: FinishType;
-  showDimensions: boolean;
-  viewSide: ViewSide;
-  price: number;
   selectedSection: string;
-  editingCartItemId: string | null;
+  angleValidationIssues: AngleValidationIssue[];
+  // Pricing & Meta
+  price: number;
   isNewSession: boolean;
+  editingCartItemId: string | null;
   _hasInteracted: boolean;
 }
 
-interface DoorConfigStore extends DoorConfig {
-  setWidth: (width: number) => void;
-  setHeight: (height: number) => void;
-  setThickness: (thickness: 22 | 18) => void;
-  setPreset: (preset: DoorPreset) => void;
-  setPanelType: (type: PanelType) => void;
-  setPanelCount: (count: number) => void;
-  setPanelOrientation: (orientation: PanelOrientation) => void;
-  setShape: (shape: DoorShape) => void;
+// ============================================
+// SAFE NUMBER HELPERS
+// ============================================
 
-  setAngledLeft: (enabled: boolean) => void;
-  setAngledRight: (enabled: boolean) => void;
-  setLeftTriangleCutoutWidth: (width: number) => void;
-  setLeftTriangleCutoutHeight: (height: number) => void;
-  setRightTriangleCutoutWidth: (width: number) => void;
-  setRightTriangleCutoutHeight: (height: number) => void;
-  setLeftAngledRailWidth: (width: number) => void;
-  setRightAngledRailWidth: (width: number) => void;
-
-  setBorderWidth: (width: number) => void;
-  setCustomBorders: (enabled: boolean) => void;
-  setLeftStile: (width: number) => void;
-  setRightStile: (width: number) => void;
-  setBottomRail: (height: number) => void;
-  setTopRail: (height: number) => void;
-
-  setRebateWidth: (width: number) => void;
-  setRebateDepth: (depth: number) => void;
-  setFrontFaceThickness: (thickness: number) => void;
-  setCornerRadius: (radius: number) => void;
-  setRearCornerRadius: (radius: number) => void;
-
-  setMidRailsEnabled: (enabled: boolean) => void;
-  setMidRailsEqualise: (enabled: boolean) => void;
-  addMidRail: () => void;
-  removeMidRail: (id: string) => void;
-  updateMidRail: (id: string, field: 'positionFromBottom' | 'dimension', value: number) => void;
-
-  setHingeDrilling: (enabled: boolean) => void;
-  addHinge: (reference?: "TOP" | "BOTTOM") => void;
-  removeHinge: (id: string) => void;
-  updateHinge: (id: string, field: keyof Hinge, value: any) => void;
-  swapHingeSide: () => void;
-  equaliseHinges: () => void;
-  setHinges: (hinges: Hinge[]) => void;
-
-  setFinish: (finish: FinishType) => void;
-  toggleDimensions: () => void;
-  setViewSide: (side: ViewSide) => void;
-  calculatePrice: () => void;
-  resetConfig: () => void;
-  setSelectedSection: (section: string) => void;
-  setEditingCartItemId: (id: string | null) => void;
-  loadFromCartItem: (item: any) => void;
-  clearNewSession: () => void;
-
-  // Computed helpers
-  getMinBorderForSide: (side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM") => number;
+/** Always returns a finite number, never NaN/undefined/null */
+function safeNum(val: unknown, fallback: number = 0): number {
+  if (val === undefined || val === null) return fallback;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-const initialState: DoorConfig = {
+function clamp(value: number, min: number, max: number): number {
+  const v = safeNum(value, min);
+  return Math.max(min, Math.min(max, v));
+}
+
+// ============================================
+// ANGLE CALCULATION — always returns a number
+// ============================================
+
+export function calculateAngleDegrees(
+  cutoutWidth: unknown,
+  cutoutHeight: unknown
+): number {
+  const w = safeNum(cutoutWidth, 0);
+  const h = safeNum(cutoutHeight, 0);
+  if (w <= 0 || h <= 0) return 0;
+  const rad = Math.atan2(h, w);
+  const deg = (rad * 180) / Math.PI;
+  return Number.isFinite(deg) ? deg : 0;
+}
+
+export function calculateMaxCutoutWidth(
+  doorWidth: number,
+  otherCutoutWidth: number,
+  _borderLeft: number,
+  _borderRight: number,
+  _side: "left" | "right"
+): number {
+  const dw = safeNum(doorWidth, 600);
+  const other = safeNum(otherCutoutWidth, 0);
+  const maxFromOverlap = dw - other - MIN_MATERIAL_BRIDGE_MM;
+  const maxFromDoor = dw - MIN_MATERIAL_BRIDGE_MM;
+  return Math.max(0, Math.min(maxFromOverlap, maxFromDoor, dw));
+}
+
+export function calculateMaxCutoutHeight(
+  doorHeight: number,
+  _bottomRail: number
+): number {
+  const dh = safeNum(doorHeight, 720);
+  return Math.max(0, dh - MIN_SHORT_SIDE_HEIGHT_MM);
+}
+
+// ============================================
+// VALIDATION
+// ============================================
+
+export function validateAngledCorners(
+  config: Partial<DoorConfig>
+): AngleValidationIssue[] {
+  const issues: AngleValidationIssue[] = [];
+
+  const width = safeNum(config.width, 600);
+  const height = safeNum(config.height, 720);
+  const angledLeft = config.angledLeft ?? false;
+  const angledRight = config.angledRight ?? false;
+  const leftTriangleCutoutWidth = safeNum(config.leftTriangleCutoutWidth, 0);
+  const leftTriangleCutoutHeight = safeNum(config.leftTriangleCutoutHeight, 0);
+  const rightTriangleCutoutWidth = safeNum(config.rightTriangleCutoutWidth, 0);
+  const rightTriangleCutoutHeight = safeNum(config.rightTriangleCutoutHeight, 0);
+  const leftStile = safeNum(config.leftStile, 90);
+  const rightStile = safeNum(config.rightStile, 90);
+  const topRail = safeNum(config.topRail, 90);
+  const bottomRail = safeNum(config.bottomRail, 90);
+  const customBorders = config.customBorders ?? false;
+  const borderWidth = safeNum(config.borderWidth, 90);
+  const leftAngledRailWidth = safeNum(config.leftAngledRailWidth, 90);
+  const rightAngledRailWidth = safeNum(config.rightAngledRailWidth, 90);
+  const midRailsEnabled = config.midRailsEnabled ?? false;
+  const midRails = config.midRails ?? [];
+  const hingeDrilling = config.hingeDrilling ?? false;
+  const hinges = config.hinges ?? [];
+  const panelType = config.panelType ?? "STANDARD_12MM";
+
+  const effLeftStile = customBorders ? leftStile : borderWidth;
+  const effRightStile = customBorders ? rightStile : borderWidth;
+
+  // ---- LEFT ANGLE VALIDATION ----
+  if (angledLeft) {
+    const lcw = leftTriangleCutoutWidth;
+    const lch = leftTriangleCutoutHeight;
+
+    if (lcw < MIN_CUTOUT_DIMENSION_MM || lch < MIN_CUTOUT_DIMENSION_MM) {
+      issues.push({
+        type: "error",
+        code: "LEFT_CUTOUT_TOO_SMALL",
+        message: `Left cutout dimensions must be at least ${MIN_CUTOUT_DIMENSION_MM}mm each. Current: ${lcw}×${lch}mm.`,
+        side: "left",
+      });
+    }
+
+    if (lcw > width) {
+      issues.push({
+        type: "error",
+        code: "LEFT_CUTOUT_WIDTH_EXCEEDS_DOOR",
+        message: `Left cutout width (${lcw}mm) must be less than or equal to door width (${width}mm).`,
+        side: "left",
+      });
+    }
+    if (lch > height) {
+      issues.push({
+        type: "error",
+        code: "LEFT_CUTOUT_HEIGHT_EXCEEDS_DOOR",
+        message: `Left cutout height (${lch}mm) must be less than or equal to door height (${height}mm).`,
+        side: "left",
+      });
+    }
+
+    const leftShortSide = height - lch;
+    if (leftShortSide < MIN_SHORT_SIDE_HEIGHT_MM) {
+      issues.push({
+        type: "error",
+        code: "LEFT_SHORT_SIDE_TOO_SHORT",
+        message: `Left short side (${Math.round(leftShortSide)}mm) is below minimum ${MIN_SHORT_SIDE_HEIGHT_MM}mm.`,
+        side: "left",
+      });
+    }
+
+
+
+    if (lcw > 0 && lch > 0) {
+      const hypotenuse = Math.sqrt(lcw * lcw + lch * lch);
+      if (leftAngledRailWidth > hypotenuse * 0.6) {
+        issues.push({
+          type: "warning",
+          code: "LEFT_ANGLED_RAIL_TOO_WIDE",
+          message: `Left angled rail (${leftAngledRailWidth}mm) is >60% of hypotenuse (${hypotenuse.toFixed(0)}mm).`,
+          side: "left",
+        });
+      }
+      if (leftAngledRailWidth >= hypotenuse * 0.9) {
+        issues.push({
+          type: "error",
+          code: "LEFT_ANGLED_RAIL_EXCEEDS_HYPOTENUSE",
+          message: `Left angled rail (${leftAngledRailWidth}mm) is too close to hypotenuse (${hypotenuse.toFixed(0)}mm). No panel possible.`,
+          side: "left",
+        });
+      }
+    }
+
+
+  }
+
+  // ---- RIGHT ANGLE VALIDATION ----
+  if (angledRight) {
+    const rcw = rightTriangleCutoutWidth;
+    const rch = rightTriangleCutoutHeight;
+
+    if (rcw < MIN_CUTOUT_DIMENSION_MM || rch < MIN_CUTOUT_DIMENSION_MM) {
+      issues.push({
+        type: "error",
+        code: "RIGHT_CUTOUT_TOO_SMALL",
+        message: `Right cutout dimensions must be at least ${MIN_CUTOUT_DIMENSION_MM}mm each. Current: ${rcw}×${rch}mm.`,
+        side: "right",
+      });
+    }
+
+    if (rcw > width) {
+      issues.push({
+        type: "error",
+        code: "RIGHT_CUTOUT_WIDTH_EXCEEDS_DOOR",
+        message: `Right cutout width (${rcw}mm) must be less than or equal to door width (${width}mm).`,
+        side: "right",
+      });
+    }
+    if (rch > height) {
+      issues.push({
+        type: "error",
+        code: "RIGHT_CUTOUT_HEIGHT_EXCEEDS_DOOR",
+        message: `Right cutout height (${rch}mm) must be less than or equal to door height (${height}mm).`,
+        side: "right",
+      });
+    }
+
+    const rightShortSide = height - rch;
+    if (rightShortSide < MIN_SHORT_SIDE_HEIGHT_MM) {
+      issues.push({
+        type: "error",
+        code: "RIGHT_SHORT_SIDE_TOO_SHORT",
+        message: `Right short side (${Math.round(rightShortSide)}mm) is below minimum ${MIN_SHORT_SIDE_HEIGHT_MM}mm.`,
+        side: "right",
+      });
+    }
+
+
+
+    if (rcw > 0 && rch > 0) {
+      const hypotenuse = Math.sqrt(rcw * rcw + rch * rch);
+      if (rightAngledRailWidth > hypotenuse * 0.6) {
+        issues.push({
+          type: "warning",
+          code: "RIGHT_ANGLED_RAIL_TOO_WIDE",
+          message: `Right angled rail (${rightAngledRailWidth}mm) is >60% of hypotenuse (${hypotenuse.toFixed(0)}mm).`,
+          side: "right",
+        });
+      }
+      if (rightAngledRailWidth >= hypotenuse * 0.9) {
+        issues.push({
+          type: "error",
+          code: "RIGHT_ANGLED_RAIL_EXCEEDS_HYPOTENUSE",
+          message: `Right angled rail (${rightAngledRailWidth}mm) is too close to hypotenuse (${hypotenuse.toFixed(0)}mm).`,
+          side: "right",
+        });
+      }
+    }
+
+
+  }
+
+  // ---- COMBINED VALIDATION ----
+  if (angledLeft && angledRight) {
+    const lcw = leftTriangleCutoutWidth;
+    const rcw = rightTriangleCutoutWidth;
+
+    if (lcw + rcw > width) {
+      issues.push({
+        type: "error",
+        code: "COMBINED_CUTOUTS_EXCEED_WIDTH",
+        message: `Combined cutout widths (${lcw} + ${rcw} = ${lcw + rcw}mm) exceed door width (${width}mm).`,
+        side: "both",
+      });
+    }
+
+    if (panelType !== "NONE") {
+      const remainingWidth = width - lcw - rcw;
+      if (remainingWidth < effLeftStile + effRightStile + MIN_PANEL_OPENING_MM) {
+        issues.push({
+          type: "error",
+          code: "COMBINED_NO_PANEL_ROOM",
+          message: `Both angles leave only ${Math.round(remainingWidth)}mm — not enough for borders and panel.`,
+          side: "both",
+        });
+      }
+    }
+
+
+  }
+
+  // ---- HINGE IN CUTOUT ZONE ----
+  if (hingeDrilling && hinges.length > 0) {
+    hinges.forEach((hinge) => {
+      let angleCutoutH = 0;
+      let angleCutoutW = 0;
+      if (hinge.side === "LEFT" && angledLeft) {
+        angleCutoutH = leftTriangleCutoutHeight;
+        angleCutoutW = leftTriangleCutoutWidth;
+      } else if (hinge.side === "RIGHT" && angledRight) {
+        angleCutoutH = rightTriangleCutoutHeight;
+        angleCutoutW = rightTriangleCutoutWidth;
+      }
+
+      if (angleCutoutH > 0 && angleCutoutW > 0) {
+        const cupRadius = HINGE_CUP_DIAMETER_MM / 2;
+        const transitionY = height - angleCutoutH;
+
+        // TOP reference is relative to the shoulder
+        const hingeAbsY =
+          hinge.reference === "BOTTOM"
+            ? hinge.positionMm
+            : height - angleCutoutH - hinge.positionMm;
+
+        const hingeTopEdge = hingeAbsY + cupRadius;
+
+        if (hingeTopEdge > transitionY) {
+          const sideName = hinge.side === "LEFT" ? "left" : "right";
+          issues.push({
+            type: "error",
+            code: `HINGE_IN_${hinge.side}_CUTOUT`,
+            message: `Hinge at ${hinge.positionMm}mm from ${hinge.reference.toLowerCase()} falls in the ${sideName} angled cutout zone. Move it down or adjust the angle.`,
+            side: sideName as "left" | "right",
+          });
+        }
+      }
+    });
+  }
+
+  // ---- MID RAILS IN ANGLED ZONE ----
+  // Removed strict validation to allow midrails to run into angled sections
+
+  return issues;
+}
+
+// ============================================
+// CLAMPING HELPERS
+// ============================================
+
+function clampCutoutWidth(
+  value: number,
+  doorWidth: number,
+  otherCutoutWidth: number,
+  _side: "left" | "right"
+): number {
+  const v = safeNum(value, 0);
+  if (v <= 0) return 0;
+  const dw = safeNum(doorWidth, 600);
+  const other = safeNum(otherCutoutWidth, 0);
+  const maxFromDoor = dw - MIN_MATERIAL_BRIDGE_MM;
+  const maxFromOverlap = dw - other - MIN_MATERIAL_BRIDGE_MM;
+  const max = Math.max(MIN_CUTOUT_DIMENSION_MM, Math.min(maxFromDoor, maxFromOverlap));
+  return clamp(v, MIN_CUTOUT_DIMENSION_MM, max);
+}
+
+function clampCutoutHeight(value: number, doorHeight: number): number {
+  const v = safeNum(value, 0);
+  if (v <= 0) return 0;
+  const dh = safeNum(doorHeight, 720);
+  const max = dh - MIN_SHORT_SIDE_HEIGHT_MM;
+  return clamp(v, MIN_CUTOUT_DIMENSION_MM, Math.max(MIN_CUTOUT_DIMENSION_MM, max));
+}
+
+function clampAngledRailWidth(
+  value: number,
+  cutoutWidth: number,
+  cutoutHeight: number
+): number {
+  const v = safeNum(value, 90);
+  const cw = safeNum(cutoutWidth, 0);
+  const ch = safeNum(cutoutHeight, 0);
+  if (cw <= 0 || ch <= 0) return clamp(v, 30, 300);
+  const hypotenuse = Math.sqrt(cw * cw + ch * ch);
+  const maxRail = hypotenuse * 0.85;
+  return clamp(v, 30, Math.max(30, maxRail));
+}
+
+// ============================================
+// STORE ACTIONS TYPE
+// ============================================
+
+interface DoorConfigActions {
+  setWidth: (w: number) => void;
+  setHeight: (h: number) => void;
+  setThickness: (t: 18 | 22) => void;
+  setPanelType: (p: PanelType) => void;
+  setBorderWidth: (w: number) => void;
+  setCustomBorders: (c: boolean) => void;
+  setLeftStile: (v: number) => void;
+  setRightStile: (v: number) => void;
+  setTopRail: (v: number) => void;
+  setBottomRail: (v: number) => void;
+  setAngledLeft: (v: boolean) => void;
+  setAngledRight: (v: boolean) => void;
+  setLeftTriangleCutoutWidth: (v: number) => void;
+  setLeftTriangleCutoutHeight: (v: number) => void;
+  setLeftAngleDegrees: (deg: number) => void;
+  setRightTriangleCutoutWidth: (v: number) => void;
+  setRightTriangleCutoutHeight: (v: number) => void;
+  setRightAngleDegrees: (deg: number) => void;
+  setLeftAngledRailWidth: (v: number) => void;
+  setRightAngledRailWidth: (v: number) => void;
+  setMidRailsEnabled: (v: boolean) => void;
+  setMidRailsEqualise: (v: boolean) => void;
+  addMidRail: () => void;
+  removeMidRail: (id: string) => void;
+  updateMidRail: (id: string, field: keyof MidRail, value: number) => void;
+  setHingeDrilling: (v: boolean) => void;
+  addHinge: (reference: HingeReference) => void;
+  removeHinge: (id: string) => void;
+  updateHinge: (id: string, field: string, value: any) => void;
+  swapHingeSide: () => void;
+  equaliseHinges: () => void;
+  setHinges: (h: HingePosition[]) => void;
+  setFinish: (f: FinishOption) => void;
+  setShowDimensions: (v: boolean) => void;
+  setRebateWidth: (v: number) => void;
+  setRebateDepth: (v: number) => void;
+  setFrontFaceThickness: (v: number) => void;
+  setCornerRadius: (v: number) => void;
+  setRearCornerRadius: (v: number) => void;
+  setSelectedSection: (s: string) => void;
+  resetConfig: () => void;
+  getMinBorderForSide: (side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM") => number;
+  getMaxCutoutWidth: (side: "left" | "right") => number;
+  getMaxCutoutHeight: (side: "left" | "right") => number;
+  getAngleSafeHingeRange: (side: "LEFT" | "RIGHT") => { min: number; max: number };
+  getMaxMidRailPosition: () => number;
+  revalidateAngles: () => void;
+  setEditingCartItem: (id: string | null) => void;
+  loadFromCartItem: (item: any) => void;
+}
+
+// ============================================
+// DEFAULT CONFIG
+// ============================================
+
+const defaultConfig: DoorConfig = {
   width: 600,
   height: 720,
   thickness: 22,
-  preset: "single",
   panelType: "STANDARD_12MM",
   panelCount: 1,
   panelOrientation: "vertical",
-  shape: "rectangular",
-
+  borderWidth: 90,
+  customBorders: false,
+  leftStile: 90,
+  rightStile: 90,
+  topRail: 90,
+  bottomRail: 90,
   angledLeft: false,
   angledRight: false,
   leftTriangleCutoutWidth: 0,
@@ -173,780 +529,877 @@ const initialState: DoorConfig = {
   rightTriangleCutoutHeight: 0,
   leftAngleDegrees: 0,
   rightAngleDegrees: 0,
-  leftAngledRailWidth: 0,
-  rightAngledRailWidth: 0,
-
-  borderWidth: 90,
-  customBorders: false,
-  leftStile: 90,
-  rightStile: 90,
-  bottomRail: 90,
-  topRail: 90,
-
-  rebateWidthMm: 10,
-  rebateDepthMm: 14,
-  frontFaceThicknessMm: 8,
-  cornerRadiusMm: 0,
-  rearCornerRadiusMm: 2.5,
-
+  leftAngledRailWidth: 90,
+  rightAngledRailWidth: 90,
   midRailsEnabled: false,
   midRailsEqualise: false,
   midRails: [],
-
   hingeDrilling: false,
   hinges: [],
-
-  material: "MDF",
+  intendedHingeSide: "LEFT",
   finish: "RAW_UNASSEMBLED",
   showDimensions: true,
-  viewSide: "front" as ViewSide,
-  price: 0,
+  rebateWidthMm: 11,
+  rebateDepthMm: 10,
+  frontFaceThicknessMm: 12,
+  cornerRadiusMm: 2.5,
+  rearCornerRadiusMm: 2.5,
   selectedSection: "dimensions",
-  editingCartItemId: null,
+  angleValidationIssues: [],
+  price: 0,
   isNewSession: true,
+  editingCartItemId: null,
   _hasInteracted: false,
 };
 
-let midRailIdCounter = 0;
-let hingeIdCounter = 0;
+// ============================================
+// HELPERS
+// ============================================
 
-/**
- * Re-compute equalized mid-rail positions based on current door state.
- * Returns the unchanged array if equalization is off or there are no rails.
- */
-function reEqualiseMidRails(state: DoorConfig): MidRail[] {
-  if (!state.midRailsEqualise || state.midRails.length === 0) return state.midRails;
-  const railCount = state.midRails.length;
-  // Use effective border values: when customBorders is off, all borders equal borderWidth
-  const effectiveBottom = state.customBorders ? state.bottomRail : state.borderWidth;
-  const effectiveTop = state.customBorders ? state.topRail : state.borderWidth;
-  const usableHeight = state.height - effectiveBottom - effectiveTop;
-  const totalRailsWidth = state.midRails.reduce((sum, r) => sum + r.dimension, 0);
-  const gapCount = railCount + 1;
-  const gapHeight = (usableHeight - totalRailsWidth) / gapCount;
-  let currentPos = effectiveBottom + gapHeight;
-  return [...state.midRails]
-    .sort((a, b) => a.positionFromBottom - b.positionFromBottom)
-    .map((rail) => {
-      const newRail = { ...rail, positionFromBottom: Math.round(currentPos) };
-      currentPos += rail.dimension + gapHeight;
-      return newRail;
-    });
-}
-
-/**
- * Get minimum border width for a given side based on whether hinges are present on that side
- */
-function getMinBorder(hingeDrilling: boolean, hinges: Hinge[], side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM"): number {
-  if (!hingeDrilling || hinges.length === 0) {
-    return MIN_BORDER_WITHOUT_HINGES;
-  }
-
-  // Check if any hinge is on this side
-  if (side === "LEFT" || side === "RIGHT") {
-    const hasHingeOnSide = hinges.some(h => h.side === side);
-    return hasHingeOnSide ? MIN_BORDER_WITH_HINGES : MIN_BORDER_WITHOUT_HINGES;
-  }
-
-  // Top and bottom rails: always 35mm minimum
-  return MIN_BORDER_WITHOUT_HINGES;
-}
-
-/**
- * Resilient storage adapter for Zustand persist.
- * Tries localStorage first; if blocked (e.g. cross-origin iframe), falls back to sessionStorage.
- */
-function createResilientStorage(): Storage {
-  // Test if localStorage is available and writable
+function internalCalculatePrice(state: DoorConfig): number {
   try {
-    const testKey = '__storage_test__';
-    localStorage.setItem(testKey, '1');
-    localStorage.removeItem(testKey);
-    return localStorage;
-  } catch {
-    // localStorage blocked (third-party iframe, private browsing, etc.)
-    try {
-      const testKey = '__storage_test__';
-      sessionStorage.setItem(testKey, '1');
-      sessionStorage.removeItem(testKey);
-      console.warn('[DoorConfig] localStorage unavailable, using sessionStorage fallback');
-      return sessionStorage;
-    } catch {
-      // Both blocked — return a no-op in-memory storage
-      console.warn('[DoorConfig] No web storage available, state will not persist');
-      const memoryStore: Record<string, string> = {};
-      return {
-        get length() { return Object.keys(memoryStore).length; },
-        clear() { Object.keys(memoryStore).forEach(k => delete memoryStore[k]); },
-        getItem(key: string) { return memoryStore[key] ?? null; },
-        key(index: number) { return Object.keys(memoryStore)[index] ?? null; },
-        removeItem(key: string) { delete memoryStore[key]; },
-        setItem(key: string, value: string) { memoryStore[key] = value; },
-      };
-    }
+    const result = calculateDoorPrice({
+      width: state.width,
+      height: state.height,
+      thickness: state.thickness,
+      preset: (state as any).preset || "single", // Handle preset if it's external
+      panelType: state.panelType,
+      panelCount: state.panelCount,
+      borderWidth: state.borderWidth,
+      customBorders: state.customBorders,
+      leftStile: state.leftStile,
+      rightStile: state.rightStile,
+      topRail: state.topRail,
+      bottomRail: state.bottomRail,
+      rebateWidthMm: state.rebateWidthMm,
+      rebateDepthMm: state.rebateDepthMm,
+      frontFaceThicknessMm: state.frontFaceThicknessMm,
+      cornerRadiusMm: state.cornerRadiusMm,
+      rearCornerRadiusMm: state.rearCornerRadiusMm,
+      angledLeft: state.angledLeft,
+      angledRight: state.angledRight,
+      leftTriangleCutoutWidth: state.leftTriangleCutoutWidth,
+      leftTriangleCutoutHeight: state.leftTriangleCutoutHeight,
+      rightTriangleCutoutWidth: state.rightTriangleCutoutWidth,
+      rightTriangleCutoutHeight: state.rightTriangleCutoutHeight,
+      leftAngleDegrees: state.leftAngleDegrees,
+      rightAngleDegrees: state.rightAngleDegrees,
+      leftAngledRailWidth: state.leftAngledRailWidth,
+      rightAngledRailWidth: state.rightAngledRailWidth,
+      midRailsEnabled: state.midRailsEnabled,
+      midRails: state.midRails,
+      hingeDrilling: state.hingeDrilling,
+      hinges: state.hinges,
+      material: "MDF",
+      finish: state.finish,
+      showDimensions: state.showDimensions,
+      price: 0,
+    } as any);
+    return result.unitTotal;
+  } catch (e) {
+    console.error("Price calculation failed", e);
+    return 0;
   }
 }
 
-export const useDoorConfig = create<DoorConfigStore>()(
-  persist(
-    (set, get) => ({
-      ...initialState,
+// ============================================
+// STORE
+// ============================================
 
-      getMinBorderForSide: (side: "LEFT" | "RIGHT" | "TOP" | "BOTTOM") => {
-        const state = get();
-        return getMinBorder(state.hingeDrilling, state.hinges, side);
-      },
+export const useDoorConfig = create<DoorConfig & DoorConfigActions>()(
+  subscribeWithSelector((set, get) => ({
+    ...defaultConfig,
 
-      clearNewSession: () => {
-        if (get().isNewSession) {
-          set({ isNewSession: false, _hasInteracted: true });
-        }
-      },
-
-      setEditingCartItemId: (id: string | null) => {
-        set({ editingCartItemId: id });
-      },
-
-      loadFromCartItem: (item: any) => {
-        // Hydrate configurator state from a cart item.
-        // We override the current state with the cart item's values.
-        set({
-          ...item,
-          editingCartItemId: item.id,
+    setWidth: (w) =>
+      set((state) => {
+        const clamped = clamp(w, MIN_WIDTH_MM, MAX_WIDTH_MM);
+        const lcw = state.angledLeft
+          ? clampCutoutWidth(state.leftTriangleCutoutWidth, clamped, state.rightTriangleCutoutWidth, "left")
+          : state.leftTriangleCutoutWidth;
+        const rcw = state.angledRight
+          ? clampCutoutWidth(state.rightTriangleCutoutWidth, clamped, lcw, "right")
+          : state.rightTriangleCutoutWidth;
+        const newState = {
+          ...state,
+          width: clamped,
+          leftTriangleCutoutWidth: lcw,
+          rightTriangleCutoutWidth: rcw,
+          leftAngleDegrees: calculateAngleDegrees(lcw, state.leftTriangleCutoutHeight),
+          rightAngleDegrees: calculateAngleDegrees(rcw, state.rightTriangleCutoutHeight),
           isNewSession: false,
           _hasInteracted: true,
-        });
-        get().calculatePrice();
-      },
-
-      setHinges: (hinges: Hinge[]) => {
-        set({ hinges });
-        get().calculatePrice();
-      },
-
-      setWidth: (width: number) => {
-        if (isNaN(width)) return;
-        get().clearNewSession();
-        const clamped = Math.max(MIN_WIDTH_MM, Math.min(MAX_WIDTH_MM, Math.round(width)));
-
-        const state = get();
-        let newLeftCW = state.leftTriangleCutoutWidth;
-        let newRightCW = state.rightTriangleCutoutWidth;
-        const maxComb = clamped - 50;
-
-        if (newLeftCW + newRightCW > maxComb) {
-          if (newLeftCW > maxComb) newLeftCW = Math.max(0, maxComb);
-          if (newLeftCW + newRightCW > maxComb) newRightCW = Math.max(0, maxComb - newLeftCW);
-        }
-
-        set({
-          width: clamped,
-          leftTriangleCutoutWidth: newLeftCW,
-          leftAngleDegrees: calculateAngleFromCutout(newLeftCW, state.leftTriangleCutoutHeight),
-          rightTriangleCutoutWidth: newRightCW,
-          rightAngleDegrees: calculateAngleFromCutout(newRightCW, state.rightTriangleCutoutHeight),
-        });
-        get().calculatePrice();
-      },
-
-      setHeight: (height: number) => {
-        if (isNaN(height)) return;
-        get().clearNewSession();
-        const clamped = Math.max(MIN_HEIGHT_MM, Math.min(MAX_HEIGHT_MM, Math.round(height)));
-        set({ height: clamped });
-        // Re-equalize mid-rails with updated height
-        const updated = reEqualiseMidRails({ ...get(), height: clamped });
-        set({ midRails: updated });
-        get().calculatePrice();
-      },
-
-      setThickness: (thickness: 22 | 18) => {
-        get().clearNewSession();
-        const state = get();
-        if (thickness === 18 && state.panelType !== "NONE") {
-          set({ thickness, panelType: "NONE" });
-        } else {
-          set({ thickness });
-        }
-        get().calculatePrice();
-      },
-
-      setPreset: (preset: DoorPreset) => {
-        get().clearNewSession();
-        set({ preset });
-        get().calculatePrice();
-      },
-
-      setPanelType: (panelType: PanelType) => {
-        get().clearNewSession();
-        const state = get();
-        if (state.thickness === 18 && panelType !== "NONE") {
-          set({ panelType, thickness: 22 });
-        } else if (panelType === "NONE") {
-          set({ panelType, midRailsEnabled: false, customBorders: false });
-        } else {
-          if ((panelType === "REEDED_19MM" || panelType === "MELAMINE_18MM") && state.thickness !== 22) {
-            set({ panelType, thickness: 22 });
-          } else {
-            set({ panelType });
-          }
-        }
-        get().calculatePrice();
-      },
-
-      setPanelCount: (panelCount: number) => {
-        get().clearNewSession();
-        set({ panelCount });
-        get().calculatePrice();
-      },
-
-      setPanelOrientation: (panelOrientation: PanelOrientation) => {
-        set({ panelOrientation });
-      },
-
-      setShape: (shape: DoorShape) => {
-        set({ shape });
-      },
-
-      setAngledLeft: (angledLeft: boolean) => {
-        get().clearNewSession();
-
-        // When toggling on, if cutout is 0, give it a default so an angle is visible
-        const state = get();
-        if (angledLeft && state.leftTriangleCutoutWidth === 0 && state.leftTriangleCutoutHeight === 0) {
-          set({
-            angledLeft,
-            leftTriangleCutoutWidth: 100,
-            leftTriangleCutoutHeight: 100,
-            leftAngleDegrees: calculateAngleFromCutout(100, 100),
-          });
-        } else {
-          set({ angledLeft });
-        }
-
-        get().calculatePrice();
-        // Re-equalize hinges to account for newly added/removed angle
-        if (get().hingeDrilling && get().hinges.length > 0) {
-          setTimeout(() => get().equaliseHinges(), 0);
-        }
-      },
-
-      setAngledRight: (angledRight: boolean) => {
-        get().clearNewSession();
-
-        // When toggling on, if cutout is 0, give it a default so an angle is visible
-        const state = get();
-        if (angledRight && state.rightTriangleCutoutWidth === 0 && state.rightTriangleCutoutHeight === 0) {
-          set({
-            angledRight,
-            rightTriangleCutoutWidth: 100,
-            rightTriangleCutoutHeight: 100,
-            rightAngleDegrees: calculateAngleFromCutout(100, 100),
-          });
-        } else {
-          set({ angledRight });
-        }
-
-        get().calculatePrice();
-        // Re-equalize hinges to account for newly added/removed angle
-        if (get().hingeDrilling && get().hinges.length > 0) {
-          setTimeout(() => get().equaliseHinges(), 0);
-        }
-      },
-
-      setLeftTriangleCutoutWidth: (width: number) => {
-        if (isNaN(width) || width < 0) return;
-        const state = get();
-        // Prevent cutout from exceeding door width, leaving at least 50mm straight edge
-        const rightWidth = state.angledRight ? state.rightTriangleCutoutWidth : 0;
-        const maxWidth = Math.max(0, state.width - rightWidth - 50);
-        const clampedWidth = Math.min(width, maxWidth);
-        set({
-          leftTriangleCutoutWidth: clampedWidth,
-          leftAngleDegrees: calculateAngleFromCutout(clampedWidth, state.leftTriangleCutoutHeight),
-        });
-      },
-
-      setLeftTriangleCutoutHeight: (height: number) => {
-        if (isNaN(height) || height < 0) return;
-        const state = get();
-        const maxHeight = state.height - 50;
-        const clampedHeight = Math.min(height, maxHeight);
-        set({
-          leftTriangleCutoutHeight: clampedHeight,
-          leftAngleDegrees: calculateAngleFromCutout(state.leftTriangleCutoutWidth, clampedHeight),
-        });
-        // Re-equalize hinges if they're on the left (angled) side
-        if (get().hingeDrilling && get().hinges.length > 0 && get().hinges[0].side === "LEFT") {
-          setTimeout(() => get().equaliseHinges(), 0);
-        }
-      },
-
-      setRightTriangleCutoutWidth: (width: number) => {
-        if (isNaN(width) || width < 0) return;
-        const state = get();
-        const leftWidth = state.angledLeft ? state.leftTriangleCutoutWidth : 0;
-        const maxWidth = Math.max(0, state.width - leftWidth - 50);
-        const clampedWidth = Math.min(width, maxWidth);
-        set({
-          rightTriangleCutoutWidth: clampedWidth,
-          rightAngleDegrees: calculateAngleFromCutout(clampedWidth, state.rightTriangleCutoutHeight),
-        });
-      },
-
-      setRightTriangleCutoutHeight: (height: number) => {
-        if (isNaN(height) || height < 0) return;
-        const state = get();
-        const maxHeight = state.height - 50;
-        const clampedHeight = Math.min(height, maxHeight);
-        set({
-          rightTriangleCutoutHeight: clampedHeight,
-          rightAngleDegrees: calculateAngleFromCutout(state.rightTriangleCutoutWidth, clampedHeight),
-        });
-        // Re-equalize hinges if they're on the right (angled) side
-        if (get().hingeDrilling && get().hinges.length > 0 && get().hinges[0].side === "RIGHT") {
-          setTimeout(() => get().equaliseHinges(), 0);
-        }
-      },
-
-      setLeftAngledRailWidth: (leftAngledRailWidth: number) => {
-        if (isNaN(leftAngledRailWidth)) return;
-        set({ leftAngledRailWidth: Math.max(35, Math.min(200, leftAngledRailWidth)) });
-      },
-
-      setRightAngledRailWidth: (rightAngledRailWidth: number) => {
-        if (isNaN(rightAngledRailWidth)) return;
-        set({ rightAngledRailWidth: Math.max(35, Math.min(200, rightAngledRailWidth)) });
-      },
-
-      setBorderWidth: (borderWidth: number) => {
-        if (isNaN(borderWidth) || borderWidth <= 0) return;
-        get().clearNewSession();
-        set({
-          borderWidth,
-          leftStile: borderWidth,
-          rightStile: borderWidth,
-          bottomRail: borderWidth,
-          topRail: borderWidth,
-          leftAngledRailWidth: borderWidth,
-          rightAngledRailWidth: borderWidth,
-        });
-        // Re-equalize mid-rails with updated borders
-        const updated = reEqualiseMidRails({ ...get(), bottomRail: borderWidth, topRail: borderWidth });
-        set({ midRails: updated });
-        get().calculatePrice();
-      },
-
-      setCustomBorders: (customBorders: boolean) => {
-        const state = get();
-        if (!customBorders) {
-          set({
-            customBorders,
-            leftStile: state.borderWidth,
-            rightStile: state.borderWidth,
-            bottomRail: state.borderWidth,
-            topRail: state.borderWidth,
-            leftAngledRailWidth: state.borderWidth,
-            rightAngledRailWidth: state.borderWidth,
-          });
-        } else {
-          set({ customBorders });
-        }
-      },
-
-      setLeftStile: (leftStile: number) => {
-        if (isNaN(leftStile) || leftStile <= 0) return;
-        set({ leftStile });
-      },
-
-      setRightStile: (rightStile: number) => {
-        if (isNaN(rightStile) || rightStile <= 0) return;
-        set({ rightStile });
-      },
-
-      setBottomRail: (bottomRail: number) => {
-        if (isNaN(bottomRail) || bottomRail <= 0) return;
-        set({ bottomRail });
-        const updated = reEqualiseMidRails({ ...get(), bottomRail });
-        set({ midRails: updated });
-      },
-
-      setTopRail: (topRail: number) => {
-        if (isNaN(topRail) || topRail <= 0) return;
-        set({ topRail });
-        const updated = reEqualiseMidRails({ ...get(), topRail });
-        set({ midRails: updated });
-      },
-
-      setRebateWidth: (rebateWidthMm: number) => set({ rebateWidthMm }),
-      setRebateDepth: (rebateDepthMm: number) => set({ rebateDepthMm }),
-      setFrontFaceThickness: (frontFaceThicknessMm: number) => set({ frontFaceThicknessMm }),
-      setCornerRadius: (cornerRadiusMm: number) => set({ cornerRadiusMm }),
-      setRearCornerRadius: (rearCornerRadiusMm: number) => set({ rearCornerRadiusMm }),
-
-      setMidRailsEnabled: (midRailsEnabled: boolean) => {
-        get().clearNewSession();
-        if (!midRailsEnabled) {
-          // Reset equalise flag and clear stale rails so re-enabling starts fresh
-          set({ midRailsEnabled, midRailsEqualise: false, midRails: [] });
-        } else {
-          set({ midRailsEnabled });
-        }
-        if (midRailsEnabled && get().midRails.length === 0) {
-          get().addMidRail();
-        }
-        get().calculatePrice();
-      },
-
-      setMidRailsEqualise: (midRailsEqualise: boolean) => {
-        set({ midRailsEqualise });
-        if (midRailsEqualise) {
-          const updated = reEqualiseMidRails({ ...get(), midRailsEqualise: true });
-          set({ midRails: updated });
-        }
-        get().calculatePrice();
-      },
-
-      addMidRail: () => {
-        const state = get();
-
-        let newPosition = Math.round(state.height / 2);
-        if (state.midRails.length > 0) {
-          const highestRail = state.midRails.reduce(
-            (max, rail) => Math.max(max, rail.positionFromBottom),
-            0
-          );
-          newPosition = highestRail + 100;
-        }
-
-        const newRail: MidRail = {
-          id: `rail_${Date.now()}_${++midRailIdCounter}`,
-          positionFromBottom: newPosition,
-          dimension: state.borderWidth,
         };
-        const newRails = [...state.midRails, newRail];
-        set({ midRails: newRails });
-        // Re-equalize with the new rail included
-        const updated = reEqualiseMidRails({ ...get(), midRails: newRails });
-        set({ midRails: updated });
-        get().calculatePrice();
-      },
-
-      removeMidRail: (id: string) => {
-        const newRails = get().midRails.filter(rail => rail.id !== id);
-        set({ midRails: newRails });
-        // Re-equalize after removal
-        const updated = reEqualiseMidRails({ ...get(), midRails: newRails });
-        set({ midRails: updated });
-        get().calculatePrice();
-      },
-
-      updateMidRail: (id: string, field: 'positionFromBottom' | 'dimension', value: number) => {
-        if (isNaN(value)) return;
-        const clampedValue = field === 'dimension' ? Math.max(35, value) : value;
-        const newRails = get().midRails.map(rail =>
-          rail.id === id ? { ...rail, [field]: clampedValue } : rail
-        );
-        set({ midRails: newRails });
-        // Re-equalize when dimension changes
-        if (field === 'dimension') {
-          const updated = reEqualiseMidRails({ ...get(), midRails: newRails });
-          set({ midRails: updated });
-        }
-      },
-
-      setHingeDrilling: (hingeDrilling: boolean) => {
-        get().clearNewSession();
-        set({ hingeDrilling });
-        if (hingeDrilling && get().hinges.length === 0) {
-          const state = get();
-          const h1: Hinge = { id: `hinge_${Date.now()}_${++hingeIdCounter}`, positionMm: 100, reference: "TOP", side: "LEFT", type: "SCREW_POINTS" };
-          const h2: Hinge = { id: `hinge_${Date.now()}_${++hingeIdCounter}`, positionMm: 100, reference: "BOTTOM", side: "LEFT", type: "SCREW_POINTS" };
-          set({ hinges: [h1, h2] });
-
-          // Enforce 65mm minimum on hinge side
-          if (state.leftStile < MIN_BORDER_WITH_HINGES) {
-            set({ leftStile: MIN_BORDER_WITH_HINGES });
-            if (!state.customBorders) {
-              set({ borderWidth: Math.max(state.borderWidth, MIN_BORDER_WITH_HINGES) });
-            }
-          }
-        }
-        get().calculatePrice();
-      },
-
-      addHinge: (ref?: "TOP" | "BOTTOM") => {
-        const state = get();
-        const existingSide = state.hinges.length > 0 ? state.hinges[0].side : "LEFT";
-        const existingType = state.hinges.length > 0 ? state.hinges[0].type : "SCREW_POINTS";
-
-        // If ref not provided, intelligently pick
-        const reference = ref || (state.hinges.length > 0 && state.hinges[state.hinges.length - 1].reference === "TOP" ? "BOTTOM" : "TOP");
-
-        // Compute safe default position: find first free 100mm slot
-        let defaultPos = 100;
-        let foundClear = false;
-        while (!foundClear) {
-          const conflict = state.hinges.find(h => h.reference === reference && h.side === existingSide && h.positionMm === defaultPos);
-          if (conflict) {
-            defaultPos += 100;
-          } else {
-            foundClear = true;
-          }
-        }
-
-        const newHinge: Hinge = {
-          id: `hinge_${Date.now()}_${++hingeIdCounter}`,
-          positionMm: defaultPos,
-          reference,
-          side: existingSide,
-          type: existingType,
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
         };
+      }),
 
-        let updatedHinges = [...state.hinges, newHinge];
-
-        // Ensure sorted order: Tops by distance from top, then Bottoms by distance from bottom
-        updatedHinges.sort((a, b) => {
-          if (a.reference === b.reference) return a.positionMm - b.positionMm;
-          return a.reference === "TOP" ? -1 : 1;
-        });
-
-        set({ hinges: updatedHinges });
-
-        // Auto-equalise only if they had no hinges or just one before
-        if (updatedHinges.length === 2 && state.hinges.length < 2) {
-          setTimeout(() => get().equaliseHinges(), 0);
-        }
-        get().calculatePrice();
-      },
-
-      removeHinge: (id: string) => {
-        set((state) => ({
-          hinges: state.hinges.filter(h => h.id !== id)
-        }));
-        get().calculatePrice();
-      },
-
-      updateHinge: (id: string, field: keyof Hinge, value: any) => {
-        if (field === 'positionMm' && (isNaN(value) || value <= 0)) return;
-        set((state) => ({
-          hinges: state.hinges.map(h => h.id === id ? { ...h, [field]: value } : h)
-        }));
-
-        // If side changed, re-enforce border minimums
-        if (field === 'side') {
-          const state = get();
-          const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
-          const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
-
-          if (state.leftStile < minLeft) set({ leftStile: minLeft });
-          if (state.rightStile < minRight) set({ rightStile: minRight });
-        }
-      },
-
-      swapHingeSide: () => {
-        set((state) => ({
-          hinges: state.hinges.map(h => ({
-            ...h,
-            side: h.side === "LEFT" ? "RIGHT" : "LEFT",
-          }))
-        }));
-
-        const state = get();
-        const minLeft = getMinBorder(state.hingeDrilling, state.hinges, "LEFT");
-        const minRight = getMinBorder(state.hingeDrilling, state.hinges, "RIGHT");
-
-        if (state.leftStile < minLeft) set({ leftStile: minLeft });
-        if (state.rightStile < minRight) set({ rightStile: minRight });
-
-        // Auto re-measure / equalise hinges when swapping sides to account for angled edges
-        setTimeout(() => get().equaliseHinges(), 0);
-      },
-
-
-      equaliseHinges: () => {
-        const state = get();
-        if (state.hinges.length === 0) return;
-
-        // Top offset is safely 100mm since measuring begins below the shoulder.
-        const topOffset = 100;
-        const bottomOffset = 100;
-        const count = state.hinges.length;
-
-        // Single hinge: just ensure it clears the angle zone
-        if (count === 1) {
-          const h = state.hinges[0];
-          if (h.reference === "TOP" && h.positionMm < topOffset) {
-            set({ hinges: [{ ...h, positionMm: topOffset }] });
-          }
-          return;
-        }
-
-        if (count === 2) {
-          const updatedHinges = [
-            { ...state.hinges[0], positionMm: topOffset, reference: "TOP" as const },
-            { ...state.hinges[1], positionMm: bottomOffset, reference: "BOTTOM" as const }
-          ];
-          set({ hinges: updatedHinges });
-          return;
-        }
-
-        const useableHeight = state.height - topOffset - bottomOffset;
-        const spacing = useableHeight / (count - 1);
-
-        const updatedHinges = state.hinges.map((h, i) => {
-          if (i === 0) return { ...h, positionMm: topOffset, reference: "TOP" as const };
-          if (i === count - 1) return { ...h, positionMm: bottomOffset, reference: "BOTTOM" as const };
-          // For middle hinges, reference from top
-          return { ...h, positionMm: Math.round(topOffset + spacing * i), reference: "TOP" as const };
-        });
-
-        set({ hinges: updatedHinges });
-      },
-
-      setFinish: (finish: FinishType) => {
-        get().clearNewSession();
-        set({ finish });
-        get().calculatePrice();
-      },
-
-      setViewSide: (viewSide: ViewSide) => {
-        set({ viewSide });
-      },
-
-      toggleDimensions: () => {
-        set((state) => ({ showDimensions: !state.showDimensions }));
-      },
-
-      calculatePrice: () => {
-        const state = get();
-
-        // New session: show £0.00 until user interacts
-        if (state.isNewSession) {
-          set({ price: 0 });
-          return;
-        }
-
-        const result = calculateDoorPrice({
+    setHeight: (h) =>
+      set((state) => {
+        const clamped = clamp(h, MIN_HEIGHT_MM, MAX_HEIGHT_MM);
+        const lch = state.angledLeft
+          ? clampCutoutHeight(state.leftTriangleCutoutHeight, clamped)
+          : state.leftTriangleCutoutHeight;
+        const rch = state.angledRight
+          ? clampCutoutHeight(state.rightTriangleCutoutHeight, clamped)
+          : state.rightTriangleCutoutHeight;
+        const newState = {
           ...state,
-          leftStile: state.customBorders ? state.leftStile : state.borderWidth,
-          rightStile: state.customBorders ? state.rightStile : state.borderWidth,
-          topRail: state.customBorders ? state.topRail : state.borderWidth,
-          bottomRail: state.customBorders ? state.bottomRail : state.borderWidth,
-          midRails: state.midRailsEnabled ? state.midRails : [],
-          panelCount: state.midRailsEnabled ? state.panelCount : 1,
-        });
+          height: clamped,
+          leftTriangleCutoutHeight: lch,
+          rightTriangleCutoutHeight: rch,
+          leftAngleDegrees: calculateAngleDegrees(state.leftTriangleCutoutWidth, lch),
+          rightAngleDegrees: calculateAngleDegrees(state.rightTriangleCutoutWidth, rch),
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
 
-        set({ price: result.unitTotal });
-      },
-
-      resetConfig: () => {
-        set({ ...initialState, isNewSession: false, _hasInteracted: true });
-        get().calculatePrice();
-      },
-
-      setSelectedSection: (selectedSection: string) => {
-        set({ selectedSection });
-      },
+    setThickness: (t) => set((state) => {
+      const newState = { ...state, thickness: t, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
     }),
-    {
-      name: "door-config-storage",
-      storage: createJSONStorage(() => createResilientStorage()),
-      version: 8,
-      migrate: (persistedState: any, version: number) => {
-        const migrated = persistedState || {};
 
-        // Migration to v8: wipe old state and enforce new 0-defaults + unselected panel/finish
-        if (version < 8) {
-          return { ...initialState };
+    setPanelType: (p) =>
+      set((state) => {
+        const updates: Partial<DoorConfig> = { panelType: p, isNewSession: false, _hasInteracted: true };
+        if ((p === "REEDED_19MM" || p === "MELAMINE_18MM") && state.thickness !== 22) {
+          updates.thickness = 22;
         }
+        const newState = { ...state, ...updates };
+        return {
+          ...updates,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
 
-        // Migration v1 -> v2: Remove PRIMED finish
-        if (version < 2) {
-          if (migrated.finish === "PRIMED") {
-            migrated.finish = "RAW_UNASSEMBLED";
-          }
-        }
+    setBorderWidth: (w) =>
+      set((state) => {
+        const min = Math.max(
+          state.getMinBorderForSide("LEFT"),
+          state.getMinBorderForSide("RIGHT"),
+          state.getMinBorderForSide("TOP"),
+          state.getMinBorderForSide("BOTTOM")
+        );
+        const clamped = Math.max(min, safeNum(w, min));
+        const newState = {
+          ...state,
+          borderWidth: clamped,
+          leftStile: clamped,
+          rightStile: clamped,
+          topRail: clamped,
+          bottomRail: clamped,
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
 
-        // Migration v2 -> v3: Ensure all fields exist with defaults
-        if (version < 3) {
-          if (!Array.isArray(migrated.midRails)) {
-            migrated.midRails = [];
-          }
-          if (!Array.isArray(migrated.hinges)) {
-            migrated.hinges = [];
-          }
-          if (typeof migrated.leftAngledRailWidth !== 'number' || isNaN(migrated.leftAngledRailWidth)) {
-            migrated.leftAngledRailWidth = initialState.leftAngledRailWidth;
-          }
-          if (typeof migrated.rightAngledRailWidth !== 'number' || isNaN(migrated.rightAngledRailWidth)) {
-            migrated.rightAngledRailWidth = initialState.rightAngledRailWidth;
-          }
-          if (migrated.angledRailWidth !== undefined) {
-            migrated.leftAngledRailWidth = migrated.angledRailWidth;
-            migrated.rightAngledRailWidth = migrated.angledRailWidth;
-            delete migrated.angledRailWidth;
-          }
-          if (typeof migrated.rebateWidthMm !== 'number' || isNaN(migrated.rebateWidthMm)) {
-            migrated.rebateWidthMm = initialState.rebateWidthMm;
-          }
-          if (typeof migrated.rebateDepthMm !== 'number' || isNaN(migrated.rebateDepthMm)) {
-            migrated.rebateDepthMm = initialState.rebateDepthMm;
-          }
-          if (typeof migrated.frontFaceThicknessMm !== 'number' || isNaN(migrated.frontFaceThicknessMm)) {
-            migrated.frontFaceThicknessMm = initialState.frontFaceThicknessMm;
-          }
-          if (typeof migrated.cornerRadiusMm !== 'number' || isNaN(migrated.cornerRadiusMm)) {
-            migrated.cornerRadiusMm = initialState.cornerRadiusMm;
-          }
-        }
+    setCustomBorders: (c) => set({ customBorders: c, isNewSession: false, _hasInteracted: true }),
 
-        // Migration v3 -> v4: Remove angle preset fields
-        if (version < 4) {
-          delete migrated.leftAnglePreset;
-          delete migrated.rightAnglePreset;
-        }
+    setLeftStile: (v) =>
+      set((state) => {
+        const min = state.getMinBorderForSide("LEFT");
+        const val = Math.max(min, safeNum(v, min));
+        const newState = { ...state, leftStile: val, isNewSession: false, _hasInteracted: true };
+        return {
+          leftStile: val,
+          isNewSession: false,
+          _hasInteracted: true,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
 
-        // Migration v4 -> v5: Add _hasInteracted flag
-        if (version < 5) {
-          // If they had data from v4, they are a returning user
-          migrated._hasInteracted = true;
-        }
+    setRightStile: (v) =>
+      set((state) => {
+        const min = state.getMinBorderForSide("RIGHT");
+        const val = Math.max(min, safeNum(v, min));
+        const newState = { ...state, rightStile: val, isNewSession: false, _hasInteracted: true };
+        return {
+          rightStile: val,
+          isNewSession: false,
+          _hasInteracted: true,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
 
-        // Migration v5 -> v6: Update Hinge interface to T/B notation
-        if (version < 6) {
-          if (Array.isArray(migrated.hinges)) {
-            migrated.hinges = migrated.hinges.map((h: any) => {
-              if (h.positionFromBottomMm !== undefined) {
-                h.positionMm = h.positionFromBottomMm;
-                h.reference = h.positionFromBottomMm > (migrated.height || 720) / 2 ? "TOP" : "BOTTOM";
-                if (h.reference === "TOP") {
-                  h.positionMm = (migrated.height || 720) - h.positionFromBottomMm;
-                }
-                delete h.positionFromBottomMm;
-              }
-              return h;
-            });
-          }
-        }
+    setTopRail: (v) =>
+      set((state) => {
+        const min = state.getMinBorderForSide("TOP");
+        const val = Math.max(min, safeNum(v, min));
+        const newState = { ...state, topRail: val, isNewSession: false, _hasInteracted: true };
+        return {
+          topRail: val,
+          isNewSession: false,
+          _hasInteracted: true,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
 
-        return migrated as DoorConfigStore;
-      },
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          if (state._hasInteracted) {
-            // Returning user — restore config and recalculate price
-            state.isNewSession = false;
-            setTimeout(() => useDoorConfig.getState().calculatePrice(), 0);
-          } else {
-            // Genuinely new user — show placeholder with £0.00
-            state.isNewSession = true;
-            state.price = 0;
-          }
+    setBottomRail: (v) =>
+      set((state) => {
+        const min = state.getMinBorderForSide("BOTTOM");
+        const val = Math.max(min, safeNum(v, min));
+        const newState = { ...state, bottomRail: val, isNewSession: false, _hasInteracted: true };
+        return {
+          bottomRail: val,
+          isNewSession: false,
+          _hasInteracted: true,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setAngledLeft: (v) =>
+      set((state) => {
+        if (v) {
+          const lcw = state.leftTriangleCutoutWidth > 0
+            ? state.leftTriangleCutoutWidth
+            : Math.min(100, state.width * 0.3);
+          const lch = state.leftTriangleCutoutHeight > 0
+            ? state.leftTriangleCutoutHeight
+            : Math.min(100, state.height * 0.3);
+          const clampedW = clampCutoutWidth(lcw, state.width, state.rightTriangleCutoutWidth, "left");
+          const clampedH = clampCutoutHeight(lch, state.height);
+          const deg = calculateAngleDegrees(clampedW, clampedH);
+          const newState = {
+            ...state,
+            angledLeft: true,
+            leftTriangleCutoutWidth: clampedW,
+            leftTriangleCutoutHeight: clampedH,
+            leftAngleDegrees: deg,
+            isNewSession: false,
+            _hasInteracted: true,
+          };
+          return {
+            ...newState,
+            angleValidationIssues: validateAngledCorners(newState),
+            price: internalCalculatePrice(newState),
+          };
+        } else {
+          const newState = {
+            ...state,
+            angledLeft: false,
+            leftTriangleCutoutWidth: 0,
+            leftTriangleCutoutHeight: 0,
+            leftAngleDegrees: 0,
+            isNewSession: false,
+            _hasInteracted: true,
+          };
+          return {
+            ...newState,
+            angleValidationIssues: validateAngledCorners(newState),
+            price: internalCalculatePrice(newState),
+          };
         }
-      },
-    }
-  )
+      }),
+
+    setAngledRight: (v) =>
+      set((state) => {
+        if (v) {
+          const maxW = state.getMaxCutoutWidth("right");
+          const maxH = state.getMaxCutoutHeight("right");
+          const clampedW = clamp(state.rightTriangleCutoutWidth || 100, MIN_CUTOUT_DIMENSION_MM, maxW);
+          const clampedH = clamp(state.rightTriangleCutoutHeight || 100, MIN_CUTOUT_DIMENSION_MM, maxH);
+          const deg = calculateAngleDegrees(clampedW, clampedH);
+
+          const newState = {
+            ...state,
+            angledRight: true,
+            rightTriangleCutoutWidth: clampedW,
+            rightTriangleCutoutHeight: clampedH,
+            rightAngleDegrees: deg,
+            isNewSession: false,
+            _hasInteracted: true,
+          };
+          return {
+            ...newState,
+            angleValidationIssues: validateAngledCorners(newState),
+            price: internalCalculatePrice(newState),
+          };
+        } else {
+          const newState = {
+            ...state,
+            angledRight: false,
+            rightTriangleCutoutWidth: 0,
+            rightTriangleCutoutHeight: 0,
+            rightAngleDegrees: 0,
+            isNewSession: false,
+            _hasInteracted: true,
+          };
+          return {
+            ...newState,
+            angleValidationIssues: validateAngledCorners(newState),
+            price: internalCalculatePrice(newState),
+          };
+        }
+      }),
+
+    setLeftTriangleCutoutWidth: (v) =>
+      set((state) => {
+        const clamped = clampCutoutWidth(v, state.width, state.rightTriangleCutoutWidth, "left");
+        const newState = {
+          ...state,
+          leftTriangleCutoutWidth: clamped,
+          leftAngleDegrees: calculateAngleDegrees(clamped, state.leftTriangleCutoutHeight),
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setLeftTriangleCutoutHeight: (v) =>
+      set((state) => {
+        const clamped = clampCutoutHeight(v, state.height);
+        const deg = calculateAngleDegrees(state.leftTriangleCutoutWidth, clamped);
+        const rail = clampAngledRailWidth(state.leftAngledRailWidth, state.leftTriangleCutoutWidth, clamped);
+        const newState = { ...state, leftTriangleCutoutHeight: clamped, leftAngleDegrees: deg, leftAngledRailWidth: rail, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setLeftAngleDegrees: (deg) =>
+      set((state) => {
+        const clampedDeg = clamp(deg, MIN_ANGLE_DEGREES, MAX_ANGLE_DEGREES);
+        const h = state.leftTriangleCutoutHeight || 100;
+        const rad = (clampedDeg * Math.PI) / 180;
+        // width = height / tan(angle)
+        const w = h / Math.tan(rad);
+        const clampedW = clampCutoutWidth(w, state.width, state.rightTriangleCutoutWidth, "left");
+
+        // After clamping width, simple tan(rad) might not hold perfectly, re-calc actual angle
+        const finalDeg = calculateAngleDegrees(clampedW, h);
+
+        const newState = {
+          ...state,
+          leftTriangleCutoutWidth: parseFloat(clampedW.toFixed(2)),
+          leftAngleDegrees: parseFloat(finalDeg.toFixed(2)),
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setRightTriangleCutoutWidth: (v) =>
+      set((state) => {
+        const clamped = clampCutoutWidth(v, state.width, state.leftTriangleCutoutWidth, "right");
+        const newState = {
+          ...state,
+          rightTriangleCutoutWidth: clamped,
+          rightAngleDegrees: calculateAngleDegrees(clamped, state.rightTriangleCutoutHeight),
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setRightTriangleCutoutHeight: (v) =>
+      set((state) => {
+        const clamped = clampCutoutHeight(v, state.height);
+        const deg = calculateAngleDegrees(state.rightTriangleCutoutWidth, clamped);
+        const rail = clampAngledRailWidth(state.rightAngledRailWidth, state.rightTriangleCutoutWidth, clamped);
+        const newState = { ...state, rightTriangleCutoutHeight: clamped, rightAngleDegrees: deg, rightAngledRailWidth: rail, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setRightAngleDegrees: (deg) =>
+      set((state) => {
+        const clampedDeg = clamp(deg, MIN_ANGLE_DEGREES, MAX_ANGLE_DEGREES);
+        const h = state.rightTriangleCutoutHeight || 100;
+        const rad = (clampedDeg * Math.PI) / 180;
+        const w = h / Math.tan(rad);
+        const clampedW = clampCutoutWidth(w, state.width, state.leftTriangleCutoutWidth, "right");
+
+        const finalDeg = calculateAngleDegrees(clampedW, h);
+
+        const newState = {
+          ...state,
+          rightTriangleCutoutWidth: parseFloat(clampedW.toFixed(2)),
+          rightAngleDegrees: parseFloat(finalDeg.toFixed(2)),
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setLeftAngledRailWidth: (v) =>
+      set((state) => {
+        const clamped = clampAngledRailWidth(v, state.leftTriangleCutoutWidth, state.leftTriangleCutoutHeight);
+        const newState = { ...state, leftAngledRailWidth: clamped, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setRightAngledRailWidth: (v) =>
+      set((state) => {
+        const clamped = clampAngledRailWidth(v, state.rightTriangleCutoutWidth, state.rightTriangleCutoutHeight);
+        const newState = { ...state, rightAngledRailWidth: clamped, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setMidRailsEnabled: (v) =>
+      set((state) => {
+        const newState = { ...state, midRailsEnabled: v, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setMidRailsEqualise: (v) =>
+      set((state) => {
+        if (!v) return { midRailsEqualise: false, isNewSession: false, _hasInteracted: true };
+        const count = state.midRails.length;
+        if (count === 0) return { midRailsEqualise: true, isNewSession: false, _hasInteracted: true };
+        const effBottom = state.customBorders ? state.bottomRail : state.borderWidth;
+        const effTop = state.customBorders ? state.topRail : state.borderWidth;
+        // Calculate available panel height (full height between rails)
+        const panelTop = state.height - effTop;
+        const panelBottom = effBottom;
+        const availableHeight = panelTop - panelBottom;
+        if (availableHeight <= 0) return { midRailsEqualise: true, isNewSession: false, _hasInteracted: true };
+        // Sort rails so we can position them bottom-to-top
+        const sorted = state.midRails.slice().sort((a, b) => a.positionFromBottom - b.positionFromBottom);
+        // Calculate total rail dimension (all rails' physical widths)
+        const totalRailDim = sorted.reduce((sum, r) => sum + r.dimension, 0);
+        // Net panel area = total available minus all rail widths
+        const netPanelArea = Math.max(0, availableHeight - totalRailDim);
+        // Equal gap between each rail/border edge (count + 1 gaps)
+        const gap = parseFloat((netPanelArea / (count + 1)).toFixed(2));
+        // Position each rail: accumulate gaps and previous rails
+        let cursor = panelBottom;
+        const newRails = sorted.map((r) => {
+          cursor += gap; // gap before this rail
+          const pos = parseFloat(cursor.toFixed(2));
+          cursor += r.dimension; // skip over this rail's width
+          return { ...r, positionFromBottom: pos };
+        });
+        const newState = {
+          ...state,
+          midRailsEqualise: true,
+          midRails: newRails,
+          isNewSession: false,
+          _hasInteracted: true,
+        };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    addMidRail: () =>
+      set((state) => {
+        const id = crypto.randomUUID();
+        const effBottom = state.customBorders ? state.bottomRail : state.borderWidth;
+        const effTop = state.customBorders ? state.topRail : state.borderWidth;
+        const maxPos = state.height - effTop - 35;
+        // Default: 100mm above the highest existing rail, or 100mm above bottom border
+        let pos: number;
+        if (state.midRails.length > 0) {
+          const highestRail = Math.max(...state.midRails.map(r => r.positionFromBottom + r.dimension));
+          pos = Math.min(highestRail + 100, maxPos);
+        } else {
+          pos = Math.min(effBottom + 100, maxPos);
+        }
+        pos = Math.max(pos, effBottom + 10); // ensure above bottom frame
+        const newRails = [...state.midRails, { id, positionFromBottom: parseFloat(pos.toFixed(2)), dimension: 70 }];
+        // If equaliser is ON, re-equalise after adding
+        let finalRails = newRails;
+        if (state.midRailsEqualise) {
+          const panelTop = state.height - effTop;
+          const panelBottom = effBottom;
+          const availableHeight = panelTop - panelBottom;
+          const sorted = finalRails.slice().sort((a, b) => a.positionFromBottom - b.positionFromBottom);
+          const totalRailDim = sorted.reduce((sum, r) => sum + r.dimension, 0);
+          const netPanelArea = Math.max(0, availableHeight - totalRailDim);
+          const gap = parseFloat((netPanelArea / (sorted.length + 1)).toFixed(2));
+          let cursor = panelBottom;
+          finalRails = sorted.map((r) => {
+            cursor += gap;
+            const pos = parseFloat(cursor.toFixed(2));
+            cursor += r.dimension;
+            return { ...r, positionFromBottom: pos };
+          });
+        }
+        const newState = { ...state, midRails: finalRails, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    removeMidRail: (id) =>
+      set((state) => {
+        const newRails = state.midRails.filter((r) => r.id !== id);
+        const newState = { ...state, midRails: newRails, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    updateMidRail: (id, field, value) =>
+      set((state) => {
+        const newRails = state.midRails.map((r) => (r.id === id ? { ...r, [field]: value } : r));
+        const newState = { ...state, midRails: newRails, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setHingeDrilling: (v) =>
+      set((state) => {
+        if (v && state.hinges.length === 0) {
+          const side = state.intendedHingeSide;
+          const defaultHinges: HingePosition[] = [
+            { id: crypto.randomUUID(), side, reference: "TOP", positionMm: 100, type: "SCREW_POINTS" },
+            { id: crypto.randomUUID(), side, reference: "BOTTOM", positionMm: 100, type: "SCREW_POINTS" },
+          ];
+          const newState = { ...state, hingeDrilling: true, hinges: defaultHinges, isNewSession: false, _hasInteracted: true };
+          return {
+            ...newState,
+            angleValidationIssues: validateAngledCorners(newState),
+            price: internalCalculatePrice(newState),
+          };
+        }
+        const newState = { ...state, hingeDrilling: v, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    addHinge: (reference) =>
+      set((state) => {
+        const side = state.intendedHingeSide;
+        const type = state.hinges.length > 0 ? state.hinges[0].type : "SCREW_POINTS";
+        const sameRef = state.hinges.filter((h) => h.reference === reference);
+        const lastPos = sameRef.length > 0 ? Math.max(...sameRef.map((h) => h.positionMm)) : 0;
+        let maxPos = state.height - 50;
+        if (side === "LEFT" && state.angledLeft && reference === "TOP") {
+          maxPos = state.height - safeNum(state.leftTriangleCutoutHeight, 0) - HINGE_CUP_DIAMETER_MM;
+        }
+        if (side === "RIGHT" && state.angledRight && reference === "TOP") {
+          maxPos = state.height - safeNum(state.rightTriangleCutoutHeight, 0) - HINGE_CUP_DIAMETER_MM;
+        }
+        // Default 100mm spacing from the last hinge
+        const newPos = Math.min(lastPos + 100, maxPos);
+        const newHinges = [
+          ...state.hinges,
+          { id: crypto.randomUUID(), side, reference, positionMm: Math.max(50, newPos), type },
+        ];
+        const newState = { ...state, hinges: newHinges, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    removeHinge: (id) =>
+      set((state) => {
+        const newHinges = state.hinges.filter((h) => h.id !== id);
+        const newState = { ...state, hinges: newHinges, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    updateHinge: (id, field, value) =>
+      set((state) => {
+        if (field === "side") {
+          const updated = state.hinges.map((h) => ({ ...h, side: value }));
+          const newState = { ...state, hinges: updated, isNewSession: false, _hasInteracted: true };
+          return {
+            ...newState,
+            angleValidationIssues: validateAngledCorners(newState),
+            price: internalCalculatePrice(newState),
+          };
+        }
+        const newHinges = state.hinges.map((h) => (h.id === id ? { ...h, [field]: value } : h));
+        const newState = { ...state, hinges: newHinges, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    swapHingeSide: () =>
+      set((state) => {
+        const newSide: HingeSide = state.intendedHingeSide === "LEFT" ? "RIGHT" : "LEFT";
+        const newHinges = state.hinges.map((h) => ({ ...h, side: newSide }));
+        const newState = { ...state, hinges: newHinges, intendedHingeSide: newSide, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    equaliseHinges: () =>
+      set((state) => {
+        if (state.hinges.length < 2) return { isNewSession: false, _hasInteracted: true };
+        const count = state.hinges.length;
+        const minY = 50;
+        // Calculate max safe Y from bottom, respecting angle cutout on hinge side
+        let maxY = state.height - 50;
+        const hingeSide = state.hinges[0]?.side || "LEFT";
+        if (hingeSide === "LEFT" && state.angledLeft && safeNum(state.leftTriangleCutoutHeight, 0) > 0) {
+          maxY = Math.min(maxY, state.height - safeNum(state.leftTriangleCutoutHeight, 0) - HINGE_CUP_DIAMETER_MM);
+        }
+        if (hingeSide === "RIGHT" && state.angledRight && safeNum(state.rightTriangleCutoutHeight, 0) > 0) {
+          maxY = Math.min(maxY, state.height - safeNum(state.rightTriangleCutoutHeight, 0) - HINGE_CUP_DIAMETER_MM);
+        }
+        maxY = Math.max(maxY, minY + 50); // ensure minimum span
+        const totalSpan = maxY - minY;
+        const spacing = totalSpan / (count - 1);
+        const sorted = [...state.hinges].sort((a, b) => {
+          let aCutoutH = 0;
+          if (a.side === "LEFT" && state.angledLeft) aCutoutH = safeNum(state.leftTriangleCutoutHeight, 0);
+          else if (a.side === "RIGHT" && state.angledRight) aCutoutH = safeNum(state.rightTriangleCutoutHeight, 0);
+          
+          let bCutoutH = 0;
+          if (b.side === "LEFT" && state.angledLeft) bCutoutH = safeNum(state.leftTriangleCutoutHeight, 0);
+          else if (b.side === "RIGHT" && state.angledRight) bCutoutH = safeNum(state.rightTriangleCutoutHeight, 0);
+
+          const aY = a.reference === "BOTTOM" ? a.positionMm : (state.height - aCutoutH) - a.positionMm;
+          const bY = b.reference === "BOTTOM" ? b.positionMm : (state.height - bCutoutH) - b.positionMm;
+          return aY - bY;
+        });
+        const newHinges = sorted.map((h, i) => {
+          const targetY = minY + spacing * i;
+          let hCutoutH = 0;
+          if (h.side === "LEFT" && state.angledLeft) hCutoutH = safeNum(state.leftTriangleCutoutHeight, 0);
+          else if (h.side === "RIGHT" && state.angledRight) hCutoutH = safeNum(state.rightTriangleCutoutHeight, 0);
+          
+          const shoulderY = state.height - hCutoutH;
+          const posMm = h.reference === "BOTTOM" ? targetY : shoulderY - targetY;
+          return {
+            ...h,
+            positionMm: parseFloat(posMm.toFixed(2)),
+          };
+        });
+        const newState = { ...state, hinges: newHinges, isNewSession: false, _hasInteracted: true };
+        return {
+          ...newState,
+          angleValidationIssues: validateAngledCorners(newState),
+          price: internalCalculatePrice(newState),
+        };
+      }),
+
+    setHinges: (h) => set((state) => {
+      const newState = { ...state, hinges: h, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+
+    setFinish: (f) => set((state) => {
+      const newState = { ...state, finish: f, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    setShowDimensions: (v) => set({ showDimensions: v }),
+    setRebateWidth: (v) => set((state) => {
+      const newState = { ...state, rebateWidthMm: v, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    setRebateDepth: (v) => set((state) => {
+      const newState = { ...state, rebateDepthMm: v, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    setFrontFaceThickness: (v) => set((state) => {
+      const newState = { ...state, frontFaceThicknessMm: v, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    setCornerRadius: (v) => set((state) => {
+      const newState = { ...state, cornerRadiusMm: v, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    setRearCornerRadius: (v) => set((state) => {
+      const newState = { ...state, rearCornerRadiusMm: v, isNewSession: false, _hasInteracted: true };
+      return {
+        ...newState,
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    setSelectedSection: (s) => set({ selectedSection: s }),
+    setEditingCartItem: (id) => set({ editingCartItemId: id }),
+    loadFromCartItem: (item) => set((state) => {
+      // Load all config properties from item into the store config
+      const newState = {
+        ...state,
+        width: item.width,
+        height: item.height,
+        thickness: item.thickness,
+        panelType: item.panelType,
+        panelCount: item.panelCount,
+        panelOrientation: item.panelOrientation,
+        borderWidth: item.borderWidth,
+        customBorders: item.customBorders,
+        leftStile: item.leftStile,
+        rightStile: item.rightStile,
+        topRail: item.topRail,
+        bottomRail: item.bottomRail,
+        angledLeft: item.angledLeft,
+        angledRight: item.angledRight,
+        leftTriangleCutoutWidth: item.leftTriangleCutoutWidth,
+        leftTriangleCutoutHeight: item.leftTriangleCutoutHeight,
+        rightTriangleCutoutWidth: item.rightTriangleCutoutWidth,
+        rightTriangleCutoutHeight: item.rightTriangleCutoutHeight,
+        leftAngleDegrees: item.leftAngleDegrees,
+        rightAngleDegrees: item.rightAngleDegrees,
+        leftAngledRailWidth: item.leftAngledRailWidth,
+        rightAngledRailWidth: item.rightAngledRailWidth,
+        midRailsEnabled: item.midRailsEnabled,
+        midRailsEqualise: item.midRailsEqualise,
+        midRails: [...item.midRails],
+        hingeDrilling: item.hingeDrilling,
+        hinges: [...item.hinges],
+        finish: item.finish,
+        showDimensions: item.showDimensions,
+        rebateWidthMm: item.rebateWidthMm,
+        rebateDepthMm: item.rebateDepthMm,
+        frontFaceThicknessMm: item.frontFaceThicknessMm,
+        cornerRadiusMm: item.cornerRadiusMm,
+        rearCornerRadiusMm: item.rearCornerRadiusMm,
+        editingCartItemId: item.id,
+        isNewSession: false,
+        _hasInteracted: true,
+      };
+
+      return {
+        ...newState,
+        angleValidationIssues: validateAngledCorners(newState),
+        price: internalCalculatePrice(newState),
+      };
+    }),
+    resetConfig: () => set({ ...defaultConfig }),
+
+    getMinBorderForSide: (side) => {
+      const state = get();
+      if (side === "LEFT" || side === "RIGHT") {
+        if (state.hingeDrilling && state.hinges.some((h) => h.side === side)) {
+          return MIN_BORDER_WITH_HINGES;
+        }
+      }
+      return MIN_BORDER_WITHOUT_HINGES;
+    },
+
+    getMaxCutoutWidth: (side) => {
+      const state = get();
+      const otherWidth = side === "left" ? safeNum(state.rightTriangleCutoutWidth, 0) : safeNum(state.leftTriangleCutoutWidth, 0);
+      return calculateMaxCutoutWidth(
+        state.width,
+        otherWidth,
+        state.customBorders ? state.leftStile : state.borderWidth,
+        state.customBorders ? state.rightStile : state.borderWidth,
+        side
+      );
+    },
+
+    getMaxCutoutHeight: (side) => {
+      const state = get();
+      return calculateMaxCutoutHeight(state.height, state.customBorders ? state.bottomRail : state.borderWidth);
+    },
+
+    getAngleSafeHingeRange: (side) => {
+      const state = get();
+      const cupRadius = HINGE_CUP_DIAMETER_MM / 2;
+      let maxFromTop = state.height - 50;
+      if (side === "LEFT" && state.angledLeft && safeNum(state.leftTriangleCutoutHeight, 0) > 0) {
+        maxFromTop = state.height - safeNum(state.leftTriangleCutoutHeight, 0) - cupRadius - 5;
+      }
+      if (side === "RIGHT" && state.angledRight && safeNum(state.rightTriangleCutoutHeight, 0) > 0) {
+        maxFromTop = state.height - safeNum(state.rightTriangleCutoutHeight, 0) - cupRadius - 5;
+      }
+      return { min: 50, max: Math.max(50, maxFromTop) };
+    },
+
+    getMaxMidRailPosition: () => {
+      const state = get();
+      const effTop = state.customBorders ? state.topRail : state.borderWidth;
+      let maxY = state.height - effTop;
+      if (state.angledLeft) maxY = Math.min(maxY, state.height - safeNum(state.leftTriangleCutoutHeight, 0));
+      if (state.angledRight) maxY = Math.min(maxY, state.height - safeNum(state.rightTriangleCutoutHeight, 0));
+      return Math.max(0, maxY);
+    },
+
+    revalidateAngles: () =>
+      set((state) => ({
+        angleValidationIssues: validateAngledCorners(state),
+      })),
+  }))
 );
-
-// No auto-calculate on load — price starts at £0.00 for new sessions

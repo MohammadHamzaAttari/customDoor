@@ -1007,9 +1007,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quantity: item.quantity,
           styleId: styleId,
           finishId: finishId,
-          heightMm: item.height,
-          widthMm: item.width,
-          panelThicknessMm: item.thickness || 22,
+          heightMm: Math.round(Number(item.height)),
+          widthMm: Math.round(Number(item.width)),
+          panelThicknessMm: Math.round(Number(item.thickness || 22)),
           panelType: item.panelType as any,
           panelOrientation: item.panelOrientation || "vertical",
           material: item.material || "MR MDF",
@@ -1018,15 +1018,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           angledShorterSide: item.angledLeft ? "LEFT" : (item.angledRight ? "RIGHT" : null),
           leftAngleDegrees: (item.leftAngleDegrees || 0).toString(),
           rightAngleDegrees: (item.rightAngleDegrees || 0).toString(),
-          leftTriangleCutoutWidth: item.leftTriangleCutoutWidth || 0,
-          leftTriangleCutoutHeight: item.leftTriangleCutoutHeight || 0,
-          rightTriangleCutoutWidth: item.rightTriangleCutoutWidth || 0,
-          rightTriangleCutoutHeight: item.rightTriangleCutoutHeight || 0,
+          leftTriangleCutoutWidth: Math.round(Number(item.leftTriangleCutoutWidth || 0)),
+          leftTriangleCutoutHeight: Math.round(Number(item.leftTriangleCutoutHeight || 0)),
+          rightTriangleCutoutWidth: Math.round(Number(item.rightTriangleCutoutWidth || 0)),
+          rightTriangleCutoutHeight: Math.round(Number(item.rightTriangleCutoutHeight || 0)),
 
-          borderLeftStile: item.customBorders ? item.leftStile : (item.borderWidth || 90),
-          borderRightStile: item.customBorders ? item.rightStile : (item.borderWidth || 90),
-          borderTopRail: item.customBorders ? item.topRail : (item.borderWidth || 90),
-          borderBottomRail: item.customBorders ? item.bottomRail : (item.borderWidth || 90),
+          borderLeftStile: Math.round(Number(item.customBorders ? item.leftStile : (item.borderWidth || 90))),
+          borderRightStile: Math.round(Number(item.customBorders ? item.rightStile : (item.borderWidth || 90))),
+          borderTopRail: Math.round(Number(item.customBorders ? item.topRail : (item.borderWidth || 90))),
+          borderBottomRail: Math.round(Number(item.customBorders ? item.bottomRail : (item.borderWidth || 90))),
 
           unitPriceExcVat: item.price.toFixed(2),
           lineTotalExcVat: (item.price * item.quantity).toFixed(2),
@@ -1042,8 +1042,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createMidRail({
               itemId: dbItem.id,
               railNumber: idx + 1,
-              positionFromBottomMm: rail.positionFromBottom ?? rail.position,
-              railWidthMm: rail.dimension ?? rail.height ?? 100, // Default width if missing
+              positionFromBottomMm: Math.round(Number(rail.positionFromBottom ?? rail.position)),
+              railWidthMm: Math.round(Number(rail.dimension ?? rail.height ?? 100)), // Default width if missing
             });
           }
         }
@@ -1075,7 +1075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             await storage.createHinge({
               orderItemId: dbItem.id,
-              positionFromBottomMm: posFromBottom,
+              positionFromBottomMm: Math.round(Number(posFromBottom)),
               side: h.side || "LEFT",
               hingeType: h.type || h.hingeType || "SCREW_POINTS",
               cupDiameterMm: 35,
@@ -1087,6 +1087,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Generate & Save DXF/SVG
         // Construct full config for generators
+        // Generate & Save DXF/SVG
+        // Construct full config for generators with proper hinge conversion
         const fullConfig = {
           ...item,
           width: Number(item.width),
@@ -1100,11 +1102,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           angledLeft: item.angledLeft === true || item.angledLeft === "true",
           angledRight: item.angledRight === true || item.angledRight === "true",
           material: item.material || "MR MDF",
-          finish: item.finish || "PRIMED",
-          leftStile: Number(item.leftStile || 75),
-          rightStile: Number(item.rightStile || 75),
-          topRail: Number(item.topRail || 75),
-          bottomRail: Number(item.bottomRail || 75),
+          finish: item.finish || "RAW_UNASSEMBLED",
+          leftStile: Number(item.leftStile || item.borderWidth || 75),
+          rightStile: Number(item.rightStile || item.borderWidth || 75),
+          topRail: Number(item.topRail || item.borderWidth || 75),
+          bottomRail: Number(item.bottomRail || item.borderWidth || 75),
           midRailsEnabled: item.midRailsEnabled === true || item.midRailsEnabled === "true",
           midRails: typeof item.midRails === "string" ? JSON.parse(item.midRails) : (Array.isArray(item.midRails) ? item.midRails : []),
           leftTriangleCutoutWidth: Number(item.leftTriangleCutoutWidth || 0),
@@ -1115,6 +1117,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           rightAngleDegrees: Number(item.rightAngleDegrees || 0),
           leftAngledRailWidth: Number(item.leftAngledRailWidth || 90),
           rightAngledRailWidth: Number(item.rightAngledRailWidth || 90),
+          rebateWidthMm: Number(item.rebateWidthMm || 10),
+          rebateDepthMm: Number(item.rebateDepthMm || 14),
+          frontFaceThicknessMm: Number(item.frontFaceThicknessMm || 8),
+          cornerRadiusMm: Number(item.cornerRadiusMm || 0),
+          // Convert hinges from client format (positionMm + reference) to DXF format (positionFromBottomMm)
+          hinges: (item.hinges || []).map((h: any) => {
+            let posFromBottom: number;
+            if (h.positionFromBottomMm != null) {
+              posFromBottom = Number(h.positionFromBottomMm);
+            } else if (h.positionMm != null && h.reference) {
+              if (h.reference === "TOP") {
+                let angleCutoutH = 0;
+                if (h.side === "LEFT" && item.leftTriangleCutoutHeight) {
+                  angleCutoutH = Number(item.leftTriangleCutoutHeight) || 0;
+                } else if (h.side === "RIGHT" && item.rightTriangleCutoutHeight) {
+                  angleCutoutH = Number(item.rightTriangleCutoutHeight) || 0;
+                }
+                posFromBottom = (Number(item.height) - angleCutoutH) - Number(h.positionMm);
+              } else {
+                posFromBottom = Number(h.positionMm);
+              }
+            } else if (h.position != null) {
+              posFromBottom = Number(h.position);
+            } else {
+              posFromBottom = 100;
+            }
+            return {
+              ...h,
+              positionFromBottomMm: posFromBottom,
+              positionMm: h.positionMm,
+              reference: h.reference,
+              side: h.side || "LEFT",
+              type: h.type || h.hingeType || "SCREW_POINTS",
+              hingeType: h.type || h.hingeType || "SCREW_POINTS",
+            };
+          }),
         };
 
         try {

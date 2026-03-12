@@ -424,7 +424,7 @@ export default function DoorConfigurationPanel({ doorId }: { doorId: string }) {
                             </div>
                         </ScrollArea>
                         <div className="p-3 border-t mt-auto shrink-0 space-y-2 bg-muted/20">
-                            <Button className="w-full h-11" variant="outline" onClick={() => { addDoor(); useDoorConfig.getState().resetConfig(); setCurrentView("config"); }}><Plus className="w-4 h-4 mr-2" />Add Another Door</Button>
+                            <Button className="w-full h-11" variant="outline" onClick={() => { addDoor(); useDoorConfig.getState().resetConfig(); setCurrentView("config"); }}><Plus className="w-4 h-4 mr-2" />Add New Door</Button>
                             <Button className="w-full h-12 premium-gradient text-white font-bold text-base uppercase tracking-wide shadow-lg" onClick={() => setCurrentView("checkout")}>
                                 Checkout Now<ArrowRight className="w-5 h-5 ml-2" />
                             </Button>
