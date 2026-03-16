@@ -1,0 +1,41 @@
+src/components/builder/DoorConfigurationPanel.tsx(77,43): error TS2339: Property 'preset' does not exist on type 'DoorConfig & DoorConfigActions'.
+src/components/builder/DoorConfigurationPanel.tsx(78,35): error TS2339: Property 'shape' does not exist on type 'DoorConfig & DoorConfigActions'.
+src/components/builder/DoorConfigurationPanel.tsx(87,40): error TS2339: Property 'material' does not exist on type 'DoorConfig & DoorConfigActions'.
+src/components/builder/DoorConfigurationPanel.tsx(107,21): error TS2339: Property 'preset' does not exist on type 'DoorConfig & DoorConfigActions'.
+src/components/builder/DoorConfigurationPanel.tsx(108,51): error TS2339: Property 'shape' does not exist on type 'DoorConfig & DoorConfigActions'.
+src/components/builder/DoorConfigurationPanel.tsx(122,21): error TS2339: Property 'material' does not exist on type 'DoorConfig & DoorConfigActions'.
+src/components/ui/SyncStatusPanel.tsx(26,5): error TS2339: Property 'message' does not exist on type 'SyncStatusState'.
+src/components/ui/SyncStatusPanel.tsx(37,19): error TS2367: This comparison appears to be unintentional because the types '"validating" | "submitting" | "syncing" | "complete"' and '"error"' have no overlap.
+src/components/ui/alert-dialog.tsx(2,39): error TS2307: Cannot find module '@radix-ui/react-alert-dialog' or its corresponding type declarations.
+src/components/ui/aspect-ratio.tsx(1,39): error TS2307: Cannot find module '@radix-ui/react-aspect-ratio' or its corresponding type declarations.
+src/components/ui/avatar.tsx(4,34): error TS2307: Cannot find module '@radix-ui/react-avatar' or its corresponding type declarations.
+src/components/ui/calendar.tsx(3,27): error TS2307: Cannot find module 'react-day-picker' or its corresponding type declarations.
+src/components/ui/calendar.tsx(61,22): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/calendar.tsx(64,23): error TS7031: Binding element 'className' implicitly has an 'any' type.
+src/components/ui/carousel.tsx(4,8): error TS2307: Cannot find module 'embla-carousel-react' or its corresponding type declarations.
+src/components/ui/chart.tsx(4,36): error TS2307: Cannot find module 'recharts' or its corresponding type declarations.
+src/components/ui/chart.tsx(188,25): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/ui/chart.tsx(188,31): error TS7006: Parameter 'index' implicitly has an 'any' type.
+src/components/ui/chart.tsx(288,23): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/ui/checkbox.tsx(2,36): error TS2307: Cannot find module '@radix-ui/react-checkbox' or its corresponding type declarations.
+src/components/ui/command.tsx(3,45): error TS2307: Cannot find module 'cmdk' or its corresponding type declarations.
+src/components/ui/context-menu.tsx(2,39): error TS2307: Cannot find module '@radix-ui/react-context-menu' or its corresponding type declarations.
+src/components/ui/drawer.tsx(4,43): error TS2307: Cannot find module 'vaul' or its corresponding type declarations.
+src/components/ui/dropdown-menu.tsx(2,40): error TS2307: Cannot find module '@radix-ui/react-dropdown-menu' or its corresponding type declarations.
+src/components/ui/form.tsx(13,8): error TS2307: Cannot find module 'react-hook-form' or its corresponding type declarations.
+src/components/ui/hover-card.tsx(4,37): error TS2307: Cannot find module '@radix-ui/react-hover-card' or its corresponding type declarations.
+src/components/ui/input-otp.tsx(2,43): error TS2307: Cannot find module 'input-otp' or its corresponding type declarations.
+src/components/ui/input-otp.tsx(36,44): error TS18046: 'inputOTPContext' is of type 'unknown'.
+src/components/ui/menubar.tsx(4,35): error TS2307: Cannot find module '@radix-ui/react-menubar' or its corresponding type declarations.
+src/components/ui/navigation-menu.tsx(2,42): error TS2307: Cannot find module '@radix-ui/react-navigation-menu' or its corresponding type declarations.
+src/components/ui/popover.tsx(2,35): error TS2307: Cannot find module '@radix-ui/react-popover' or its corresponding type declarations.
+src/components/ui/progress.tsx(4,36): error TS2307: Cannot find module '@radix-ui/react-progress' or its corresponding type declarations.
+src/components/ui/radio-group.tsx(2,38): error TS2307: Cannot find module '@radix-ui/react-radio-group' or its corresponding type declarations.
+src/components/ui/resizable.tsx(4,37): error TS2307: Cannot find module 'react-resizable-panels' or its corresponding type declarations.
+src/components/ui/scroll-area.tsx(2,38): error TS2307: Cannot find module '@radix-ui/react-scroll-area' or its corresponding type declarations.
+src/components/ui/slider.tsx(2,34): error TS2307: Cannot find module '@radix-ui/react-slider' or its corresponding type declarations.
+src/components/ui/toggle-group.tsx(4,39): error TS2307: Cannot find module '@radix-ui/react-toggle-group' or its corresponding type declarations.
+src/components/ui/toggle.tsx(2,34): error TS2307: Cannot find module '@radix-ui/react-toggle' or its corresponding type declarations.
+src/lib/stores/useDoorStore.ts(7,8): error TS2305: Module '"./useDoorConfig"' has no exported member 'Hinge'.
+src/lib/stores/useDoorStore.ts(9,8): error TS2305: Module '"./useDoorConfig"' has no exported member 'FinishType'.
+src/lib/stores/useDoorStore.ts(12,8): error TS2305: Module '"./useDoorConfig"' has no exported member 'DoorPreset'.

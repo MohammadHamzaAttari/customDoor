@@ -7,11 +7,12 @@ const config: DxfDoorConfig = {
     height: 2100,
     thickness: 40,
     preset: "single",
-    panelType: "NONE",
-    panelCount: 0,
     shape: "angled",
     material: "MDF",
     finish: "Primed",
+    customerName: "Mohammad Attari",
+    jobName: "Getai Kitchen",
+    doorId: "DOOR-12345",
     rebateWidthMm: 10,
     rebateDepthMm: 10,
     frontFaceThicknessMm: 5,
@@ -25,7 +26,14 @@ const config: DxfDoorConfig = {
     hinges: [
         { side: "LEFT", positionFromBottomMm: 300 },
         { side: "LEFT", positionFromBottomMm: 1800 } // This one might be near the cut
-    ]
+    ],
+    midRailsEnabled: true,
+    midRails: [
+        { position: 800, height: 100 },
+        { position: 1500, height: 100 }
+    ],
+    panelType: "FLAT_12MM",
+    panelCount: 3
 };
 
 try {

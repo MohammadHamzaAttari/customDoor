@@ -393,97 +393,42 @@ export function Door2D({ face = "front", configOverride }: Door2DProps) {
     const pTop = sec.top - rM - pPadM;
     if (pTop <= pBottom) return [];
 
-    let leftElbowY = pTop;
-    let rightElbowY = pTop;
+    // 1. Get bottom limits (max bounds for this section)
+    const { leftInner: bL, rightInner: bR } = getInnerEdgesAtY(pBottom, w, h, ls, rs, ts, bs, arwL, arwR, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM + rM);
+    
+    // Panel collapsed horizontally
+    if (bL >= bR - 0.001) return [];
 
-    if (sec.isTop && angledLeft && lcw > 0.001 && lch > 0.001) {
-      const mL = lch / lcw;
-      const hypL = Math.sqrt(lcw * lcw + lch * lch);
-      const shiftL = (arwL + rM + pPadM) * (hypL / lcw);
-      const yElbow = mL * (ls + rM + pPadM) + (h / 2 - lch) - shiftL;
-      if (yElbow > pBottom && yElbow < pTop) leftElbowY = yElbow;
-    }
-
-    if (sec.isTop && angledRight && rcw > 0.001 && rch > 0.001) {
-      const mR = rch / rcw;
-      const hypR = Math.sqrt(rcw * rcw + rch * rch);
-      const shiftR = (arwR + rM + pPadM) * (hypR / rcw);
-      const yElbow = mR * (rs + rM + pPadM) + (h / 2 - rch) - shiftR;
-      if (yElbow > pBottom && yElbow < pTop) rightElbowY = yElbow;
-    }
-
-    const leftTopLimit = sec.isTop && (angledLeft || angledRight) ? leftElbowY : pTop;
-    const rightTopLimit = sec.isTop && (angledLeft || angledRight) ? rightElbowY : pTop;
-
-    // Helper: check if edges are valid (not crossed) at a given Y
-    const getEdgesIfValid = (y: number) => {
-      const { leftInner: li, rightInner: ri } = getInnerEdgesAtY(y, w, h, ls + rM, rs + rM, ts + rM, bs + rM, arwL + rM, arwR + rM, angledLeft, angledRight, lcw, lch, rcw, rch, pPadM);
-      return { li, ri, valid: ri > li + 0.001 };
-    };
-
-    const steps = 6;
-
-    const leftYSamples: number[] = [];
-    for (let i = 0; i <= steps; i++) {
-      const y = pBottom + (leftTopLimit - pBottom) * (i / steps);
-      leftYSamples.push(y);
-    }
-    leftYSamples.sort((a, b) => a - b);
-    const uniqueLeftY = Array.from(new Set(leftYSamples));
-
-    const rightYSamples: number[] = [];
-    for (let i = 0; i <= steps; i++) {
-      const y = pBottom + (rightTopLimit - pBottom) * (i / steps);
-      rightYSamples.push(y);
-    }
-    rightYSamples.sort((a, b) => a - b);
-    const uniqueRightY = Array.from(new Set(rightYSamples));
+    // 2. Get top profile 
+    // Traces the upper boundary bounded by the bottom X-limits.
+    const flatTopInset = h / 2 - pTop;
+    const roof = createRoofPoints(bR, bL, flatTopInset, arwL + rM + pPadM, arwR + rM + pPadM, w, h, angledLeft, angledRight, lcw, lch, rcw, rch);
 
     const points: string[] = [];
     const addedPoints = new Set<string>();
 
     const addPoint = (x: number, y: number) => {
-      const ps = `${toX((x + w / 2) * 1000).toFixed(2)},${toY((y + h / 2) * 1000).toFixed(2)}`;
+      // Clamp y strictly to prevent float inaccuracies from slipping below pBottom
+      const clampedY = Math.max(y, pBottom);
+      const ps = `${toX((x + w / 2) * 1000).toFixed(2)},${toY((clampedY + h / 2) * 1000).toFixed(2)}`;
       if (!addedPoints.has(ps)) {
         points.push(ps);
         addedPoints.add(ps);
       }
     };
 
-    // Left edge points — vertical part
-    uniqueLeftY.forEach(y => {
-      const edges = getEdgesIfValid(y);
-      if (!edges.valid) return;
-      addPoint(edges.li, y);
+    // 3. Assemble Polygon
+    // Start at Bottom-Left
+    addPoint(bL, pBottom);
+
+    // Roof points (Left to Right)
+    // createRoofPoints returns sorted descending (Right to Left), so we reverse it
+    roof.slice().reverse().forEach(pt => {
+      addPoint(pt.x, pt.y);
     });
 
-    // Angle/Roof transition
-    if (sec.isTop && (angledLeft || angledRight)) {
-      const edgesL = getEdgesIfValid(leftTopLimit);
-      const edgesR = getEdgesIfValid(rightTopLimit);
-      
-      if (edgesL.valid && edgesR.valid) {
-        // liT and riT here correspond to the vertices where vertical stiles meet angled rails
-        const roof = createRoofPoints(edgesR.ri, edgesL.li, ts + rM + pPadM, arwL + rM + pPadM, arwR + rM + pPadM, w, h, angledLeft, angledRight, lcw, lch, rcw, rch);
-        // Roof points include the start and end X, which are our liT and riT
-        roof.reverse().forEach(pt => {
-           addPoint(pt.x, pt.y);
-        });
-      } else {
-        const apexY = Math.min(leftTopLimit, rightTopLimit);
-        const edgesApex = getEdgesIfValid(apexY);
-        if (edgesApex.valid) {
-          addPoint((edgesApex.li + edgesApex.ri) / 2, apexY);
-        }
-      }
-    }
-
-    // Right edge points — vertical part
-    [...uniqueRightY].reverse().forEach(y => {
-      const edges = getEdgesIfValid(y);
-      if (!edges.valid) return;
-      addPoint(edges.ri, y);
-    });
+    // End at Bottom-Right
+    addPoint(bR, pBottom);
 
     return points;
   };

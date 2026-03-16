@@ -22,17 +22,14 @@ export function intersect(A1: number, B1: number, C1: number, A2: number, B2: nu
  */
 export function getInnerProfilePoints(
     w: number, h: number,
-    ls: number, rs: number, ts: number, br: number,
+    ls: number, rs: number,
     angL: boolean, angR: boolean,
     lW: number, lH: number, rW: number, rH: number,
-    arwL: number = 90, arwR: number = 90
+    arwL: number = 90, arwR: number = 90,
+    yBottom: number, yTop: number
 ): Point[] {
-    const yBottom = br;
-    const yTop = h - ts;
     if (yTop <= yBottom) return [];
-
     const ySamples: number[] = [yBottom, yTop];
-
     // Calculate elbow points (where stile meets angled rail)
     if (angL && lW > 0.1 && lH > 0.1) {
         const mL = lH / lW;
@@ -55,7 +52,8 @@ export function getInnerProfilePoints(
     const ptsRight: Point[] = [];
 
     sortedYSamples.forEach(y => {
-        const { leftInner, rightInner } = getInnerEdgesAtY(y, w, h, ls, rs, ts, br, arwL, arwR, angL, angR, lW, lH, rW, rH);
+        // We pass 0 for ts and bs since y bounds are explicitly handled by yBottom and yTop now
+        const { leftInner, rightInner } = getInnerEdgesAtY(y, w, h, ls, rs, 0, 0, arwL, arwR, angL, angR, lW, lH, rW, rH);
         ptsLeft.push({ x: leftInner, y });
         ptsRight.push({ x: rightInner, y });
     });
@@ -114,4 +112,116 @@ export function getInnerEdgesAtY(
     }
 
     return { leftInner, rightInner };
+}
+
+/**
+ * Rounds the corners of a given closed polygon (array of Points).
+ * @param points The vertices of the polygon.
+ * @param radius Radius for the fillets in millimeters.
+ * @returns Array of Points defining the rounded polygon, matching the original shape if radius is 0 or impossible.
+ */
+export function roundCorners(points: Point[], radius: number): Point[] {
+    if (radius <= 0 || points.length < 3) return points;
+
+    const result: Point[] = [];
+    const len = points.length;
+
+    for (let i = 0; i < len; i++) {
+        const pPrev = points[(i - 1 + len) % len];
+        const pCurr = points[i];
+        const pNext = points[(i + 1) % len];
+
+        // Vectors from current point to previous and next points
+        const v1 = { x: pPrev.x - pCurr.x, y: pPrev.y - pCurr.y };
+        const v2 = { x: pNext.x - pCurr.x, y: pNext.y - pCurr.y };
+
+        // Lengths of vectors
+        const len1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+        const len2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+
+        if (len1 === 0 || len2 === 0) {
+            result.push({ x: pCurr.x, y: pCurr.y });
+            continue;
+        }
+
+        // Normalize vectors
+        const n1 = { x: v1.x / len1, y: v1.y / len1 };
+        const n2 = { x: v2.x / len2, y: v2.y / len2 };
+
+        // Angle between vectors
+        const dot = n1.x * n2.x + n1.y * n2.y;
+        // Clamp dot to [-1, 1] to avoid NaN in Math.acos due to float rounding
+        const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+        if (angle < 0.01 || angle > Math.PI - 0.01) {
+            // Collinear lines, no rounding needed
+            result.push({ x: pCurr.x, y: pCurr.y });
+            continue;
+        }
+
+        // Distance from corner to tangent points
+        const tanDist = Math.abs(radius / Math.tan(angle / 2));
+
+        // If the tangent distance is greater than half the segment length, limit the radius to prevent overlap
+        const maxTanDist = Math.min(len1 / 2, len2 / 2);
+        let actualTanDist = tanDist;
+        let actualRadius = radius;
+
+        if (tanDist > maxTanDist) {
+            actualTanDist = maxTanDist;
+            actualRadius = Math.abs(actualTanDist * Math.tan(angle / 2));
+        }
+
+        // Calculate tangent points
+        const pt1 = {
+            x: pCurr.x + n1.x * actualTanDist,
+            y: pCurr.y + n1.y * actualTanDist
+        };
+        const pt2 = {
+            x: pCurr.x + n2.x * actualTanDist,
+            y: pCurr.y + n2.y * actualTanDist
+        };
+
+        // Determine if corner is convex or concave based on cross product (Z component)
+        const cross = n1.x * n2.y - n1.y * n2.x;
+        // We evaluate curvature based on 2D polygon orientation.
+        // For general rounding, we approximate the arc with line segments.
+
+        // Center of arc
+        // Normal to n1
+        const perp1 = { x: -n1.y, y: n1.x };
+        // Ensure perp1 points inwards
+        if (perp1.x * v2.x + perp1.y * v2.y < 0) {
+            perp1.x = -perp1.x;
+            perp1.y = -perp1.y;
+        }
+
+        const cx = pt1.x + perp1.x * actualRadius;
+        const cy = pt1.y + perp1.y * actualRadius;
+
+        // Start and end angles
+        const a1 = Math.atan2(pt1.y - cy, pt1.x - cx);
+        const a2 = Math.atan2(pt2.y - cy, pt2.x - cx);
+
+        let deltaAngle = a2 - a1;
+        
+        // Correct angle wrapping based on turning direction
+        if (cross > 0) {
+            if (deltaAngle < 0) deltaAngle += 2 * Math.PI;
+        } else {
+            if (deltaAngle > 0) deltaAngle -= 2 * Math.PI;
+        }
+
+        const segments = Math.max(3, Math.ceil(Math.abs(deltaAngle) / (Math.PI / 8))); // One point per 22.5 deg approx
+
+        for (let j = 0; j <= segments; j++) {
+            const a = a1 + (j / segments) * deltaAngle;
+            result.push({
+                x: cx + actualRadius * Math.cos(a),
+                y: cy + actualRadius * Math.sin(a)
+            });
+        }
+    }
+
+    return result;
 }

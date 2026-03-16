@@ -17,8 +17,8 @@ export const HINGE_CUP_DIAMETER_MM = 35;
 export const HINGE_CENTER_OFFSET_MM = 22.5;
 
 // Angled corner constraints (CNC manufacturing limits)
-export const MIN_ANGLE_DEGREES = 15;
-export const MAX_ANGLE_DEGREES = 60;
+export const MIN_ANGLE_DEGREES = 1;
+export const MAX_ANGLE_DEGREES = 89;
 export const MIN_SHORT_SIDE_HEIGHT_MM = 0;
 export const MIN_CUTOUT_DIMENSION_MM = 0;
 export const MIN_PANEL_OPENING_MM = 30;

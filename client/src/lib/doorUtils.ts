@@ -84,6 +84,8 @@ export function getInnerEdgesAtY(
         const m = lch / lcw;
         const c = (h / 2 - lch) - m * (-w / 2) - totalVertShift;
         const xAtY = (y - c) / m;
+        
+        // The angled edge only applies if it's more restrictive than the vertical stile
         leftInner = Math.max(leftInner, xAtY);
     }
 
@@ -94,6 +96,8 @@ export function getInnerEdgesAtY(
         const m = -rch / rcw;
         const c = (h / 2 - rch) - m * (w / 2) - totalVertShift;
         const xAtY = (y - c) / m;
+        
+        // The angled edge only applies if it's more restrictive than the vertical stile
         rightInner = Math.min(rightInner, xAtY);
     }
 
@@ -227,28 +231,27 @@ export function createRoofPoints(
     }
 
     const getY = (x: number): number => {
-        if (hasR && x > intersectionXR) {
-            return mR * x + cR - rShift;
+        let y = h / 2 - flatTopInset;
+        if (hasR) {
+            const yR = mR * x + cR - rShift;
+            y = Math.min(y, yR);
         }
-        if (hasL && x < intersectionXL) {
-            return mL * x + cL - lShift;
+        if (hasL) {
+            const yL = mL * x + cL - lShift;
+            y = Math.min(y, yL);
         }
-        return h / 2 - flatTopInset;
+        return y;
     };
 
     const samples: number[] = [rightX, leftX];
-    if (hasR) {
-        // Add intersection point to samples so we get a vertex exactly at the corner
-        if (intersectionXR < rightX && intersectionXR > leftX) {
-            samples.push(intersectionXR);
-        }
+    if (hasR && intersectionXR < rightX && intersectionXR > leftX) {
+        samples.push(intersectionXR);
     }
-    if (hasL) {
-        if (intersectionXL < rightX && intersectionXL > leftX) {
-            samples.push(intersectionXL);
-        }
+    if (hasL && intersectionXL < rightX && intersectionXL > leftX) {
+        samples.push(intersectionXL);
     }
 
+    // Sort descending for polyline consistency
     return Array.from(new Set(samples))
         .sort((a, b) => b - a)
         .map((x) => ({ x, y: Math.max(getY(x), -h / 2 + 0.01) }));
