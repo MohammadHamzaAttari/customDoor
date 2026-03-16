@@ -36,9 +36,10 @@ const config: DxfDoorConfig = {
     panelCount: 3
 };
 
+async function run() {
 try {
     console.log("Generating DXF...");
-    const dxfContent = generateDoorDxf(config);
+    const dxfContent = await generateDoorDxf(config);
     console.log("DXF generated successfully. Length:", dxfContent.length);
     fs.writeFileSync("test.dxf", dxfContent);
 } catch (error) {
@@ -49,8 +50,10 @@ try {
 try {
     console.log("Generating DXF with 0 dimensions for cut...");
     const configZero: DxfDoorConfig = { ...config, leftTriangleCutoutWidth: 0, leftTriangleCutoutHeight: 0 };
-    const dxfContent = generateDoorDxf(configZero);
+    const dxfContent = await generateDoorDxf(configZero);
     console.log("DXF (zero cut) generated successfully. Length:", dxfContent.length);
 } catch (error) {
     console.error("Error generating DXF (zero cut):", error);
 }
+}
+run();

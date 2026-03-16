@@ -1,5 +1,6 @@
 import { DxfWriter, point3d, point2d, LWPolylineFlags } from "@tarikjabiri/dxf";
 import { getInnerProfilePoints, roundCorners, Point } from "./utils";
+import { getManufacturingSettings } from "./settings";
 
 export interface DxfDoorConfig {
   width: number;
@@ -43,17 +44,18 @@ function mirrorAndReverse(points: Point[], width: number): { point: any }[] {
     .map(p => ({ point: point2d(p.x, p.y) }));
 }
 
-export function generateDoorDxf(config: DxfDoorConfig): string {
+export async function generateDoorDxf(config: DxfDoorConfig): Promise<string> {
+  const settings = await getManufacturingSettings();
   const dxf = new DxfWriter();
 
   // --- REQUIRED CNC TOOLING LAYERS ---
-  dxf.addLayer("HINGE_SCREW_HOLES", 3, "CONTINUOUS");
-  dxf.addLayer("HINGE_CUPS", 3, "CONTINUOUS");
-  dxf.addLayer("INNER_REBATE", 1, "CONTINUOUS");
-  dxf.addLayer("INNER_PERIMETER_CUT", 1, "CONTINUOUS");
-  dxf.addLayer("PERIMETER_CUT", 5, "CONTINUOUS");
-  dxf.addLayer("panel", 2, "CONTINUOUS");
-  dxf.addLayer("PART_IDENTIFICATION", 7, "CONTINUOUS");
+  dxf.addLayer(settings.layers.hingeHoles, 3, "CONTINUOUS");
+  dxf.addLayer(settings.layers.hingeCups, 3, "CONTINUOUS");
+  dxf.addLayer(settings.layers.innerRebate, 1, "CONTINUOUS");
+  dxf.addLayer(settings.layers.innerPerimeter, 1, "CONTINUOUS");
+  dxf.addLayer(settings.layers.perimeter, 5, "CONTINUOUS");
+  dxf.addLayer(settings.layers.panel, 2, "CONTINUOUS");
+  dxf.addLayer(settings.layers.partIdentification, 7, "CONTINUOUS");
 
   const {
     width,
@@ -94,7 +96,7 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
   // ─── A. Outer Profile ───
   const outerPoints = getProfilePoints(width, height, aL, aR, lcw, lch, rcw, rch);
   const mirroredOuterPoints = mirrorAndReverse(outerPoints, width);
-  dxf.addLWPolyline(mirroredOuterPoints, { flags: LWPolylineFlags.Closed, layerName: "PERIMETER_CUT" });
+  dxf.addLWPolyline(mirroredOuterPoints, { flags: LWPolylineFlags.Closed, layerName: settings.layers.perimeter });
 
   // ─── B. Inner Profile & Panel ───
   if (panelType !== "NONE") {
@@ -151,7 +153,7 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
           sec.yBottom, sec.yTop
         );
         const mirroredInnerPoints = mirrorAndReverse(innerPoints, width);
-        dxf.addLWPolyline(mirroredInnerPoints, { flags: LWPolylineFlags.Closed, layerName: "INNER_PERIMETER_CUT" });
+        dxf.addLWPolyline(mirroredInnerPoints, { flags: LWPolylineFlags.Closed, layerName: settings.layers.innerPerimeter });
 
         // Inner Rebate
         const rM = config.rebateWidthMm || 10;
@@ -164,10 +166,10 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
           sec.yBottom - rM, sec.yTop + rM
         );
         const mirroredRebatePoints = mirrorAndReverse(rebatePoints, width);
-        dxf.addLWPolyline(mirroredRebatePoints, { flags: LWPolylineFlags.Closed, layerName: "INNER_REBATE" });
+        dxf.addLWPolyline(mirroredRebatePoints, { flags: LWPolylineFlags.Closed, layerName: settings.layers.innerRebate });
 
         // Panel Geometry
-        const panelUndersize = 0.175;
+        const panelUndersize = settings.panelOffsetToleranceMm;
         const panelRadius = 2.4;
 
         const pInset = -rM + panelUndersize; // Slightly smaller than rebate by 0.175mm on all sides
@@ -182,7 +184,7 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
 
         const roundedPanelPoints = roundCorners(rawPanelPoints, panelRadius);
         const dxfPanelPoints = mirrorAndReverse(roundedPanelPoints, width);
-        dxf.addLWPolyline(dxfPanelPoints, { flags: LWPolylineFlags.Closed, layerName: "panel" });
+        dxf.addLWPolyline(dxfPanelPoints, { flags: LWPolylineFlags.Closed, layerName: settings.layers.panel });
     }
   }
 
@@ -238,15 +240,15 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
       const mirrorX = width - originalX;
 
       // HINGE_CUPS (35mm Cup)
-      dxf.addCircle(point3d(mirrorX, y, 0), 35 / 2, { layerName: "HINGE_CUPS" });
+      dxf.addCircle(point3d(mirrorX, y, 0), 35 / 2, { layerName: settings.layers.hingeCups });
 
       // HINGE_SCREW_HOLES
       const screwOffset = 22.5; // 45mm spread
       const hingeType = h.type || h.hingeType || "SCREW_POINTS";
       const drillRadius = hingeType === "INSERTA" ? 4 : 2;
 
-      dxf.addCircle(point3d(mirrorX, y + screwOffset, 0), drillRadius, { layerName: "HINGE_SCREW_HOLES" });
-      dxf.addCircle(point3d(mirrorX, y - screwOffset, 0), drillRadius, { layerName: "HINGE_SCREW_HOLES" });
+      dxf.addCircle(point3d(mirrorX, y + screwOffset, 0), drillRadius, { layerName: settings.layers.hingeHoles });
+      dxf.addCircle(point3d(mirrorX, y - screwOffset, 0), drillRadius, { layerName: settings.layers.hingeHoles });
     });
   }
 
@@ -262,15 +264,15 @@ export function generateDoorDxf(config: DxfDoorConfig): string {
     let currentY = centerY + 30; // Start slightly above center
 
     if (customerName) {
-      dxf.addText(point3d(xOffset, currentY, 0), textHeight, `Customer: ${customerName}`, { layerName: "PART_IDENTIFICATION" });
+      dxf.addText(point3d(xOffset, currentY, 0), textHeight, `Customer: ${customerName}`, { layerName: settings.layers.partIdentification });
       currentY -= (textHeight + 10);
     }
     if (jobName) {
-      dxf.addText(point3d(xOffset, currentY, 0), textHeight, `Job: ${jobName}`, { layerName: "PART_IDENTIFICATION" });
+      dxf.addText(point3d(xOffset, currentY, 0), textHeight, `Job: ${jobName}`, { layerName: settings.layers.partIdentification });
       currentY -= (textHeight + 10);
     }
     if (doorId) {
-      dxf.addText(point3d(xOffset, currentY, 0), textHeight, `Door ID: ${doorId}`, { layerName: "PART_IDENTIFICATION" });
+      dxf.addText(point3d(xOffset, currentY, 0), textHeight, `Door ID: ${doorId}`, { layerName: settings.layers.partIdentification });
     }
   }
 

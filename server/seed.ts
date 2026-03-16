@@ -287,6 +287,14 @@ async function seed() {
             { settingKey: "FRONT_RECESS_MM", settingValue: "8", settingType: "NUMBER", description: "Front panel recess depth" },
             { settingKey: "PANEL_THICKNESS_MM", settingValue: "12", settingType: "NUMBER", description: "Center panel thickness" },
             { settingKey: "INTERNAL_CORNER_RADIUS_MM", settingValue: "2.5", settingType: "NUMBER", description: "Internal corner radius from CNC" },
+            { settingKey: "PANEL_OFFSET_TOLERANCE_MM", settingValue: "0.175", settingType: "NUMBER", description: "Panel undersize offset for nesting tolerance" },
+            { settingKey: "DXF_LAYER_PART_IDENTIFICATION", settingValue: "PART_IDENTIFICATION", settingType: "STRING", description: "Layer name for non-machining text" },
+            { settingKey: "DXF_LAYER_HINGE_HOLES", settingValue: "HINGE_SCREW_HOLES", settingType: "STRING", description: "Layer name for hinge screw holes" },
+            { settingKey: "DXF_LAYER_HINGE_CUPS", settingValue: "HINGE_CUPS", settingType: "STRING", description: "Layer name for hinge cup drill holes" },
+            { settingKey: "DXF_LAYER_INNER_REBATE", settingValue: "INNER_REBATE", settingType: "STRING", description: "Layer name for inner frame rebate pass" },
+            { settingKey: "DXF_LAYER_INNER_PERIMETER", settingValue: "INNER_PERIMETER_CUT", settingType: "STRING", description: "Layer name for inner frame continuous cutout" },
+            { settingKey: "DXF_LAYER_PERIMETER", settingValue: "PERIMETER_CUT", settingType: "STRING", description: "Layer name for outer frame continuous cutout" },
+            { settingKey: "DXF_LAYER_PANEL", settingValue: "panel", settingType: "STRING", description: "Layer name for nested panel cutout" },
         ]).onConflictDoNothing();
 
         console.log("✅ Database seed completed successfully!");

@@ -727,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let content;
       if (type === "dxf") {
         const config: DxfDoorConfig = { ...cached.config, height: cached.config.height };
-        content = generateDoorDxf(config);
+        content = await generateDoorDxf(config);
         res.setHeader("Content-Type", "application/dxf");
       } else {
         const config: SvgDoorConfig = {
@@ -1157,7 +1157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         try {
           // DXF
-          const dxfContent = generateDoorDxf(fullConfig as any);
+          const dxfContent = await generateDoorDxf(fullConfig as any);
           const dxfFilename = `${dbItem.id}_door.dxf`;
           const dxfPath = path.join(storageDir, dxfFilename);
           await fs.promises.writeFile(dxfPath, dxfContent);

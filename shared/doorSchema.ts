@@ -221,7 +221,9 @@ export const DEFAULT_PRICING = {
   DELIVERY_PER_MILE: 0.45,
   DELIVERY_PER_HOUR: 13.00,
   VAT_RATE: 0.20,
-} as const;
+};
+
+export type PricingConfig = typeof DEFAULT_PRICING;
 
 // =====================================================
 // PRICING CALCULATOR (shared, deterministic)
@@ -229,7 +231,7 @@ export const DEFAULT_PRICING = {
 
 export function calculateDoorPrice(
   config: DoorConfig,
-  pricing = DEFAULT_PRICING
+  pricing: PricingConfig = DEFAULT_PRICING
 ): {
   basePrice: number;
   angledSurcharge: number;
